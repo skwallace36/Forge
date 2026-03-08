@@ -1359,7 +1359,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
 
         let ch = text.character(at: cursor - 1)
-        let charStr = String(Character(UnicodeScalar(ch)!))
+        guard let scalar = Unicode.Scalar(ch) else { return }
+        let charStr = String(Character(scalar))
 
         if charStr == "." {
             // Auto-trigger completion after `.` with a short delay
@@ -1371,11 +1372,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
         } else if completionWindow?.isShowing == true {
             // If completion is showing, dismiss on non-identifier characters
-            guard let scalar = Unicode.Scalar(ch) else {
-                completionWindow?.dismiss()
-                return
-            }
-            if !CharacterSet.alphanumerics.contains(scalar) && scalar != "_" {
+            if !CharacterSet.alphanumerics.contains(scalar) && scalar != Unicode.Scalar("_") {
                 completionWindow?.dismiss()
             }
         }

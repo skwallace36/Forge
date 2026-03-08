@@ -282,10 +282,10 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
     }
 
     func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
-        if item == nil {
-            return filteredChildren(of: rootNode!)[index]
+        if item == nil, let root = rootNode {
+            return filteredChildren(of: root)[index]
         }
-        let node = item as! FileNode
+        guard let node = item as? FileNode else { return NSNull() }
         return filteredChildren(of: node)[index]
     }
 
