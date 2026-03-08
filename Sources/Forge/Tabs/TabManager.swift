@@ -97,4 +97,37 @@ class TabManager {
         doc.loadFromDisk()
         openOrFocus(document: doc)
     }
+
+    /// Close all tabs except the one at the given index
+    func closeOthers(keepingIndex index: Int) {
+        guard index >= 0 && index < tabs.count else { return }
+        let kept = tabs[index]
+        for (i, tab) in tabs.enumerated() where i != index {
+            recentlyClosed.append(tab.document)
+        }
+        tabs = [kept]
+        selectedIndex = 0
+    }
+
+    /// Close all tabs
+    func closeAll() {
+        for tab in tabs {
+            recentlyClosed.append(tab.document)
+        }
+        tabs.removeAll()
+        selectedIndex = -1
+    }
+
+    /// Close all tabs to the right of the given index
+    func closeToRight(fromIndex index: Int) {
+        guard index >= 0 && index < tabs.count - 1 else { return }
+        let removed = tabs[(index + 1)...]
+        for tab in removed {
+            recentlyClosed.append(tab.document)
+        }
+        tabs.removeSubrange((index + 1)...)
+        if selectedIndex > index {
+            selectedIndex = index
+        }
+    }
 }

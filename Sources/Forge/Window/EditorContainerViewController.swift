@@ -245,6 +245,21 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         refreshEditor()
     }
 
+    func tabBarDidRequestCloseOthers(_ tabBar: TabBar, keepingIndex index: Int) {
+        project.tabManager.closeOthers(keepingIndex: index)
+        refreshEditor()
+    }
+
+    func tabBarDidRequestCloseAll(_ tabBar: TabBar) {
+        project.tabManager.closeAll()
+        refreshEditor()
+    }
+
+    func tabBarDidRequestCloseToRight(_ tabBar: TabBar, fromIndex index: Int) {
+        project.tabManager.closeToRight(fromIndex: index)
+        refreshEditor()
+    }
+
     // MARK: - Minimap Toggle
 
     @objc func toggleMinimap(_ sender: Any?) {

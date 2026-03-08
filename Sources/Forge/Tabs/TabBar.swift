@@ -4,6 +4,9 @@ protocol TabBarDelegate: AnyObject {
     func tabBar(_ tabBar: TabBar, didSelectTabAt index: Int)
     func tabBar(_ tabBar: TabBar, didCloseTabAt index: Int)
     func tabBar(_ tabBar: TabBar, didMoveTabFrom sourceIndex: Int, to destIndex: Int)
+    func tabBarDidRequestCloseOthers(_ tabBar: TabBar, keepingIndex index: Int)
+    func tabBarDidRequestCloseAll(_ tabBar: TabBar)
+    func tabBarDidRequestCloseToRight(_ tabBar: TabBar, fromIndex index: Int)
 }
 
 /// Custom tab bar view — single row of tabs above the editor.
@@ -50,6 +53,7 @@ class TabBar: NSView {
             let button = TabButton(frame: .zero)
             button.title = tab.title
             button.fileExtension = tab.document.fileExtension
+            button.fileURL = tab.url
             button.isSelected = (index == selectedIndex)
             button.isModified = tab.isModified
             button.index = index
@@ -128,6 +132,75 @@ class TabBar: NSView {
         }
     }
 
+    // MARK: - Tab Context Menu
+
+    func showContextMenu(for button: TabButton, event: NSEvent) {
+        let menu = NSMenu()
+        let index = button.index
+
+        let closeItem = NSMenuItem(title: "Close", action: #selector(contextClose(_:)), keyEquivalent: "")
+        closeItem.target = self
+        closeItem.tag = index
+        menu.addItem(closeItem)
+
+        let closeOthersItem = NSMenuItem(title: "Close Others", action: #selector(contextCloseOthers(_:)), keyEquivalent: "")
+        closeOthersItem.target = self
+        closeOthersItem.tag = index
+        closeOthersItem.isEnabled = tabButtons.count > 1
+        menu.addItem(closeOthersItem)
+
+        let closeRightItem = NSMenuItem(title: "Close Tabs to the Right", action: #selector(contextCloseRight(_:)), keyEquivalent: "")
+        closeRightItem.target = self
+        closeRightItem.tag = index
+        closeRightItem.isEnabled = index < tabButtons.count - 1
+        menu.addItem(closeRightItem)
+
+        let closeAllItem = NSMenuItem(title: "Close All", action: #selector(contextCloseAll(_:)), keyEquivalent: "")
+        closeAllItem.target = self
+        menu.addItem(closeAllItem)
+
+        menu.addItem(.separator())
+
+        let copyPathItem = NSMenuItem(title: "Copy Path", action: #selector(contextCopyPath(_:)), keyEquivalent: "")
+        copyPathItem.target = self
+        copyPathItem.representedObject = button.fileURL
+        menu.addItem(copyPathItem)
+
+        let revealItem = NSMenuItem(title: "Reveal in Finder", action: #selector(contextRevealInFinder(_:)), keyEquivalent: "")
+        revealItem.target = self
+        revealItem.representedObject = button.fileURL
+        menu.addItem(revealItem)
+
+        NSMenu.popUpContextMenu(menu, with: event, for: button)
+    }
+
+    @objc private func contextClose(_ sender: NSMenuItem) {
+        delegate?.tabBar(self, didCloseTabAt: sender.tag)
+    }
+
+    @objc private func contextCloseOthers(_ sender: NSMenuItem) {
+        delegate?.tabBarDidRequestCloseOthers(self, keepingIndex: sender.tag)
+    }
+
+    @objc private func contextCloseRight(_ sender: NSMenuItem) {
+        delegate?.tabBarDidRequestCloseToRight(self, fromIndex: sender.tag)
+    }
+
+    @objc private func contextCloseAll(_ sender: NSMenuItem) {
+        delegate?.tabBarDidRequestCloseAll(self)
+    }
+
+    @objc private func contextCopyPath(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? URL else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(url.path, forType: .string)
+    }
+
+    @objc private func contextRevealInFinder(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? URL else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
     override var intrinsicContentSize: NSSize {
         NSSize(width: NSView.noIntrinsicMetric, height: tabHeight)
     }
@@ -151,6 +224,7 @@ class TabButton: NSView {
     var isSelected: Bool = false { didSet { needsDisplay = true } }
     var isModified: Bool = false { didSet { needsDisplay = true } }
     var index: Int = 0
+    var fileURL: URL?
 
     weak var target: AnyObject?
     var selectAction: Selector?
@@ -218,6 +292,11 @@ class TabButton: NSView {
                 _ = target.perform(action, with: self)
             }
         }
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        guard let tabBar = superview as? TabBar else { return }
+        tabBar.showContextMenu(for: self, event: event)
     }
 
     override func draw(_ dirtyRect: NSRect) {
