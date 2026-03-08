@@ -100,7 +100,7 @@ class CompletionWindow: NSPanel, NSTableViewDataSource, NSTableViewDelegate {
         items = []
     }
 
-    /// Filter the completion list by prefix (case-insensitive)
+    /// Filter the completion list by prefix (case-insensitive), ranked by match quality
     func filterItems(prefix: String) {
         guard !prefix.isEmpty else {
             items = allItems
@@ -110,20 +110,38 @@ class CompletionWindow: NSPanel, NSTableViewDataSource, NSTableViewDelegate {
         }
 
         let lowered = prefix.lowercased()
-        items = allItems.filter { item in
-            item.label.lowercased().contains(lowered)
-                || (item.insertText?.lowercased().contains(lowered) ?? false)
+
+        // Score each item: prefix match > case-insensitive prefix > contains
+        struct Scored {
+            let item: LSPCompletionItem
+            let score: Int
         }
 
-        if items.isEmpty {
+        let scored: [Scored] = allItems.compactMap { item in
+            let label = item.label
+            let labelLow = label.lowercased()
+            if label.hasPrefix(prefix) {
+                return Scored(item: item, score: 3)  // exact prefix
+            } else if labelLow.hasPrefix(lowered) {
+                return Scored(item: item, score: 2)  // case-insensitive prefix
+            } else if labelLow.contains(lowered) {
+                return Scored(item: item, score: 1)  // substring match
+            } else if item.insertText?.lowercased().contains(lowered) == true {
+                return Scored(item: item, score: 0)  // insertText match
+            }
+            return nil
+        }
+
+        if scored.isEmpty {
             dismiss()
             return
         }
 
+        items = scored.sorted { $0.score > $1.score }.map(\.item)
         tableView.reloadData()
         resizeToFit()
 
-        if items.count > 0 {
+        if !items.isEmpty {
             tableView.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
         }
     }

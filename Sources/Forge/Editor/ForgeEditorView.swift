@@ -1478,27 +1478,29 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             }
             completionTriggerWorkItem = work
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
+        } else if isIdent && completionWindow?.isShowing == true {
+            // Completion is showing — re-filter with updated prefix
+            guard cursor > completionPrefixStart else {
+                completionWindow?.dismiss()
+                return
+            }
+            let prefix = text.substring(with: NSRange(location: completionPrefixStart, length: cursor - completionPrefixStart))
+            completionWindow?.filterItems(prefix: prefix)
         } else if isIdent {
-            if completionWindow?.isShowing == true {
-                // Filter existing completion list as user types
-                let prefix = text.substring(with: NSRange(location: completionPrefixStart, length: cursor - completionPrefixStart))
-                completionWindow?.filterItems(prefix: prefix)
-            } else {
-                // Count consecutive identifier characters to auto-trigger after 3
-                var wordStart = cursor - 1
-                while wordStart > 0 && isIdentChar(text.character(at: wordStart - 1)) {
-                    wordStart -= 1
+            // Not showing — check if we should auto-trigger
+            var wordStart = cursor - 1
+            while wordStart > 0 && isIdentChar(text.character(at: wordStart - 1)) {
+                wordStart -= 1
+            }
+            let wordLen = cursor - wordStart
+            if wordLen >= 3 {
+                completionPrefixStart = wordStart
+                completionTriggerWorkItem?.cancel()
+                let work = DispatchWorkItem { [weak self] in
+                    self?.triggerCompletion()
                 }
-                let wordLen = cursor - wordStart
-                if wordLen >= 3 {
-                    completionPrefixStart = wordStart
-                    completionTriggerWorkItem?.cancel()
-                    let work = DispatchWorkItem { [weak self] in
-                        self?.triggerCompletion()
-                    }
-                    completionTriggerWorkItem = work
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
-                }
+                completionTriggerWorkItem = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
             }
         } else {
             // Non-identifier character — dismiss
