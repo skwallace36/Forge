@@ -2038,7 +2038,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         // Position at cursor
         let cursorPos = textView.selectedRange().location
         let glyphIndex = textView.layoutManager?.glyphIndexForCharacter(at: cursorPos) ?? 0
-        var rect = textView.layoutManager?.boundingRect(forGlyphRange: NSRange(location: glyphIndex, length: 1), in: textView.textContainer!) ?? .zero
+        guard let textContainer = textView.textContainer else { return }
+        var rect = textView.layoutManager?.boundingRect(forGlyphRange: NSRange(location: glyphIndex, length: 1), in: textContainer) ?? .zero
         rect.origin.x += textView.textContainerOrigin.x
         rect.origin.y += textView.textContainerOrigin.y
 

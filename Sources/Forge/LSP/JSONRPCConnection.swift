@@ -171,8 +171,8 @@ class JSONRPCConnection {
         }
 
         if let id = response.id, let continuation = pendingRequests.removeValue(forKey: id) {
-            if response.error != nil {
-                continuation.resume(throwing: LSPError.serverError(response.error!.message))
+            if let error = response.error {
+                continuation.resume(throwing: LSPError.serverError(error.message))
             } else {
                 continuation.resume(returning: response)
             }

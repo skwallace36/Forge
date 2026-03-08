@@ -248,12 +248,13 @@ class TabButton: NSView {
         if let existing = trackingArea {
             removeTrackingArea(existing)
         }
-        trackingArea = NSTrackingArea(
+        let area = NSTrackingArea(
             rect: bounds,
             options: [.mouseEnteredAndExited, .activeInActiveApp],
             owner: self
         )
-        addTrackingArea(trackingArea!)
+        trackingArea = area
+        addTrackingArea(area)
     }
 
     override func mouseEntered(with event: NSEvent) {
