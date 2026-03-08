@@ -139,7 +139,8 @@ class SyntaxHighlighter {
         if let bundle = Bundle.allBundles.first(where: { $0.bundlePath.contains(bundleName) }),
            let queryURL = bundle.url(forResource: "highlights", withExtension: "scm", subdirectory: "queries") {
             if let querySource = try? String(contentsOf: queryURL),
-               let query = try? Query(language: language, data: querySource.data(using: .utf8)!) {
+               let queryData = querySource.data(using: .utf8),
+               let query = try? Query(language: language, data: queryData) {
                 return query
             }
         }
@@ -148,14 +149,16 @@ class SyntaxHighlighter {
         for bundle in Bundle.allBundles {
             if let queryURL = bundle.url(forResource: "highlights", withExtension: "scm", subdirectory: "queries") {
                 if let querySource = try? String(contentsOf: queryURL),
-                   let query = try? Query(language: language, data: querySource.data(using: .utf8)!) {
+                   let queryData = querySource.data(using: .utf8),
+                   let query = try? Query(language: language, data: queryData) {
                     return query
                 }
             }
         }
 
         // Last resort: use embedded minimal query
-        return try? Query(language: language, data: SyntaxHighlighter.minimalSwiftQuery.data(using: .utf8)!)
+        guard let queryData = SyntaxHighlighter.minimalSwiftQuery.data(using: .utf8) else { return nil }
+        return try? Query(language: language, data: queryData)
     }
 
     /// Highlight query for Swift — uses node types from tree-sitter-swift 0.7.x
