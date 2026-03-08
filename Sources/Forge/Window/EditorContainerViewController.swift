@@ -61,12 +61,15 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         minimap.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(minimap)
 
-        // Placeholder
+        // Welcome placeholder
         placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
-        placeholderLabel.font = NSFont.monospacedSystemFont(ofSize: 14, weight: .light)
-        placeholderLabel.textColor = NSColor(white: 0.35, alpha: 1.0)
+        placeholderLabel.isEditable = false
+        placeholderLabel.isSelectable = false
+        placeholderLabel.isBezeled = false
+        placeholderLabel.drawsBackground = false
         placeholderLabel.alignment = .center
         placeholderLabel.maximumNumberOfLines = 0
+        updateWelcomeText()
         container.addSubview(placeholderLabel)
 
         // Binary file placeholder
@@ -332,6 +335,63 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
                 window.isDocumentEdited = false
             }
         }
+    }
+
+    // MARK: - Welcome Screen
+
+    private func updateWelcomeText() {
+        let para = NSMutableParagraphStyle()
+        para.alignment = .center
+        para.lineSpacing = 6
+
+        let str = NSMutableAttributedString()
+
+        // App name
+        str.append(NSAttributedString(string: "Forge\n", attributes: [
+            .font: NSFont.systemFont(ofSize: 28, weight: .ultraLight),
+            .foregroundColor: NSColor(white: 0.50, alpha: 1.0),
+            .paragraphStyle: para,
+        ]))
+
+        // Project name
+        str.append(NSAttributedString(string: "\(project.displayName)\n\n", attributes: [
+            .font: NSFont.systemFont(ofSize: 15, weight: .regular),
+            .foregroundColor: NSColor(white: 0.40, alpha: 1.0),
+            .paragraphStyle: para,
+        ]))
+
+        // Quick actions
+        let shortcutPara = NSMutableParagraphStyle()
+        shortcutPara.alignment = .center
+        shortcutPara.lineSpacing = 4
+
+        let dimColor = NSColor(white: 0.30, alpha: 1.0)
+        let keyColor = NSColor(white: 0.45, alpha: 1.0)
+        let monoFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        let labelFont = NSFont.systemFont(ofSize: 12, weight: .regular)
+
+        let shortcuts: [(String, String)] = [
+            ("⇧⌘O", "Open Quickly"),
+            ("⌘O", "Open File"),
+            ("⌘N", "New File"),
+            ("⇧⌘P", "Command Palette"),
+            ("⌘⇧F", "Find in Project"),
+        ]
+
+        for (key, label) in shortcuts {
+            str.append(NSAttributedString(string: "\(key)  ", attributes: [
+                .font: monoFont,
+                .foregroundColor: keyColor,
+                .paragraphStyle: shortcutPara,
+            ]))
+            str.append(NSAttributedString(string: "\(label)\n", attributes: [
+                .font: labelFont,
+                .foregroundColor: dimColor,
+                .paragraphStyle: shortcutPara,
+            ]))
+        }
+
+        placeholderLabel.attributedStringValue = str
     }
 
     // MARK: - Document Symbols
