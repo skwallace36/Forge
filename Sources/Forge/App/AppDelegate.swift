@@ -202,6 +202,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         editMenu.addItem(.separator())
 
+        let sortImportsItem = NSMenuItem(title: "Sort Imports", action: #selector(EditorContainerViewController.sortImports(_:)), keyEquivalent: "o")
+        sortImportsItem.keyEquivalentModifierMask = [.control, .option]
+        editMenu.addItem(sortImportsItem)
+
         let sortLinesItem = NSMenuItem(title: "Sort Lines", action: #selector(EditorContainerViewController.sortLines(_:)), keyEquivalent: "")
         editMenu.addItem(sortLinesItem)
 

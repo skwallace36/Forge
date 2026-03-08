@@ -616,6 +616,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.renameSymbol(sender)
     }
 
+    @objc func sortImports(_ sender: Any?) {
+        editor.sortImports(sender)
+    }
+
     @objc func increaseFontSize(_ sender: Any?) {
         editor.increaseFontSize()
     }

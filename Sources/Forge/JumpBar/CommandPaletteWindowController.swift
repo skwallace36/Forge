@@ -131,6 +131,8 @@ class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate, N
                            action: #selector(EditorContainerViewController.goToLine(_:)), target: nil),
             PaletteCommand(title: "Edit All in Scope (Rename)", shortcut: "⌃⌘E", category: "Edit",
                            action: #selector(EditorContainerViewController.renameSymbol(_:)), target: nil),
+            PaletteCommand(title: "Sort Imports", shortcut: "⌃⌥O", category: "Edit",
+                           action: #selector(EditorContainerViewController.sortImports(_:)), target: nil),
             PaletteCommand(title: "Sort Lines", shortcut: "", category: "Edit",
                            action: #selector(EditorContainerViewController.sortLines(_:)), target: nil),
             PaletteCommand(title: "Remove Duplicate Lines", shortcut: "", category: "Edit",

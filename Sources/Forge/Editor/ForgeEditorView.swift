@@ -2169,6 +2169,77 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
     }
 
+    /// Sort import/include statements at the top of the file alphabetically.
+    @objc func sortImports(_ sender: Any? = nil) {
+        guard let ts = textView.textStorage else { return }
+        let text = ts.string as NSString
+        let lines = text.components(separatedBy: "\n") as [String]
+
+        // Find the contiguous block of import/include lines at the top (skip blank lines and comments)
+        var importStart = -1
+        var importEnd = -1
+        var importLines: [String] = []
+
+        for (i, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("import ") || trimmed.hasPrefix("#import ") ||
+               trimmed.hasPrefix("#include ") || trimmed.hasPrefix("@import ") ||
+               trimmed.hasPrefix("from ") || trimmed.hasPrefix("require ") ||
+               trimmed.hasPrefix("use ") {
+                if importStart == -1 { importStart = i }
+                importEnd = i
+                importLines.append(line)
+            } else if trimmed.isEmpty || trimmed.hasPrefix("//") || trimmed.hasPrefix("#!") {
+                // Allow blank lines and comments before/between imports
+                if importStart != -1 {
+                    // If we already found imports, include blank/comment lines between them
+                    continue
+                }
+            } else if importStart != -1 {
+                break
+            }
+        }
+
+        guard importLines.count >= 2 else { return }
+
+        // Extract only the import lines (not interspersed comments/blanks)
+        var actualImports: [String] = []
+        for i in importStart...importEnd {
+            let trimmed = lines[i].trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("import ") || trimmed.hasPrefix("#import ") ||
+               trimmed.hasPrefix("#include ") || trimmed.hasPrefix("@import ") ||
+               trimmed.hasPrefix("from ") || trimmed.hasPrefix("require ") ||
+               trimmed.hasPrefix("use ") {
+                actualImports.append(lines[i])
+            }
+        }
+
+        let sorted = actualImports.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        guard sorted != actualImports else { return } // Already sorted
+
+        // Rebuild the import region with sorted imports
+        var newLines = Array(lines[0..<importStart])
+        newLines.append(contentsOf: sorted)
+        // Preserve any non-import lines in the range (comments)
+        for i in importStart...importEnd {
+            let trimmed = lines[i].trimmingCharacters(in: .whitespaces)
+            if !trimmed.hasPrefix("import ") && !trimmed.hasPrefix("#import ") &&
+               !trimmed.hasPrefix("#include ") && !trimmed.hasPrefix("@import ") &&
+               !trimmed.hasPrefix("from ") && !trimmed.hasPrefix("require ") &&
+               !trimmed.hasPrefix("use ") {
+                // This was a blank line or comment — skip, they'll be after imports
+            }
+        }
+        newLines.append(contentsOf: lines[(importEnd + 1)...])
+
+        let newText = newLines.joined(separator: "\n")
+        let fullRange = NSRange(location: 0, length: ts.length)
+        if textView.shouldChangeText(in: fullRange, replacementString: newText) {
+            ts.replaceCharacters(in: fullRange, with: newText)
+            textView.didChangeText()
+        }
+    }
+
     func removeDuplicateLines() {
         guard let ts = textView.textStorage else { return }
         let text = ts.string as NSString
