@@ -102,6 +102,10 @@ See PLAN.md for full phase breakdown. Short version:
 - Git blame annotation on gutter hover (author, date, commit summary)
 - Inline diagnostic messages (error/warning banners after line content, toggleable)
 - Sticky scroll headers (enclosing scope pinned at top while scrolling, toggleable)
+- Sort Imports command (⌃⌥O) — alphabetical sorting of import statements
+- Line bookmarks (⌘F2 toggle, F2/⇧F2 navigate, gutter diamonds, minimap markers)
+- Clipboard history (⌃⇧V) — paste from ring of 20 recent clipboard entries
+- Both brackets highlighted in matching pairs
 
 ## Autonomous Development Mode
 
