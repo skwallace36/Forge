@@ -1,6 +1,6 @@
 import AppKit
 
-class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDelegate {
+class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDelegate, NSToolbarDelegate {
 
     let project: ForgeProject
     private var splitViewController: MainSplitViewController!
@@ -31,6 +31,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         super.init(window: window)
         window.delegate = self
 
+        setupToolbar(window)
+
         splitViewController = MainSplitViewController(project: project, windowController: self)
         window.contentViewController = splitViewController
 
@@ -54,6 +56,85 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) not implemented")
+    }
+
+    // MARK: - Toolbar
+
+    private static let toolbarBackForward = NSToolbarItem.Identifier("backForward")
+    private static let toolbarRun = NSToolbarItem.Identifier("run")
+    private static let toolbarStop = NSToolbarItem.Identifier("stop")
+    private static let toolbarBuild = NSToolbarItem.Identifier("build")
+
+    private func setupToolbar(_ window: NSWindow) {
+        let toolbar = NSToolbar(identifier: "ForgeMainToolbar")
+        toolbar.delegate = self
+        toolbar.displayMode = .iconOnly
+        toolbar.allowsUserCustomization = false
+        window.toolbar = toolbar
+        window.toolbarStyle = .unified
+    }
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [Self.toolbarBackForward, .flexibleSpace, Self.toolbarBuild, Self.toolbarRun, Self.toolbarStop]
+    }
+
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        toolbarDefaultItemIdentifiers(toolbar)
+    }
+
+    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        switch itemIdentifier {
+        case Self.toolbarBackForward:
+            let group = NSToolbarItemGroup(itemIdentifier: itemIdentifier)
+
+            let backItem = NSToolbarItem(itemIdentifier: NSToolbarItem.Identifier("back"))
+            backItem.image = NSImage(systemSymbolName: "chevron.left", accessibilityDescription: "Back")
+            backItem.label = "Back"
+            backItem.action = #selector(goBack(_:))
+            backItem.target = self
+
+            let forwardItem = NSToolbarItem(itemIdentifier: NSToolbarItem.Identifier("forward"))
+            forwardItem.image = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: "Forward")
+            forwardItem.label = "Forward"
+            forwardItem.action = #selector(goForward(_:))
+            forwardItem.target = self
+
+            group.subitems = [backItem, forwardItem]
+            group.selectionMode = .momentary
+            group.controlRepresentation = .automatic
+            group.label = "Navigation"
+            return group
+
+        case Self.toolbarBuild:
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+            item.image = NSImage(systemSymbolName: "hammer", accessibilityDescription: "Build")
+            item.label = "Build"
+            item.toolTip = "Build (⌘B)"
+            item.action = #selector(buildProject(_:))
+            item.target = self
+            return item
+
+        case Self.toolbarRun:
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+            item.image = NSImage(systemSymbolName: "play.fill", accessibilityDescription: "Run")
+            item.label = "Run"
+            item.toolTip = "Run (⌘R)"
+            item.action = #selector(runProject(_:))
+            item.target = self
+            return item
+
+        case Self.toolbarStop:
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+            item.image = NSImage(systemSymbolName: "stop.fill", accessibilityDescription: "Stop")
+            item.label = "Stop"
+            item.toolTip = "Stop (⌘.)"
+            item.action = #selector(stopBuild(_:))
+            item.target = self
+            return item
+
+        default:
+            return nil
+        }
     }
 
     // MARK: - NSWindowDelegate
