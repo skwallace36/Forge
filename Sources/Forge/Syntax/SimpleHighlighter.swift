@@ -73,6 +73,8 @@ class SimpleHighlighter {
             return rustRules()
         case "toml":
             return tomlRules()
+        case "c", "h", "cpp", "cc", "cxx", "hpp", "m", "mm":
+            return cFamilyRules()
         default:
             return genericRules()
         }
@@ -257,6 +259,31 @@ class SimpleHighlighter {
             rule(#"'[^']*'"#, "string"),
             rule(#"\b\d+(?:\.\d+)?\b"#, "number"),
             rule(#"\b(?:true|false)\b"#, "keyword"),
+        ]
+    }
+
+    private static func cFamilyRules() -> [HighlightRule] {
+        return [
+            // Line comments
+            rule(#"//.*$"#, "comment", options: .anchorsMatchLines),
+            // Preprocessor directives
+            rule(#"^\s*#\s*\w+"#, "keyword", options: .anchorsMatchLines),
+            // Strings
+            rule(#""[^"\\]*(?:\\.[^"\\]*)*""#, "string"),
+            rule(#"'[^'\\]*(?:\\.[^'\\]*)*'"#, "string"),
+            // Numbers (hex, octal, float, int)
+            rule(#"\b0[xX][0-9a-fA-F]+\b"#, "number"),
+            rule(#"\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?[fFlLuU]?\b"#, "number"),
+            // Keywords
+            rule(#"\b(?:auto|break|case|char|const|continue|default|do|double|else|enum|extern|float|for|goto|if|inline|int|long|register|return|short|signed|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile|while)\b"#, "keyword"),
+            // C++ keywords
+            rule(#"\b(?:class|namespace|template|typename|virtual|override|final|public|private|protected|new|delete|try|catch|throw|const_cast|dynamic_cast|reinterpret_cast|static_cast|nullptr|bool|true|false|this|using|constexpr|noexcept|decltype|explicit|mutable|operator|friend)\b"#, "keyword"),
+            // Objective-C keywords
+            rule(#"@(?:interface|implementation|end|protocol|property|synthesize|dynamic|class|selector|encode|autoreleasepool|try|catch|finally|throw|synchronized|optional|required|public|private|protected|package|import|compatibility_alias|available)\b"#, "keyword"),
+            // Common types
+            rule(#"\b(?:NSString|NSArray|NSDictionary|NSInteger|NSUInteger|NSObject|BOOL|YES|NO|nil|self|super|id|SEL|IMP|Class|CGFloat|CGRect|CGPoint|CGSize|NSRect|NSPoint|NSSize)\b"#, "type"),
+            // Function declarations (simplified)
+            rule(#"\b[a-zA-Z_]\w*(?=\s*\()"#, "function"),
         ]
     }
 
