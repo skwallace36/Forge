@@ -34,23 +34,38 @@ AppKit window with NSSplitView. Four panel positions:
 Navigation: ⇧⌘O (Open Quickly), ⌘⇧J (reveal in navigator), ⌃⌘←/→ (back/forward)
 Tabs: ⌘⇧[ / ⌘⇧] (prev/next), ⌘W (close), ⌘⇧T (reopen)
 Panels: ⌘0 (navigator), ⌘⇧Y (bottom)
-Edit: ⌘/ (toggle comment), ⌘⌥[/] (move line up/down), ⌃Space (completion)
+Edit: ⌘/ (toggle comment), ⌘⌥[/] (move line up/down), ⌃Space (completion), ⌃I (re-indent)
 Build: ⌘B (build), ⌘R (run), ⌘⇧K (clean), ⌘. (stop)
-Search: ⌘F (find in file), ⌘⇧F (find in project)
+Search: ⌘F (find in file), ⌘⌥F (find & replace), ⌘⇧F (find in project)
+Mouse: ⌘-click (jump to definition), ⌥-click (Quick Help hover)
 
 ## Implementation Phases
 
-Phases 0-6 are **COMPLETE**. Currently working on: **Polish and Phase 7**
+Phases 0-6 are **COMPLETE**. Editor polish pass is **IN PROGRESS**. Phase 7 pending.
 
 See PLAN.md for full phase breakdown. Short version:
 0. ~~Window + text view + tabs (basic skeleton)~~ ✓
-1. ~~tree-sitter syntax highlighting~~ ✓ (Swift via tree-sitter, JSON/MD/YAML/Python via regex)
-2. ~~File navigator~~ ✓ (icons, auto-expand, reveal ⌘⇧J, auto-refresh on activate)
-3. ~~SourceKit-LSP integration~~ ✓ (diagnostics, completion ⌃Space, jump-to-def ⌘-click)
+1. ~~tree-sitter syntax highlighting~~ ✓ (Swift via tree-sitter, 12+ languages via regex)
+2. ~~File navigator~~ ✓ (icons, FSEvents watcher, context menu, reveal ⌘⇧J)
+3. ~~SourceKit-LSP integration~~ ✓ (diagnostics, completion, jump-to-def, hover)
 4. ~~Open Quickly (⇧⌘O)~~ ✓
 5. ~~Build system~~ ✓ (⌘B build, ⌘R run, ⌘⇧K clean, ⌘. stop, clickable errors)
 6. ~~Terminal / Claude panel~~ ✓ (SwiftTerm, shell + claude tabs)
 7. Pepper / Hub integration
+
+### Editor Polish (done)
+- Minimap code overview
+- Occurrence highlighting (word under cursor)
+- Bracket matching
+- Tab drag-to-reorder
+- Gutter click-to-select-line
+- Binary file detection
+- External file change detection
+- Large file performance (skip highlighting > 1MB)
+- Window state persistence (frame + open tabs)
+- Find & Replace (⌘⌥F), Re-indent (⌃I)
+- Navigator context menu (New File, Rename, Delete, Reveal in Finder)
+- 30+ file type icons
 
 ## Autonomous Development Mode
 
@@ -100,7 +115,7 @@ When Stuart says "keep going", "continue", "start phase N", or similar — work 
 Sources/Forge/
 ├── App/           — AppDelegate, ForgeProject
 ├── Window/        — MainWindowController, MainSplitViewController, EditorContainerViewController
-├── Editor/        — ForgeEditorManager, GutterView, ForgeDocument, StatusBar, CompletionWindow
+├── Editor/        — ForgeEditorManager, GutterView, MinimapView, ForgeDocument, StatusBar, CompletionWindow
 ├── Tabs/          — TabBar, TabManager
 ├── Navigator/     — NavigatorViewController (NSOutlineView), FileNode
 ├── JumpBar/       — JumpBar, OpenQuicklyWindowController
@@ -108,5 +123,5 @@ Sources/Forge/
 ├── Syntax/        — SyntaxHighlighter (tree-sitter), SimpleHighlighter (regex), Theme
 ├── Build/         — BuildSystem
 ├── Bottom/        — BottomPanelViewController, TerminalPanelView, SearchResultsView
-└── Util/          — NavigationHistory, FuzzyMatch
+└── Util/          — NavigationHistory, FuzzyMatch, FileSystemWatcher
 ```
