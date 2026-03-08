@@ -40,6 +40,8 @@ class ForgeProject {
             return existing
         }
         let doc = ForgeDocument(url: url)
+        doc.projectRoot = rootURL
+        doc.reloadIndentSettings()
         openDocuments[url] = doc
 
         // Notify LSP

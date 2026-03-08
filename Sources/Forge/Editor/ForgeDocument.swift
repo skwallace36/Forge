@@ -20,6 +20,8 @@ class ForgeDocument {
     private(set) var detectedTabWidth: Int?
     /// Whether this file uses tabs (nil = use global preference)
     private(set) var detectedUseTabs: Bool?
+    /// Project root for .editorconfig lookup
+    var projectRoot: URL?
 
     init(url: URL) {
         self.url = url
@@ -57,11 +59,37 @@ class ForgeDocument {
         textStorage.endEditing()
         isModified = false
         lastModifiedDate = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
-        detectIndentStyle(text)
+        resolveIndentSettings(text)
+    }
+
+    /// Re-resolve indent settings (called after projectRoot is set)
+    func reloadIndentSettings() {
+        resolveIndentSettings(textStorage.string)
+    }
+
+    /// Resolve indent settings: .editorconfig > auto-detection > global preferences
+    private func resolveIndentSettings(_ text: String) {
+        // Check .editorconfig first
+        if let root = projectRoot {
+            let config = EditorConfigParser.settings(for: url, projectRoot: root)
+            if let style = config.indentStyle {
+                detectedUseTabs = (style == .tab)
+            }
+            if let size = config.effectiveIndentSize {
+                detectedTabWidth = size
+            }
+            // If .editorconfig provided settings, use them
+            if detectedTabWidth != nil || detectedUseTabs != nil {
+                return
+            }
+        }
+
+        // Fall back to auto-detection from file content
+        detectIndentFromContent(text)
     }
 
     /// Analyze file content to detect indent style (tabs vs spaces, width)
-    private func detectIndentStyle(_ text: String) {
+    private func detectIndentFromContent(_ text: String) {
         let lines = text.components(separatedBy: "\n")
         let sampleLines = lines.prefix(200)
 
