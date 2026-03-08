@@ -5,6 +5,7 @@ class GutterView: NSView {
 
     weak var textView: NSTextView?
     var theme: Theme?
+    var diagnosticLines: Set<Int> = [] // 0-indexed line numbers with diagnostics
 
     override var isFlipped: Bool { true }
 
@@ -62,6 +63,20 @@ class GutterView: NSView {
             if isCurrent, let currentLineBg = theme?.currentLine {
                 currentLineBg.setFill()
                 NSRect(x: 0, y: lineRect.origin.y, width: bounds.width, height: lineRect.height).fill()
+            }
+
+            // Diagnostic marker (red dot)
+            let zeroIndexedLine = lineNumber - 1
+            if diagnosticLines.contains(zeroIndexedLine) {
+                let dotSize: CGFloat = 6
+                let dotRect = NSRect(
+                    x: 3,
+                    y: lineRect.origin.y + (lineRect.height - dotSize) / 2,
+                    width: dotSize,
+                    height: dotSize
+                )
+                NSColor(red: 0.99, green: 0.30, blue: 0.30, alpha: 1.0).setFill()
+                NSBezierPath(ovalIn: dotRect).fill()
             }
 
             let useAttrs = isCurrent ? currentAttrs : attrs

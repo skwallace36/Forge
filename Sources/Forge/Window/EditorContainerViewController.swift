@@ -68,6 +68,16 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+
+        // Wire up LSP diagnostics
+        editorView.lspClient = project.lspClient
+        project.lspClient.onDiagnostics = { [weak self] url, diagnostics in
+            guard let self = self,
+                  let currentDoc = self.project.tabManager.currentDocument,
+                  currentDoc.url == url else { return }
+            self.editorView.updateDiagnostics(diagnostics)
+        }
+
         refreshEditor()
     }
 
