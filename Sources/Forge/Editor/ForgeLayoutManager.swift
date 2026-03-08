@@ -146,6 +146,8 @@ class ForgeLayoutManager: NSLayoutManager {
         if !inlineDiagnostics.isEmpty {
             drawInlineDiagnostics(forGlyphRange: glyphsToShow, at: origin)
         }
+
+        drawColorSwatches(forGlyphRange: glyphsToShow, at: origin)
     }
 
     // MARK: - Inline Diagnostics
@@ -247,6 +249,145 @@ class ForgeLayoutManager: NSLayoutManager {
             lineStart = NSMaxRange(lineRange)
             lineNum += 1
         }
+    }
+
+    // MARK: - Color Swatches
+
+    /// Regex matching hex color literals: #RGB, #RRGGBB, #RRGGBBAA, 0xRRGGBB
+    private static let hexColorRegex = try! NSRegularExpression(
+        pattern: #"(?:#|0x)([0-9A-Fa-f]{3,8})\b"#
+    )
+
+    /// Regex matching NSColor/UIColor(red:green:blue:alpha:)
+    private static let rgbaColorRegex = try! NSRegularExpression(
+        pattern: #"(?:NS|UI)Color\(\s*red:\s*([\d.]+)\s*,\s*green:\s*([\d.]+)\s*,\s*blue:\s*([\d.]+)\s*,\s*alpha:\s*([\d.]+)\s*\)"#
+    )
+
+    /// Regex matching NSColor/UIColor(white:alpha:)
+    private static let whiteColorRegex = try! NSRegularExpression(
+        pattern: #"(?:NS|UI)Color\(\s*white:\s*([\d.]+)\s*,\s*alpha:\s*([\d.]+)\s*\)"#
+    )
+
+    /// Regex matching Color(.sRGB, red:green:blue:opacity:) (SwiftUI)
+    private static let swiftUIColorRegex = try! NSRegularExpression(
+        pattern: #"Color\([^)]*red:\s*([\d.]+)\s*,\s*green:\s*([\d.]+)\s*,\s*blue:\s*([\d.]+)"#
+    )
+
+    private func drawColorSwatches(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+        guard let textStorage = textStorage,
+              !textContainers.isEmpty else { return }
+
+        let text = textStorage.string as NSString
+        guard text.length > 0 else { return }
+
+        let charRange = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
+        let inset = textContainerInset()
+        let visibleString = text.substring(with: charRange)
+        let nsVisible = visibleString as NSString
+        let baseOffset = charRange.location
+
+        // Collect color matches from all patterns
+        var colorMatches: [(range: NSRange, color: NSColor)] = []
+
+        // Hex colors
+        let hexMatches = Self.hexColorRegex.matches(in: visibleString, range: NSRange(location: 0, length: nsVisible.length))
+        for match in hexMatches {
+            guard match.numberOfRanges >= 2 else { continue }
+            let hexStr = nsVisible.substring(with: match.range(at: 1))
+            if let color = Self.colorFromHex(hexStr) {
+                colorMatches.append((NSRange(location: match.range.location + baseOffset, length: match.range.length), color))
+            }
+        }
+
+        // RGBA colors
+        let rgbaMatches = Self.rgbaColorRegex.matches(in: visibleString, range: NSRange(location: 0, length: nsVisible.length))
+        for match in rgbaMatches {
+            guard match.numberOfRanges >= 5,
+                  let r = Double(nsVisible.substring(with: match.range(at: 1))),
+                  let g = Double(nsVisible.substring(with: match.range(at: 2))),
+                  let b = Double(nsVisible.substring(with: match.range(at: 3))),
+                  let a = Double(nsVisible.substring(with: match.range(at: 4))) else { continue }
+            let color = NSColor(red: CGFloat(r), green: CGFloat(g), blue: CGFloat(b), alpha: CGFloat(a))
+            colorMatches.append((NSRange(location: match.range.location + baseOffset, length: match.range.length), color))
+        }
+
+        // White colors
+        let whiteMatches = Self.whiteColorRegex.matches(in: visibleString, range: NSRange(location: 0, length: nsVisible.length))
+        for match in whiteMatches {
+            guard match.numberOfRanges >= 3,
+                  let w = Double(nsVisible.substring(with: match.range(at: 1))),
+                  let a = Double(nsVisible.substring(with: match.range(at: 2))) else { continue }
+            let color = NSColor(white: CGFloat(w), alpha: CGFloat(a))
+            colorMatches.append((NSRange(location: match.range.location + baseOffset, length: match.range.length), color))
+        }
+
+        // SwiftUI Color
+        let swiftUIMatches = Self.swiftUIColorRegex.matches(in: visibleString, range: NSRange(location: 0, length: nsVisible.length))
+        for match in swiftUIMatches {
+            guard match.numberOfRanges >= 4,
+                  let r = Double(nsVisible.substring(with: match.range(at: 1))),
+                  let g = Double(nsVisible.substring(with: match.range(at: 2))),
+                  let b = Double(nsVisible.substring(with: match.range(at: 3))) else { continue }
+            let color = NSColor(red: CGFloat(r), green: CGFloat(g), blue: CGFloat(b), alpha: 1.0)
+            colorMatches.append((NSRange(location: match.range.location + baseOffset, length: match.range.length), color))
+        }
+
+        // Draw swatches
+        for (range, color) in colorMatches {
+            let glyphRange = self.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+            guard glyphRange.location != NSNotFound, glyphRange.length > 0 else { continue }
+
+            let lineRect = lineFragmentRect(forGlyphAt: glyphRange.location, effectiveRange: nil)
+            let glyphLoc = location(forGlyphAt: glyphRange.location)
+
+            let swatchSize: CGFloat = 10
+            let x = origin.x + lineRect.origin.x + glyphLoc.x + inset.width - swatchSize - 3
+            let y = origin.y + lineRect.origin.y + inset.height + (lineRect.height - swatchSize) / 2
+
+            let swatchRect = NSRect(x: x, y: y, width: swatchSize, height: swatchSize)
+
+            // Draw checkerboard background (to show alpha)
+            NSColor.white.setFill()
+            NSBezierPath(roundedRect: swatchRect, xRadius: 2, yRadius: 2).fill()
+
+            // Draw the color
+            color.setFill()
+            NSBezierPath(roundedRect: swatchRect, xRadius: 2, yRadius: 2).fill()
+
+            // Border
+            NSColor(white: 0.5, alpha: 0.5).setStroke()
+            let borderPath = NSBezierPath(roundedRect: swatchRect, xRadius: 2, yRadius: 2)
+            borderPath.lineWidth = 0.5
+            borderPath.stroke()
+        }
+    }
+
+    private static func colorFromHex(_ hex: String) -> NSColor? {
+        let cleanHex = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 1.0
+
+        switch cleanHex.count {
+        case 3: // RGB
+            guard let val = UInt32(cleanHex, radix: 16) else { return nil }
+            r = CGFloat((val >> 8) & 0xF) / 15.0
+            g = CGFloat((val >> 4) & 0xF) / 15.0
+            b = CGFloat(val & 0xF) / 15.0
+        case 6: // RRGGBB
+            guard let val = UInt32(cleanHex, radix: 16) else { return nil }
+            r = CGFloat((val >> 16) & 0xFF) / 255.0
+            g = CGFloat((val >> 8) & 0xFF) / 255.0
+            b = CGFloat(val & 0xFF) / 255.0
+        case 8: // RRGGBBAA
+            guard let val = UInt32(cleanHex, radix: 16) else { return nil }
+            r = CGFloat((val >> 24) & 0xFF) / 255.0
+            g = CGFloat((val >> 16) & 0xFF) / 255.0
+            b = CGFloat((val >> 8) & 0xFF) / 255.0
+            a = CGFloat(val & 0xFF) / 255.0
+        default:
+            return nil
+        }
+
+        return NSColor(red: r, green: g, blue: b, alpha: a)
     }
 
     private func drawInvisibles(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
