@@ -22,9 +22,9 @@ class MinimapView: NSView {
         didSet { needsDisplay = true }
     }
 
-    /// Current cursor line (0-indexed) for cursor position marker
-    var currentLine: Int = 0 {
-        didSet { if oldValue != currentLine { needsDisplay = true } }
+    /// Current cursor character offset for cursor position marker
+    var currentCursorOffset: Int = 0 {
+        didSet { if oldValue != currentCursorOffset { needsDisplay = true } }
     }
 
     private let scale: CGFloat = 0.12
@@ -134,27 +134,13 @@ class MinimapView: NSView {
         NSBezierPath(rect: vpRect).stroke()
 
         // Draw current cursor line marker
-        if currentLine >= 0 {
-            // Find character offset for current line
-            var lineOffsetForCursor = 0
-            var currentLineCount = 0
-            for i in 0..<text.length {
-                if currentLineCount == currentLine {
-                    lineOffsetForCursor = i
-                    break
-                }
-                if text.character(at: i) == 0x0A {
-                    currentLineCount += 1
-                }
-            }
-            if currentLineCount == currentLine || lineOffsetForCursor > 0 {
-                let glyphIdx = layoutManager.glyphIndexForCharacter(at: min(lineOffsetForCursor, text.length - 1))
-                if glyphIdx != NSNotFound {
-                    let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIdx, effectiveRange: nil)
-                    let y = (lineRect.origin.y + textView.textContainerInset.height) * scaleFactor
-                    NSColor(white: 0.85, alpha: 0.70).setFill()
-                    NSRect(x: 1, y: y, width: bounds.width - 2, height: max(1.5, lineRect.height * scaleFactor)).fill()
-                }
+        if currentCursorOffset >= 0 && currentCursorOffset < text.length {
+            let glyphIdx = layoutManager.glyphIndexForCharacter(at: currentCursorOffset)
+            if glyphIdx != NSNotFound {
+                let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIdx, effectiveRange: nil)
+                let y = (lineRect.origin.y + textView.textContainerInset.height) * scaleFactor
+                NSColor(white: 0.85, alpha: 0.70).setFill()
+                NSRect(x: 1, y: y, width: bounds.width - 2, height: max(1.5, lineRect.height * scaleFactor)).fill()
             }
         }
 

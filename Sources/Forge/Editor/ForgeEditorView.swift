@@ -591,8 +591,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         updateBracketMatch()
 
         // Update minimap cursor position
-        let (line, _) = characterIndexToLineColumn(textView.selectedRange().location)
-        minimapView?.currentLine = line
+        minimapView?.currentCursorOffset = textView.selectedRange().location
 
         // Debounce occurrence highlighting to avoid lag during rapid selection changes
         occurrenceWorkItem?.cancel()
