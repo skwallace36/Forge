@@ -731,6 +731,16 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
 
         if let close = closing {
+            // Surround selection with bracket/quote pair
+            if affectedCharRange.length > 0 {
+                let selectedText = (textView.string as NSString).substring(with: affectedCharRange)
+                let wrapped = replacement + selectedText + close
+                textView.insertText(wrapped, replacementRange: affectedCharRange)
+                // Select the wrapped content (without the brackets)
+                textView.setSelectedRange(NSRange(location: affectedCharRange.location + 1, length: affectedCharRange.length))
+                return false
+            }
+
             // For quotes, only auto-close if not already inside quotes (simple heuristic)
             if replacement == "\"" {
                 let text = textView.string as NSString
