@@ -365,6 +365,9 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
 
         splitViewController.clearBuildDiagnostics()
 
+        // Show build activity in window subtitle
+        window?.subtitle = "\(completionLabel)ing..."
+
         buildSystem.onOutput = { [weak self] text in
             guard let self = self else { return }
             self.splitViewController.appendBuildOutput(text)
@@ -375,6 +378,10 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
             self?.splitViewController.appendBuildOutput(msg)
             if !success {
                 self?.splitViewController.showProblems()
+            }
+            // Restore original subtitle
+            if let self = self {
+                self.window?.subtitle = (self.project.rootURL.path as NSString).abbreviatingWithTildeInPath
             }
             // Play system sound on build completion
             if success {

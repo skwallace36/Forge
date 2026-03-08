@@ -20,6 +20,7 @@ class Preferences {
         static let ensureTrailingNewline = "ForgeEnsureTrailingNewline"
         static let columnRuler = "ForgeColumnRuler"
         static let wordWrap = "ForgeWordWrap"
+        static let bracketPairColorization = "ForgeBracketPairColorization"
     }
 
     // MARK: - Font
@@ -111,6 +112,17 @@ class Preferences {
         get { defaults.bool(forKey: Key.wordWrap) }
         set {
             defaults.set(newValue, forKey: Key.wordWrap)
+            NotificationCenter.default.post(name: .preferencesDidChange, object: nil)
+        }
+    }
+
+    var bracketPairColorization: Bool {
+        get {
+            if defaults.object(forKey: Key.bracketPairColorization) == nil { return true }
+            return defaults.bool(forKey: Key.bracketPairColorization)
+        }
+        set {
+            defaults.set(newValue, forKey: Key.bracketPairColorization)
             NotificationCenter.default.post(name: .preferencesDidChange, object: nil)
         }
     }

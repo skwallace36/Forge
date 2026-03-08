@@ -587,9 +587,110 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
 
         highlightAnnotations(in: ts)
+        colorizeBracketPairs(in: ts)
         applyDiagnosticUnderlines()
         updateCurrentLineHighlight()
         textView.setSelectedRange(selectedRange)
+    }
+
+    // MARK: - Bracket Pair Colorization
+
+    /// Colors for bracket nesting levels — cycles through these
+    private static let bracketColors: [NSColor] = [
+        NSColor(red: 0.87, green: 0.75, blue: 0.26, alpha: 1.0),  // gold
+        NSColor(red: 0.68, green: 0.39, blue: 0.87, alpha: 1.0),  // purple
+        NSColor(red: 0.27, green: 0.70, blue: 0.83, alpha: 1.0),  // cyan
+        NSColor(red: 0.87, green: 0.46, blue: 0.27, alpha: 1.0),  // orange
+        NSColor(red: 0.55, green: 0.78, blue: 0.33, alpha: 1.0),  // green
+        NSColor(red: 0.83, green: 0.37, blue: 0.55, alpha: 1.0),  // pink
+    ]
+
+    private func colorizeBracketPairs(in ts: NSTextStorage) {
+        guard Preferences.shared.bracketPairColorization else { return }
+
+        let text = ts.string as NSString
+        let length = text.length
+        guard length > 0 else { return }
+
+        // Track depth per bracket type
+        var depth = 0
+        var inString = false
+        var inLineComment = false
+        var inBlockComment = false
+        var i = 0
+
+        ts.beginEditing()
+
+        while i < length {
+            let ch = text.character(at: i)
+
+            // Skip line comments
+            if inLineComment {
+                if ch == 0x0A { // \n
+                    inLineComment = false
+                }
+                i += 1
+                continue
+            }
+
+            // Skip block comments
+            if inBlockComment {
+                if ch == 0x2A && i + 1 < length && text.character(at: i + 1) == 0x2F { // */
+                    inBlockComment = false
+                    i += 2
+                } else {
+                    i += 1
+                }
+                continue
+            }
+
+            // Check for comment start
+            if ch == 0x2F && i + 1 < length { // /
+                let next = text.character(at: i + 1)
+                if next == 0x2F { // //
+                    inLineComment = true
+                    i += 2
+                    continue
+                } else if next == 0x2A { // /*
+                    inBlockComment = true
+                    i += 2
+                    continue
+                }
+            }
+
+            // Toggle string mode on unescaped quote
+            if ch == 0x22 { // "
+                let escaped = i > 0 && text.character(at: i - 1) == 0x5C // backslash
+                if !escaped {
+                    inString = !inString
+                }
+                i += 1
+                continue
+            }
+
+            if inString {
+                i += 1
+                continue
+            }
+
+            // Bracket characters
+            let isOpen = ch == 0x28 || ch == 0x5B || ch == 0x7B    // ( [ {
+            let isClose = ch == 0x29 || ch == 0x5D || ch == 0x7D   // ) ] }
+
+            if isOpen {
+                let colorIndex = depth % Self.bracketColors.count
+                ts.addAttribute(.foregroundColor, value: Self.bracketColors[colorIndex], range: NSRange(location: i, length: 1))
+                depth += 1
+            } else if isClose {
+                depth = max(0, depth - 1)
+                let colorIndex = depth % Self.bracketColors.count
+                ts.addAttribute(.foregroundColor, value: Self.bracketColors[colorIndex], range: NSRange(location: i, length: 1))
+            }
+
+            i += 1
+        }
+
+        ts.endEditing()
     }
 
     private func notifyLSPChange() {
