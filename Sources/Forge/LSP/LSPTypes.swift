@@ -166,3 +166,28 @@ struct LSPTextEdit: Codable {
 struct LSPWorkspaceEdit {
     let changes: [URL: [LSPTextEdit]]
 }
+
+struct LSPCodeAction {
+    let title: String
+    let kind: String?
+    let edit: LSPWorkspaceEdit?
+    let diagnostics: [LSPDiagnostic]?
+
+    static func from(_ dict: [String: Any]) -> LSPCodeAction? {
+        guard let title = dict["title"] as? String else { return nil }
+        let kind = dict["kind"] as? String
+
+        var edit: LSPWorkspaceEdit?
+        if let editDict = dict["edit"] as? [String: Any],
+           let changesDict = editDict["changes"] as? [String: [[String: Any]]] {
+            var changes: [URL: [LSPTextEdit]] = [:]
+            for (uri, editsArray) in changesDict {
+                guard let url = URL(string: uri) else { continue }
+                changes[url] = editsArray.compactMap { LSPTextEdit.from($0) }
+            }
+            edit = LSPWorkspaceEdit(changes: changes)
+        }
+
+        return LSPCodeAction(title: title, kind: kind, edit: edit, diagnostics: nil)
+    }
+}

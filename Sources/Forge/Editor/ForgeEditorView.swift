@@ -2,7 +2,7 @@ import AppKit
 
 /// Manages the editor text view, gutter, syntax highlighting, and LSP integration.
 /// This is NOT a view subclass — it manages views that are added to a parent container.
-class ForgeEditorManager: NSObject, NSTextViewDelegate {
+class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
     let scrollView: NSScrollView
     let textView: NSTextView
@@ -90,6 +90,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         textView.delegate = self
         configureTextView()
         configureGutter()
+        configureContextMenu()
         registerObservers()
         setupClickMonitor()
     }
@@ -159,6 +160,12 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
 
     private func configureGutter() {
         gutterView.theme = theme
+    }
+
+    private func configureContextMenu() {
+        let menu = NSMenu()
+        menu.delegate = self
+        textView.menu = menu
     }
 
     private var keyMonitor: Any?
@@ -1694,6 +1701,118 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
                 self.applyTextEdits(edits)
             } catch {
                 // Silently fail — formatting not supported by all servers
+            }
+        }
+    }
+
+    // MARK: - Context Menu (NSMenuDelegate)
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+
+        // Standard editing items
+        menu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "")
+        menu.addItem(.separator())
+
+        // LSP items
+        if lspClient != nil, document != nil {
+            menu.addItem(withTitle: "Jump to Definition", action: #selector(jumpToDefinitionAction(_:)), keyEquivalent: "")
+            menu.addItem(withTitle: "Find References", action: #selector(findReferences(_:)), keyEquivalent: "")
+            menu.addItem(withTitle: "Rename Symbol...", action: #selector(renameSymbol(_:)), keyEquivalent: "")
+
+            let codeActionsItem = NSMenuItem(title: "Code Actions", action: nil, keyEquivalent: "")
+            let codeActionsSubmenu = NSMenu()
+            codeActionsItem.submenu = codeActionsSubmenu
+
+            // Fetch code actions asynchronously and populate when ready
+            let placeholder = NSMenuItem(title: "Loading...", action: nil, keyEquivalent: "")
+            placeholder.isEnabled = false
+            codeActionsSubmenu.addItem(placeholder)
+
+            fetchCodeActionsForMenu(codeActionsSubmenu)
+            menu.addItem(codeActionsItem)
+
+            menu.addItem(.separator())
+            menu.addItem(withTitle: "Format Document", action: #selector(formatDocument(_:)), keyEquivalent: "")
+        }
+
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Select All Occurrences", action: #selector(selectAllOccurrencesAction(_:)), keyEquivalent: "")
+    }
+
+    @objc private func selectAllOccurrencesAction(_ sender: Any?) {
+        selectAllOccurrences()
+    }
+
+    @objc private func jumpToDefinitionAction(_ sender: Any?) {
+        guard let doc = document, let lsp = lspClient else { return }
+        let (line, character) = characterIndexToLineColumn(textView.selectedRange().location)
+
+        Task { @MainActor in
+            do {
+                let locations = try await lsp.definition(url: doc.url, line: line, character: character)
+                guard let loc = locations.first, let url = URL(string: loc.uri) else { return }
+                self.onJumpToDefinition?(url, loc.range.start.line, loc.range.start.character)
+            } catch {}
+        }
+    }
+
+    private var pendingCodeActions: [LSPCodeAction] = []
+
+    private func fetchCodeActionsForMenu(_ submenu: NSMenu) {
+        guard let doc = document, let lsp = lspClient else { return }
+        let sel = textView.selectedRange()
+        let (startLine, startChar) = characterIndexToLineColumn(sel.location)
+        let (endLine, endChar) = characterIndexToLineColumn(sel.location + sel.length)
+        let range = LSPRange(
+            start: LSPPosition(line: startLine, character: startChar),
+            end: LSPPosition(line: endLine, character: endChar)
+        )
+
+        // Pass current diagnostics at this location
+        let relevantDiags = diagnostics.filter { diag in
+            diag.range.start.line <= endLine && diag.range.end.line >= startLine
+        }
+
+        Task { @MainActor in
+            do {
+                let actions = try await lsp.codeActions(url: doc.url, range: range, diagnostics: relevantDiags)
+                self.pendingCodeActions = actions
+                submenu.removeAllItems()
+                if actions.isEmpty {
+                    let none = NSMenuItem(title: "No Actions Available", action: nil, keyEquivalent: "")
+                    none.isEnabled = false
+                    submenu.addItem(none)
+                } else {
+                    for (idx, action) in actions.enumerated() {
+                        let item = NSMenuItem(title: action.title, action: #selector(self.codeActionSelected(_:)), keyEquivalent: "")
+                        item.target = self
+                        item.tag = idx
+                        submenu.addItem(item)
+                    }
+                }
+            } catch {
+                submenu.removeAllItems()
+                let err = NSMenuItem(title: "No Actions Available", action: nil, keyEquivalent: "")
+                err.isEnabled = false
+                submenu.addItem(err)
+            }
+        }
+    }
+
+    @objc private func codeActionSelected(_ sender: NSMenuItem) {
+        let idx = sender.tag
+        guard idx >= 0, idx < pendingCodeActions.count else { return }
+        let action = pendingCodeActions[idx]
+
+        guard let edit = action.edit else { return }
+        for (url, edits) in edit.changes {
+            if url == document?.url {
+                applyTextEdits(edits)
+            } else {
+                onApplyEdits?(url, edits)
             }
         }
     }

@@ -57,6 +57,14 @@ class LSPClient {
                     "definition": [:] as [String: Any],
                     "references": [:] as [String: Any],
                     "documentSymbol": [:] as [String: Any],
+                    "codeAction": [
+                        "codeActionLiteralSupport": [
+                            "codeActionKind": [
+                                "valueSet": ["quickfix", "refactor", "source"],
+                            ],
+                        ],
+                    ] as [String: Any],
+                    "formatting": [:] as [String: Any],
                 ] as [String: Any],
             ] as [String: Any],
         ]
@@ -216,6 +224,44 @@ class LSPClient {
         }
 
         return LSPWorkspaceEdit(changes: changes)
+    }
+
+    // MARK: - Code Actions
+
+    func codeActions(url: URL, range: LSPRange, diagnostics: [LSPDiagnostic] = []) async throws -> [LSPCodeAction] {
+        guard initialized, let conn = connection else { return [] }
+
+        let diagsArray: [[String: Any]] = diagnostics.map { diag in
+            var d: [String: Any] = [
+                "range": [
+                    "start": ["line": diag.range.start.line, "character": diag.range.start.character],
+                    "end": ["line": diag.range.end.line, "character": diag.range.end.character],
+                ],
+                "message": diag.message,
+            ]
+            if let severity = diag.severity { d["severity"] = severity }
+            if let source = diag.source { d["source"] = source }
+            return d
+        }
+
+        let params: [String: Any] = [
+            "textDocument": ["uri": url.absoluteString],
+            "range": [
+                "start": ["line": range.start.line, "character": range.start.character],
+                "end": ["line": range.end.line, "character": range.end.character],
+            ],
+            "context": [
+                "diagnostics": diagsArray,
+            ] as [String: Any],
+        ]
+
+        let response = try await conn.sendRequest(method: "textDocument/codeAction", params: params)
+        return parseCodeActions(from: response)
+    }
+
+    private func parseCodeActions(from response: JSONRPCResponse) -> [LSPCodeAction] {
+        guard let result = response.result?.value as? [[String: Any]] else { return [] }
+        return result.compactMap { LSPCodeAction.from($0) }
     }
 
     // MARK: - Formatting
