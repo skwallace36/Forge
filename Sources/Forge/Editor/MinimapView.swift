@@ -7,6 +7,9 @@ class MinimapView: NSView {
     weak var textView: NSTextView?
     weak var scrollView: NSScrollView?
 
+    /// Diagnostic markers: (line: 0-indexed, severity: 1=error, 2=warning)
+    var diagnosticMarkers: [(line: Int, severity: Int)] = []
+
     private let scale: CGFloat = 0.12
     private let minimapWidth: CGFloat = 80
 
@@ -107,6 +110,40 @@ class MinimapView: NSView {
 
         viewportBorderColor.setStroke()
         NSBezierPath(rect: vpRect).stroke()
+
+        // Draw diagnostic markers on the right edge
+        if !diagnosticMarkers.isEmpty {
+            for marker in diagnosticMarkers {
+                let markerColor: NSColor = marker.severity == 1
+                    ? NSColor(red: 0.99, green: 0.30, blue: 0.30, alpha: 0.85)
+                    : NSColor(red: 0.99, green: 0.80, blue: 0.28, alpha: 0.85)
+
+                // Calculate Y position from line number
+                let lineY = lineYPosition(line: marker.line, scaleFactor: scaleFactor, text: text, layoutManager: layoutManager, textView: textView, textContainer: textContainer)
+
+                markerColor.setFill()
+                NSRect(x: bounds.width - 4, y: lineY, width: 3, height: max(2, 1 / scaleFactor * scaleFactor)).fill()
+            }
+        }
+    }
+
+    private func lineYPosition(line: Int, scaleFactor: CGFloat, text: NSString, layoutManager: NSLayoutManager, textView: NSTextView, textContainer: NSTextContainer) -> CGFloat {
+        // Find the character offset for the given line
+        var currentLine = 0
+        var offset = 0
+        while currentLine < line && offset < text.length {
+            if text.character(at: offset) == 0x0A {
+                currentLine += 1
+            }
+            offset += 1
+        }
+
+        let charIndex = min(offset, text.length - 1)
+        guard charIndex >= 0 else { return 0 }
+
+        let glyphIndex = layoutManager.glyphIndexForCharacter(at: charIndex)
+        let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+        return (lineRect.origin.y + textView.textContainerInset.height) * scaleFactor
     }
 
     // MARK: - Click to scroll

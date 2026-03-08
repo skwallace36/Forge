@@ -349,6 +349,10 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         applyDiagnosticUnderlines()
         gutterView.diagnosticLines = diagnosticLineNumbers()
         gutterView.needsDisplay = true
+
+        // Update minimap diagnostic markers
+        minimapView?.diagnosticMarkers = newDiagnostics.map { (line: $0.range.start.line, severity: $0.severity ?? 3) }
+        minimapView?.needsDisplay = true
     }
 
     private func applyDiagnosticUnderlines() {
