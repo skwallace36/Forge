@@ -218,6 +218,25 @@ class LSPClient {
         return LSPWorkspaceEdit(changes: changes)
     }
 
+    // MARK: - Formatting
+
+    func formatDocument(url: URL, tabSize: Int = 4, insertSpaces: Bool = true) async throws -> [LSPTextEdit] {
+        guard initialized, let conn = connection else { return [] }
+
+        let params: [String: Any] = [
+            "textDocument": ["uri": url.absoluteString],
+            "options": [
+                "tabSize": tabSize,
+                "insertSpaces": insertSpaces,
+            ],
+        ]
+
+        let response = try await conn.sendRequest(method: "textDocument/formatting", params: params)
+
+        guard let editsArray = response.result?.value as? [[String: Any]] else { return [] }
+        return editsArray.compactMap { LSPTextEdit.from($0) }
+    }
+
     // MARK: - Document Symbols
 
     func documentSymbols(url: URL) async throws -> [LSPDocumentSymbol] {

@@ -1683,6 +1683,21 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         }
     }
 
+    // MARK: - Format Document
+
+    @objc func formatDocument(_ sender: Any?) {
+        guard let doc = document, let lsp = lspClient else { return }
+        Task { @MainActor in
+            do {
+                let edits = try await lsp.formatDocument(url: doc.url, tabSize: tabWidth)
+                guard !edits.isEmpty else { return }
+                self.applyTextEdits(edits)
+            } catch {
+                // Silently fail — formatting not supported by all servers
+            }
+        }
+    }
+
     // MARK: - Scroll to Line
 
     /// Scrolls to a specific line and column (0-based, LSP convention) and places the cursor there.

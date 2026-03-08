@@ -154,6 +154,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let removeDupsItem = NSMenuItem(title: "Remove Duplicate Lines", action: #selector(EditorContainerViewController.removeDuplicateLines(_:)), keyEquivalent: "")
         editMenu.addItem(removeDupsItem)
 
+        editMenu.addItem(.separator())
+
+        let formatItem = NSMenuItem(title: "Format Document", action: #selector(EditorContainerViewController.formatDocument(_:)), keyEquivalent: "i")
+        formatItem.keyEquivalentModifierMask = [.control, .shift]
+        editMenu.addItem(formatItem)
+
         editMenuItem.submenu = editMenu
         mainMenu.addItem(editMenuItem)
 

@@ -141,6 +141,26 @@ struct LSPDocumentSymbol: Codable {
 struct LSPTextEdit: Codable {
     let range: LSPRange
     let newText: String
+
+    static func from(_ dict: [String: Any]) -> LSPTextEdit? {
+        guard let rangeDict = dict["range"] as? [String: Any],
+              let startDict = rangeDict["start"] as? [String: Any],
+              let endDict = rangeDict["end"] as? [String: Any],
+              let startLine = startDict["line"] as? Int,
+              let startChar = startDict["character"] as? Int,
+              let endLine = endDict["line"] as? Int,
+              let endChar = endDict["character"] as? Int,
+              let newText = dict["newText"] as? String else {
+            return nil
+        }
+        return LSPTextEdit(
+            range: LSPRange(
+                start: LSPPosition(line: startLine, character: startChar),
+                end: LSPPosition(line: endLine, character: endChar)
+            ),
+            newText: newText
+        )
+    }
 }
 
 struct LSPWorkspaceEdit {

@@ -325,6 +325,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.removeDuplicateLines()
     }
 
+    @objc func formatDocument(_ sender: Any?) {
+        editor.formatDocument(sender)
+    }
+
     @objc func goToLine(_ sender: Any?) {
         let alert = NSAlert()
         alert.messageText = "Go to Line"
