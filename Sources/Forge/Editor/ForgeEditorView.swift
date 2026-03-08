@@ -37,8 +37,11 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
     /// Completion popup
     private var completionWindow: CompletionWindow?
 
-    /// Event monitor for ⌘-click
+    /// Event monitor for ⌘-click and ⌥-click
     private var clickMonitor: Any?
+
+    /// Hover popup
+    private var hoverPopover: NSPopover?
 
     /// Tracks whether completion was auto-triggered (vs explicit ⌃Space)
     private var completionPrefix: String = ""
@@ -634,20 +637,25 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         clickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
             guard let self = self else { return event }
 
-            // Only handle ⌘-click
-            guard event.modifierFlags.contains(.command),
-                  !event.modifierFlags.contains(.option) else {
-                return event
-            }
-
             // Check if click is in our text view
             let locationInTextView = self.textView.convert(event.locationInWindow, from: nil)
             guard self.textView.bounds.contains(locationInTextView) else {
                 return event
             }
 
-            self.handleJumpToDefinition(at: locationInTextView)
-            return nil // consume the event
+            // ⌘-click → jump to definition
+            if event.modifierFlags.contains(.command) && !event.modifierFlags.contains(.option) {
+                self.handleJumpToDefinition(at: locationInTextView)
+                return nil
+            }
+
+            // ⌥-click → Quick Help hover
+            if event.modifierFlags.contains(.option) && !event.modifierFlags.contains(.command) {
+                self.handleHover(at: locationInTextView)
+                return nil
+            }
+
+            return event
         }
     }
 
@@ -671,6 +679,83 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
                 // Silently fail — no definition found is normal
             }
         }
+    }
+
+    // MARK: - Quick Help Hover (⌥-click)
+
+    private func handleHover(at point: NSPoint) {
+        guard let doc = document, let lsp = lspClient else { return }
+
+        let charIndex = textView.characterIndexForInsertion(at: point)
+        guard charIndex != NSNotFound else { return }
+
+        let (line, character) = characterIndexToLineColumn(charIndex)
+
+        Task { @MainActor in
+            do {
+                guard let hoverText = try await lsp.hover(url: doc.url, line: line, character: character),
+                      !hoverText.isEmpty else { return }
+                self.showHoverPopover(text: hoverText, at: charIndex)
+            } catch {
+                // No hover info available — normal
+            }
+        }
+    }
+
+    private func showHoverPopover(text: String, at charIndex: Int) {
+        hoverPopover?.close()
+
+        guard let layoutManager = textView.layoutManager else { return }
+
+        let glyphIndex = layoutManager.glyphIndexForCharacter(at: min(charIndex, textView.string.count - 1))
+        let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+        let location = layoutManager.location(forGlyphAt: glyphIndex)
+
+        var rect = NSRect(
+            x: lineRect.origin.x + location.x + textView.textContainerInset.width,
+            y: lineRect.origin.y + textView.textContainerInset.height,
+            width: 1,
+            height: lineRect.height
+        )
+
+        // Adjust for scroll position
+        let visibleRect = scrollView.contentView.bounds
+        rect.origin.y -= visibleRect.origin.y
+        rect.origin.x -= visibleRect.origin.x
+
+        let textField = NSTextField(wrappingLabelWithString: text)
+        textField.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        textField.textColor = NSColor(white: 0.85, alpha: 1.0)
+        textField.maximumNumberOfLines = 20
+        textField.preferredMaxLayoutWidth = 500
+
+        let vc = NSViewController()
+        let container = NSView()
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(textField)
+        NSLayoutConstraint.activate([
+            textField.topAnchor.constraint(equalTo: container.topAnchor, constant: 8),
+            textField.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -8),
+            textField.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 10),
+            textField.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -10),
+        ])
+        vc.view = container
+
+        let popover = NSPopover()
+        popover.contentViewController = vc
+        popover.behavior = .transient
+        popover.animates = true
+
+        // Convert rect to scrollView's clip view coordinate space
+        let showRect = NSRect(
+            x: rect.origin.x + scrollView.contentView.frame.origin.x,
+            y: rect.origin.y,
+            width: rect.width,
+            height: rect.height
+        )
+
+        popover.show(relativeTo: showRect, of: scrollView.contentView, preferredEdge: .maxY)
+        hoverPopover = popover
     }
 
     // MARK: - Code Completion
