@@ -9,6 +9,8 @@ class GutterView: NSView {
     /// Diagnostic messages indexed by 0-indexed line number
     var diagnosticMessages: [Int: String] = [:]
     var changedLines: [Int: String] = [:] // 0-indexed: "added" or "modified"
+    /// Blame info indexed by 0-indexed line number
+    var blameInfo: [Int: GitStatusTracker.BlameInfo] = [:]
 
     /// Set of 0-indexed line numbers that start a foldable block (line ends with `{`)
     var foldableLines: Set<Int> = []
@@ -45,20 +47,14 @@ class GutterView: NSView {
     }
 
     override func mouseMoved(with event: NSEvent) {
-        guard !diagnosticMessages.isEmpty else {
-            if lastTooltipLine != nil {
-                lastTooltipLine = nil
-                toolTip = nil
-            }
-            return
-        }
-
         let lineNum = lineNumberAtPoint(convert(event.locationInWindow, from: nil))
         guard lineNum != lastTooltipLine else { return }
         lastTooltipLine = lineNum
 
         if let line = lineNum, let message = diagnosticMessages[line] {
             toolTip = message
+        } else if let line = lineNum, let blame = blameInfo[line] {
+            toolTip = "\(blame.author)  \(blame.date)\n\(blame.summary)"
         } else {
             toolTip = nil
         }

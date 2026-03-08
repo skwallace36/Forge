@@ -171,6 +171,82 @@ class GitStatusTracker {
         return result
     }
 
+    /// Blame info for a single line
+    struct BlameInfo {
+        let author: String
+        let date: String    // YYYY-MM-DD
+        let summary: String
+    }
+
+    /// Returns blame info for each line (0-indexed) of the given file.
+    /// Runs `git blame --porcelain` and parses the output.
+    func blame(for url: URL) -> [Int: BlameInfo] {
+        let task = Process()
+        let pipe = Pipe()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        task.arguments = ["blame", "--porcelain", "--", url.path]
+        task.currentDirectoryURL = rootURL
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+
+        do {
+            try task.run()
+        } catch {
+            return [:]
+        }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+
+        guard task.terminationStatus == 0,
+              let output = String(data: data, encoding: .utf8) else {
+            return [:]
+        }
+
+        var result: [Int: BlameInfo] = [:]
+        var currentAuthor = ""
+        var currentDate = ""
+        var currentSummary = ""
+        var currentLine = -1
+
+        for line in output.components(separatedBy: "\n") {
+            if line.isEmpty { continue }
+
+            // Header line: <hash> <orig-line> <final-line> [<num-lines>]
+            if line.count >= 40, !line.hasPrefix("\t"),
+               let firstSpace = line.firstIndex(of: " "),
+               line[line.startIndex..<firstSpace].allSatisfy({ $0.isHexDigit }) {
+                let parts = line.split(separator: " ", maxSplits: 3)
+                if parts.count >= 3, let finalLine = Int(parts[2]) {
+                    currentLine = finalLine - 1 // convert to 0-based
+                }
+            } else if line.hasPrefix("author ") {
+                currentAuthor = String(line.dropFirst(7))
+            } else if line.hasPrefix("author-time ") {
+                // Unix timestamp → YYYY-MM-DD
+                if let timestamp = TimeInterval(line.dropFirst(12)) {
+                    let date = Date(timeIntervalSince1970: timestamp)
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "yyyy-MM-dd"
+                    currentDate = formatter.string(from: date)
+                }
+            } else if line.hasPrefix("summary ") {
+                currentSummary = String(line.dropFirst(8))
+            } else if line.hasPrefix("\t") {
+                // Content line marks end of a blame entry
+                if currentLine >= 0 {
+                    result[currentLine] = BlameInfo(
+                        author: currentAuthor,
+                        date: currentDate,
+                        summary: currentSummary,
+                    )
+                }
+            }
+        }
+
+        return result
+    }
+
     private func fetchCurrentBranch() -> String? {
         let task = Process()
         let pipe = Pipe()

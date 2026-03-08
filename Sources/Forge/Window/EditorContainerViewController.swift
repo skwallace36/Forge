@@ -295,12 +295,14 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             // Fetch document symbols for scope display
             refreshDocumentSymbols(for: doc.url)
 
-            // Fetch git diff change markers for gutter
+            // Fetch git diff change markers and blame for gutter
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 guard let self = self else { return }
                 let changes = self.project.gitStatus.changedLines(for: doc.url)
+                let blame = self.project.gitStatus.blame(for: doc.url)
                 DispatchQueue.main.async {
                     self.editor.gutterView.changedLines = changes
+                    self.editor.gutterView.blameInfo = blame
                     self.editor.gutterView.needsDisplay = true
                 }
             }
