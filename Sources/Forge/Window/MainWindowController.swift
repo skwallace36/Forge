@@ -5,6 +5,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
     let project: ForgeProject
     private var splitViewController: MainSplitViewController!
     private var openQuicklyController: OpenQuicklyWindowController?
+    private var commandPaletteController: CommandPaletteWindowController?
     private var autoSaveTimer: Timer?
 
     init(project: ForgeProject) {
@@ -375,6 +376,16 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
             if !success {
                 self?.splitViewController.showProblems()
             }
+            // Play system sound on build completion
+            if success {
+                NSSound(named: "Glass")?.play()
+            } else {
+                NSSound(named: "Basso")?.play()
+            }
+            // Bounce dock icon if window is not key
+            if let win = self?.window, !win.isKeyWindow {
+                NSApp.requestUserAttention(.informationalRequest)
+            }
         }
     }
 
@@ -452,6 +463,16 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         } else {
             openFile(url, atLine: line, column: column)
         }
+    }
+
+    // MARK: - Command Palette
+
+    @objc func showCommandPalette(_ sender: Any?) {
+        guard let win = window else { return }
+        if commandPaletteController == nil {
+            commandPaletteController = CommandPaletteWindowController()
+        }
+        commandPaletteController?.showInWindow(win)
     }
 
     // MARK: - Tab State Persistence

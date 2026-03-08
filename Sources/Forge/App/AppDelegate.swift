@@ -274,6 +274,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let viewMenuItem = NSMenuItem()
         let viewMenu = NSMenu(title: "View")
 
+        let commandPalette = NSMenuItem(title: "Command Palette…", action: #selector(MainWindowController.showCommandPalette(_:)), keyEquivalent: "P")
+        commandPalette.keyEquivalentModifierMask = [.command, .shift]
+        viewMenu.addItem(commandPalette)
+
+        viewMenu.addItem(.separator())
+
         let toggleNav = NSMenuItem(title: "Toggle Navigator", action: #selector(MainSplitViewController.toggleNavigator(_:)), keyEquivalent: "0")
         viewMenu.addItem(toggleNav)
 
@@ -517,6 +523,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
           ⌃6   Document Symbols  Esc   Focus Editor
 
         View
+          ⇧⌘P  Command Palette
           ⌘0   Toggle Navigator   ⌘⇧Y  Toggle Bottom Panel
           ⌃⌘M  Toggle Minimap     ⌘⌥L  Toggle Word Wrap
           ⌘+   Zoom In            ⌘-   Zoom Out
