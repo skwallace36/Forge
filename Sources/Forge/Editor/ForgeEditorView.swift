@@ -293,8 +293,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         } else {
             highlighter = nil
             let supportedExts = ["json", "md", "markdown", "yml", "yaml", "py", "python",
-                                 "js", "ts", "c", "h", "cpp", "m", "mm", "css", "html",
-                                 "xml", "sh", "bash", "zsh", "rb", "go", "rs", "toml"]
+                                 "js", "jsx", "ts", "tsx", "c", "h", "cpp", "cc", "cxx", "hpp",
+                                 "m", "mm", "css", "html", "xml", "sh", "bash", "zsh",
+                                 "rb", "go", "rs", "toml", "java", "kt", "kts"]
             if supportedExts.contains(ext) {
                 simpleHighlighter = SimpleHighlighter(theme: theme, fontSize: fontSize, language: ext)
                 if let ts = textView.textStorage {

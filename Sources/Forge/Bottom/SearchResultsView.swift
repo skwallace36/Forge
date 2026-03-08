@@ -263,8 +263,9 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         ]
         let searchExtensions: Set<String> = [
             "swift", "json", "md", "yml", "yaml", "txt", "py", "js", "ts",
-            "h", "m", "c", "cpp", "html", "css", "xml", "plist", "resolved",
-            "sh", "bash", "zsh", "rb", "go", "rs", "toml", "tsx", "jsx",
+            "h", "m", "c", "cpp", "cc", "cxx", "hpp", "mm", "html", "css",
+            "xml", "plist", "resolved", "sh", "bash", "zsh", "rb", "go",
+            "rs", "toml", "tsx", "jsx", "java", "kt", "kts", "scss",
         ]
 
         guard let enumerator = fm.enumerator(

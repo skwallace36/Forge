@@ -411,6 +411,8 @@ class TabButton: NSView {
         case "md", "markdown": return "¶"
         case "sh", "bash", "zsh": return "⌘"
         case "toml": return "≡"
+        case "java": return "𝐉"
+        case "kt", "kts": return "𝐊"
         case "txt": return "☰"
         default: return "◻"
         }
@@ -426,6 +428,8 @@ class TabButton: NSView {
         case "py": return NSColor(red: 0.30, green: 0.65, blue: 0.40, alpha: 1.0)
         case "go": return NSColor(red: 0.30, green: 0.75, blue: 0.85, alpha: 1.0)
         case "rs": return NSColor(red: 0.85, green: 0.50, blue: 0.30, alpha: 1.0)
+        case "java": return NSColor(red: 0.85, green: 0.45, blue: 0.25, alpha: 1.0)
+        case "kt", "kts": return NSColor(red: 0.55, green: 0.45, blue: 0.90, alpha: 1.0)
         case "json": return NSColor(red: 0.85, green: 0.75, blue: 0.30, alpha: 1.0)
         case "html", "htm", "css", "scss": return NSColor(red: 0.85, green: 0.40, blue: 0.40, alpha: 1.0)
         case "md", "markdown": return NSColor(red: 0.50, green: 0.70, blue: 0.90, alpha: 1.0)

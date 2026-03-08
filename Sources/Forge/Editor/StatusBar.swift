@@ -112,6 +112,8 @@ class StatusBar: NSView {
         case "m": return "Objective-C"
         case "mm": return "Objective-C++"
         case "toml": return "TOML"
+        case "java": return "Java"
+        case "kt", "kts": return "Kotlin"
         case "plist": return "Plist"
         case "txt": return "Plain Text"
         case "log": return "Log"

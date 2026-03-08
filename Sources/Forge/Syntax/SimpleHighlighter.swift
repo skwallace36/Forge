@@ -75,6 +75,10 @@ class SimpleHighlighter {
             return tomlRules()
         case "c", "h", "cpp", "cc", "cxx", "hpp", "m", "mm":
             return cFamilyRules()
+        case "java":
+            return javaRules()
+        case "kt", "kts":
+            return kotlinRules()
         default:
             return genericRules()
         }
@@ -283,6 +287,35 @@ class SimpleHighlighter {
             // Common types
             rule(#"\b(?:NSString|NSArray|NSDictionary|NSInteger|NSUInteger|NSObject|BOOL|YES|NO|nil|self|super|id|SEL|IMP|Class|CGFloat|CGRect|CGPoint|CGSize|NSRect|NSPoint|NSSize)\b"#, "type"),
             // Function declarations (simplified)
+            rule(#"\b[a-zA-Z_]\w*(?=\s*\()"#, "function"),
+        ]
+    }
+
+    private static func javaRules() -> [HighlightRule] {
+        return [
+            rule(#"//.*$"#, "comment", options: .anchorsMatchLines),
+            rule(#""[^"\\]*(?:\\.[^"\\]*)*""#, "string"),
+            rule(#"'[^'\\]*(?:\\.[^'\\]*)*'"#, "string"),
+            rule(#"\b0[xX][0-9a-fA-F]+[lL]?\b"#, "number"),
+            rule(#"\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?[fFdDlL]?\b"#, "number"),
+            rule(#"\b(?:abstract|assert|boolean|break|byte|case|catch|char|class|continue|default|do|double|else|enum|extends|final|finally|float|for|if|implements|import|instanceof|int|interface|long|native|new|package|private|protected|public|return|short|static|strictfp|super|switch|synchronized|this|throw|throws|transient|try|void|volatile|while|var|record|sealed|permits|yield)\b"#, "keyword"),
+            rule(#"\b(?:true|false|null)\b"#, "keyword"),
+            rule(#"@\w+"#, "keyword"),
+            rule(#"\b[A-Z]\w*\b"#, "type"),
+            rule(#"\b[a-zA-Z_]\w*(?=\s*\()"#, "function"),
+        ]
+    }
+
+    private static func kotlinRules() -> [HighlightRule] {
+        return [
+            rule(#"//.*$"#, "comment", options: .anchorsMatchLines),
+            rule(#""[^"\\]*(?:\\.[^"\\]*)*""#, "string"),
+            rule(#"'[^'\\]*(?:\\.[^'\\]*)*'"#, "string"),
+            rule(#"\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?[fFLu]?\b"#, "number"),
+            rule(#"\b(?:abstract|actual|annotation|as|break|by|catch|class|companion|const|constructor|continue|crossinline|data|do|else|enum|expect|external|final|finally|for|fun|get|if|import|in|infix|init|inline|inner|interface|internal|is|lateinit|noinline|object|open|operator|out|override|package|private|protected|public|reified|return|sealed|set|super|suspend|tailrec|this|throw|try|typealias|val|var|vararg|when|where|while|yield)\b"#, "keyword"),
+            rule(#"\b(?:true|false|null)\b"#, "keyword"),
+            rule(#"@\w+"#, "keyword"),
+            rule(#"\b[A-Z]\w*\b"#, "type"),
             rule(#"\b[a-zA-Z_]\w*(?=\s*\()"#, "function"),
         ]
     }
