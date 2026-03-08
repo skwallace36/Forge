@@ -490,9 +490,11 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
 
     func saveOpenTabs() {
         let urls = project.tabManager.tabs.map { $0.url.path }
+        let pinned = project.tabManager.tabs.map { $0.isPinned }
         let selectedIndex = project.tabManager.selectedIndex
         let state: [String: Any] = [
             "files": urls,
+            "pinned": pinned,
             "selected": selectedIndex,
         ]
         UserDefaults.standard.set(state, forKey: tabStateKey)
@@ -503,11 +505,20 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
               let files = state["files"] as? [String],
               let selected = state["selected"] as? Int else { return }
 
-        for path in files {
+        let pinnedStates = state["pinned"] as? [Bool]
+
+        for (i, path) in files.enumerated() {
             let url = URL(fileURLWithPath: path)
             guard FileManager.default.fileExists(atPath: path) else { continue }
             let doc = project.document(for: url)
             project.tabManager.openOrFocus(document: doc)
+            // Restore pinned state
+            if let pinned = pinnedStates, i < pinned.count, pinned[i] {
+                let tabIndex = project.tabManager.tabs.count - 1
+                if tabIndex >= 0 {
+                    project.tabManager.setPin(true, at: tabIndex)
+                }
+            }
         }
 
         if selected >= 0 && selected < project.tabManager.tabs.count {

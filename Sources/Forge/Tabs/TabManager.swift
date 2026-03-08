@@ -104,6 +104,12 @@ class TabManager {
         tabs[selectedIndex].isPreview = false
     }
 
+    /// Set pinned state for a tab (used during tab state restoration)
+    func setPin(_ pinned: Bool, at index: Int) {
+        guard index >= 0 && index < tabs.count else { return }
+        tabs[index].isPinned = pinned
+    }
+
     /// Toggle pinned state for a tab. Pinned tabs stay at the left and can't be closed with ⌘W.
     func togglePin(at index: Int) {
         guard index >= 0 && index < tabs.count else { return }
