@@ -301,8 +301,9 @@ class FindReplaceBar: NSView {
         // Trigger search with current field value
         performSearch()
 
-        // Focus the search field
+        // Focus and select all text in the search field
         window?.makeFirstResponder(searchField)
+        searchField.selectText(nil)
     }
 
     /// Hide the bar and clear highlights

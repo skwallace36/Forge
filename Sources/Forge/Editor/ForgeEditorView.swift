@@ -50,6 +50,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Called to show the find/replace bar: (withReplace, initialText)
     var onShowFindBar: ((Bool, String?) -> Void)?
 
+    /// Called when text changes while find bar is active (to refresh highlights)
+    var onFindBarRefresh: (() -> Void)?
+
     let theme: Theme = .xcodeDefaultDark
     private(set) var fontSize: CGFloat = Preferences.shared.fontSize
     var editorFont: NSFont { Preferences.shared.editorFont(size: fontSize) }
@@ -542,6 +545,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         // Check for signature help triggers
         checkSignatureHelp()
+
+        // Notify find bar to refresh highlights if active
+        onFindBarRefresh?()
     }
 
     /// Update the gutter's cached first visible line number using the line offset cache.

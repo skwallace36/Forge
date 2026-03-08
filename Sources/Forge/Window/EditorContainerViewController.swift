@@ -303,6 +303,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             self?.editor.replaceAll(with: replacement)
         }
 
+        editor.onFindBarRefresh = { [weak self] in
+            self?.findReplaceBar.refreshSearch()
+        }
+
         findReplaceBar.onHeightChange = { [weak self] height in
             self?.findBarHeightConstraint.constant = height
             self?.view.needsLayout = true
