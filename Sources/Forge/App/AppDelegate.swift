@@ -44,6 +44,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 
+    /// Called by MainWindowController when its window closes
+    func windowControllerDidClose(_ wc: MainWindowController) {
+        windowControllers.removeAll { $0 === wc }
+    }
+
     func applicationDidResignActive(_ notification: Notification) {
         // Auto-save all modified documents when switching away from the app
         for wc in windowControllers {
@@ -389,18 +394,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
+        panel.allowsMultipleSelection = true
         panel.allowedContentTypes = [.sourceCode, .plainText, .data]
 
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
 
-        if url.hasDirectoryPath {
-            let project = ForgeProject(rootURL: url)
-            let wc = MainWindowController(project: project)
-            windowControllers.append(wc)
-            wc.showWindow(nil)
-        } else {
-            windowController?.openFile(url)
+        for url in panel.urls {
+            if url.hasDirectoryPath {
+                let project = ForgeProject(rootURL: url)
+                let wc = MainWindowController(project: project)
+                windowControllers.append(wc)
+                wc.showWindow(nil)
+            } else {
+                windowController?.openFile(url)
+            }
         }
     }
 

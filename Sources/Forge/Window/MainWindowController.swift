@@ -481,6 +481,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
 
     func windowWillClose(_ notification: Notification) {
         saveOpenTabs()
+        (NSApp.delegate as? AppDelegate)?.windowControllerDidClose(self)
     }
 
     // MARK: - Initial file
