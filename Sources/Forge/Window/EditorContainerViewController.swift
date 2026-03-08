@@ -11,6 +11,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     private let statusBar = StatusBar()
     private let placeholderLabel = NSTextField(labelWithString: "Open a file to start editing\n\n⇧⌘O  Open Quickly\n⌘O    Open File\n⌘N    New File")
     private let binaryLabel = NSTextField(labelWithString: "")
+    private let imagePreview = NSImageView()
     private lazy var gutterWidthConstraint = editor.gutterView.widthAnchor.constraint(equalToConstant: editor.gutterWidth)
 
     init(project: ForgeProject) {
@@ -37,6 +38,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         // Tab bar
         tabBar.translatesAutoresizingMaskIntoConstraints = false
         tabBar.delegate = self
+        tabBar.projectRootURL = project.rootURL
         container.addSubview(tabBar)
 
         // Status bar at bottom
@@ -70,8 +72,16 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         binaryLabel.font = NSFont.systemFont(ofSize: 14, weight: .regular)
         binaryLabel.textColor = NSColor(white: 0.45, alpha: 1.0)
         binaryLabel.alignment = .center
+        binaryLabel.maximumNumberOfLines = 3
         binaryLabel.isHidden = true
         container.addSubview(binaryLabel)
+
+        // Image preview for binary image files
+        imagePreview.translatesAutoresizingMaskIntoConstraints = false
+        imagePreview.imageScaling = .scaleProportionallyDown
+        imagePreview.imageAlignment = .alignCenter
+        imagePreview.isHidden = true
+        container.addSubview(imagePreview)
 
         NSLayoutConstraint.activate([
             jumpBar.topAnchor.constraint(equalTo: container.topAnchor),
@@ -111,7 +121,12 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             placeholderLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
 
             binaryLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            binaryLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            binaryLabel.bottomAnchor.constraint(equalTo: container.centerYAnchor, constant: 160),
+
+            imagePreview.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            imagePreview.centerYAnchor.constraint(equalTo: container.centerYAnchor, constant: -20),
+            imagePreview.widthAnchor.constraint(lessThanOrEqualTo: container.widthAnchor, constant: -80),
+            imagePreview.heightAnchor.constraint(lessThanOrEqualTo: container.heightAnchor, constant: -160),
         ])
 
         self.view = container
@@ -232,7 +247,20 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
                 editor.gutterView.isHidden = true
                 minimap.isHidden = true
                 placeholderLabel.isHidden = true
-                binaryLabel.stringValue = "\(doc.fileName) is a binary file and cannot be displayed."
+                imagePreview.isHidden = true
+
+                // Check if it's an image file
+                let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "bmp", "tiff", "tif", "ico", "webp", "heic", "svg"]
+                if imageExts.contains(doc.fileExtension.lowercased()),
+                   let image = NSImage(contentsOf: doc.url) {
+                    imagePreview.image = image
+                    imagePreview.isHidden = false
+                    let sizeStr = "\(Int(image.size.width)) x \(Int(image.size.height))"
+                    binaryLabel.stringValue = "\(doc.fileName) (\(sizeStr))"
+                } else {
+                    let sizeStr = formatFileSize(doc.url)
+                    binaryLabel.stringValue = "\(doc.fileName)\nBinary file \(sizeStr)"
+                }
                 binaryLabel.isHidden = false
             } else {
                 editor.scrollView.isHidden = false
@@ -240,6 +268,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
                 minimap.isHidden = !Preferences.shared.showMinimap
                 placeholderLabel.isHidden = true
                 binaryLabel.isHidden = true
+                imagePreview.isHidden = true
                 minimap.textView = editor.textView
                 minimap.scrollView = editor.scrollView
                 editor.minimapView = minimap
@@ -279,6 +308,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             minimap.isHidden = true
             placeholderLabel.isHidden = false
             binaryLabel.isHidden = true
+            imagePreview.isHidden = true
             jumpBar.update(fileURL: nil, projectRoot: nil)
 
             if let window = view.window {
@@ -716,6 +746,21 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             return true
         default:
             return false
+        }
+    }
+    // MARK: - Helpers
+
+    private func formatFileSize(_ url: URL) -> String {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let size = attrs[.size] as? UInt64 else {
+            return ""
+        }
+        if size < 1024 {
+            return "(\(size) B)"
+        } else if size < 1024 * 1024 {
+            return String(format: "(%.1f KB)", Double(size) / 1024)
+        } else {
+            return String(format: "(%.1f MB)", Double(size) / (1024 * 1024))
         }
     }
 }

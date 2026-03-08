@@ -18,6 +18,7 @@ extension TabBarDelegate {
 class TabBar: NSView {
 
     weak var delegate: TabBarDelegate?
+    var projectRootURL: URL?
     private var tabButtons: [TabButton] = []
     private var selectedIndex: Int = -1
 
@@ -227,6 +228,11 @@ class TabBar: NSView {
         copyPathItem.representedObject = button.fileURL
         menu.addItem(copyPathItem)
 
+        let copyRelativeItem = NSMenuItem(title: "Copy Relative Path", action: #selector(contextCopyRelativePath(_:)), keyEquivalent: "")
+        copyRelativeItem.target = self
+        copyRelativeItem.representedObject = button.fileURL
+        menu.addItem(copyRelativeItem)
+
         let revealItem = NSMenuItem(title: "Reveal in Finder", action: #selector(contextRevealInFinder(_:)), keyEquivalent: "")
         revealItem.target = self
         revealItem.representedObject = button.fileURL
@@ -255,6 +261,24 @@ class TabBar: NSView {
         guard let url = sender.representedObject as? URL else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(url.path, forType: .string)
+    }
+
+    @objc private func contextCopyRelativePath(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? URL else { return }
+        let relativePath: String
+        if let root = projectRootURL {
+            let rootPath = root.standardizedFileURL.path
+            let filePath = url.standardizedFileURL.path
+            if filePath.hasPrefix(rootPath) {
+                relativePath = String(filePath.dropFirst(rootPath.count + 1))
+            } else {
+                relativePath = url.path
+            }
+        } else {
+            relativePath = url.lastPathComponent
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(relativePath, forType: .string)
     }
 
     @objc private func contextRevealInFinder(_ sender: NSMenuItem) {
