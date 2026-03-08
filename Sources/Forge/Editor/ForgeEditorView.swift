@@ -23,6 +23,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
     /// Called when cursor position changes: (line, column, totalLines)
     var onCursorChange: ((Int, Int, Int) -> Void)?
 
+    /// Minimap view (set externally, updated on scroll/edit)
+    weak var minimapView: MinimapView?
+
     /// Called when user ⌘-clicks to jump to definition: (url, line, column)
     var onJumpToDefinition: ((URL, Int, Int) -> Void)?
 
@@ -346,6 +349,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
     func textDidChange(_ notification: Notification) {
         document?.isModified = true
         gutterView.needsDisplay = true
+        minimapView?.needsDisplay = true
 
         rehighlightWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
@@ -367,6 +371,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
 
     @objc private func scrollViewDidScroll(_ notification: Notification) {
         gutterView.needsDisplay = true
+        minimapView?.needsDisplay = true
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {

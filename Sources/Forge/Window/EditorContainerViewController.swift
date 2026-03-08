@@ -7,6 +7,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     private let jumpBar = JumpBar()
     private let tabBar = TabBar()
     private let editor = ForgeEditorManager()
+    private let minimap = MinimapView()
     private let statusBar = StatusBar()
     private let placeholderLabel = NSTextField(labelWithString: "Open a file to start editing")
     private let binaryLabel = NSTextField(labelWithString: "")
@@ -46,6 +47,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         sv.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(sv)
 
+        // Minimap
+        minimap.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(minimap)
+
         // Placeholder
         placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
         placeholderLabel.font = NSFont.systemFont(ofSize: 16, weight: .light)
@@ -83,11 +88,17 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             editor.gutterView.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
             editor.gutterView.widthAnchor.constraint(equalToConstant: editor.gutterWidth),
 
-            // Scroll view: to the right of gutter, between tab bar and status bar
+            // Scroll view: to the right of gutter, left of minimap
             sv.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
             sv.leadingAnchor.constraint(equalTo: editor.gutterView.trailingAnchor),
-            sv.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            sv.trailingAnchor.constraint(equalTo: minimap.leadingAnchor),
             sv.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
+
+            // Minimap: right side
+            minimap.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
+            minimap.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            minimap.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
+            minimap.widthAnchor.constraint(equalToConstant: 80),
 
             placeholderLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
             placeholderLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
@@ -137,14 +148,19 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             if doc.isBinary {
                 editor.scrollView.isHidden = true
                 editor.gutterView.isHidden = true
+                minimap.isHidden = true
                 placeholderLabel.isHidden = true
                 binaryLabel.stringValue = "\(doc.fileName) is a binary file and cannot be displayed."
                 binaryLabel.isHidden = false
             } else {
                 editor.scrollView.isHidden = false
                 editor.gutterView.isHidden = false
+                minimap.isHidden = false
                 placeholderLabel.isHidden = true
                 binaryLabel.isHidden = true
+                minimap.textView = editor.textView
+                minimap.scrollView = editor.scrollView
+                editor.minimapView = minimap
             }
             editor.displayDocument(doc)
             jumpBar.update(fileURL: doc.url, projectRoot: project.rootURL)
@@ -152,6 +168,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         } else {
             editor.scrollView.isHidden = true
             editor.gutterView.isHidden = true
+            minimap.isHidden = true
             placeholderLabel.isHidden = false
             binaryLabel.isHidden = true
             jumpBar.update(fileURL: nil, projectRoot: nil)
