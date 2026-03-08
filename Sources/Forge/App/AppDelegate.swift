@@ -145,6 +145,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         productMenu.addItem(withTitle: "Build", action: #selector(MainWindowController.buildProject(_:)), keyEquivalent: "b")
         productMenu.addItem(withTitle: "Run", action: #selector(MainWindowController.runProject(_:)), keyEquivalent: "r")
 
+        let cleanItem = NSMenuItem(title: "Clean Build", action: #selector(MainWindowController.cleanBuild(_:)), keyEquivalent: "K")
+        cleanItem.keyEquivalentModifierMask = [.command, .shift]
+        productMenu.addItem(cleanItem)
+
+        productMenu.addItem(.separator())
+
         let stopItem = NSMenuItem(title: "Stop", action: #selector(MainWindowController.stopBuild(_:)), keyEquivalent: ".")
         productMenu.addItem(stopItem)
 

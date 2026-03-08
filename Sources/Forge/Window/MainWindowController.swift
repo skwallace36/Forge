@@ -127,6 +127,23 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
         buildSystem.buildAndRun()
     }
 
+    @objc func cleanBuild(_ sender: Any?) {
+        splitViewController.showBuildLog()
+        splitViewController.clearBuildLog()
+
+        let buildSystem = project.buildSystem
+        buildSystem.onOutput = { [weak self] text in
+            self?.splitViewController.appendBuildOutput(text)
+        }
+        buildSystem.onComplete = { [weak self] success in
+            let msg = success ? "Clean complete.\n" : "Clean failed.\n"
+            self?.splitViewController.appendBuildOutput(msg)
+        }
+
+        splitViewController.appendBuildOutput("Cleaning \(project.displayName)...\n\n")
+        buildSystem.clean()
+    }
+
     @objc func stopBuild(_ sender: Any?) {
         project.buildSystem.cancel()
         splitViewController.appendBuildOutput("\nBuild cancelled.\n")

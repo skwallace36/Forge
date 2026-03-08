@@ -124,6 +124,48 @@ class BuildSystem {
         }
     }
 
+    /// Clean build artifacts.
+    func clean() {
+        guard !isBuilding else { return }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
+        process.arguments = ["package", "clean"]
+        process.currentDirectoryURL = projectRoot
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+            DispatchQueue.main.async {
+                self?.onOutput?(text)
+            }
+        }
+
+        process.terminationHandler = { [weak self] proc in
+            DispatchQueue.main.async {
+                pipe.fileHandleForReading.readabilityHandler = nil
+                self?.currentProcess = nil
+                self?.onComplete?(proc.terminationStatus == 0)
+            }
+        }
+
+        self.currentProcess = process
+
+        do {
+            try process.run()
+        } catch {
+            DispatchQueue.main.async {
+                self.onOutput?("Failed to clean: \(error.localizedDescription)\n")
+                self.currentProcess = nil
+                self.onComplete?(false)
+            }
+        }
+    }
+
     /// Cancel the current build or run.
     func cancel() {
         currentProcess?.terminate()
