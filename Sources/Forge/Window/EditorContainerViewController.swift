@@ -239,6 +239,18 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.renameSymbol(sender)
     }
 
+    @objc func increaseFontSize(_ sender: Any?) {
+        editor.increaseFontSize()
+    }
+
+    @objc func decreaseFontSize(_ sender: Any?) {
+        editor.decreaseFontSize()
+    }
+
+    @objc func resetFontSize(_ sender: Any?) {
+        editor.resetFontSize()
+    }
+
     @objc func goToLine(_ sender: Any?) {
         let alert = NSAlert()
         alert.messageText = "Go to Line"

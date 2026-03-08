@@ -211,6 +211,11 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         splitViewController.syncDocumentContent()
         try? doc.save()
         splitViewController.editorAreaDidUpdate()
+
+        // Update window title to remove "Edited" indicator
+        if let window = window {
+            window.title = "Forge — \(doc.fileName)"
+        }
     }
 
     // MARK: - Tab actions

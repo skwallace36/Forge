@@ -120,6 +120,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         toggleBottom.keyEquivalentModifierMask = [.command, .shift]
         viewMenu.addItem(toggleBottom)
 
+        viewMenu.addItem(.separator())
+
+        let zoomIn = NSMenuItem(title: "Zoom In", action: #selector(EditorContainerViewController.increaseFontSize(_:)), keyEquivalent: "+")
+        viewMenu.addItem(zoomIn)
+
+        let zoomOut = NSMenuItem(title: "Zoom Out", action: #selector(EditorContainerViewController.decreaseFontSize(_:)), keyEquivalent: "-")
+        viewMenu.addItem(zoomOut)
+
+        let resetZoom = NSMenuItem(title: "Reset Zoom", action: #selector(EditorContainerViewController.resetFontSize(_:)), keyEquivalent: "0")
+        resetZoom.keyEquivalentModifierMask = [.command, .option]
+        viewMenu.addItem(resetZoom)
+
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
 

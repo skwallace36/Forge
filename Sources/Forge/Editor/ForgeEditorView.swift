@@ -36,7 +36,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
     var onShowReferences: (([LSPLocation]) -> Void)?
 
     let theme: Theme = .xcodeDefaultDark
-    let fontSize: CGFloat = 13
+    private(set) var fontSize: CGFloat = 13
     let gutterWidth: CGFloat = 44
     let tabWidth: Int = 4
 
@@ -518,6 +518,31 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             } catch {
                 // Silently fail
             }
+        }
+    }
+
+    // MARK: - Font Size Zoom
+
+    func increaseFontSize() {
+        fontSize = min(fontSize + 1, 32)
+        applyFontSize()
+    }
+
+    func decreaseFontSize() {
+        fontSize = max(fontSize - 1, 8)
+        applyFontSize()
+    }
+
+    func resetFontSize() {
+        fontSize = 13
+        applyFontSize()
+    }
+
+    private func applyFontSize() {
+        textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        if let doc = document {
+            // Re-display to apply new font size to highlighting
+            displayDocument(doc)
         }
     }
 
