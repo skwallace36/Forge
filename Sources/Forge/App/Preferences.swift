@@ -21,6 +21,8 @@ class Preferences {
         static let columnRuler = "ForgeColumnRuler"
         static let wordWrap = "ForgeWordWrap"
         static let bracketPairColorization = "ForgeBracketPairColorization"
+        static let stickyScroll = "ForgeStickyScroll"
+        static let inlineDiagnostics = "ForgeInlineDiagnostics"
     }
 
     // MARK: - Font
@@ -123,6 +125,28 @@ class Preferences {
         }
         set {
             defaults.set(newValue, forKey: Key.bracketPairColorization)
+            NotificationCenter.default.post(name: .preferencesDidChange, object: nil)
+        }
+    }
+
+    var stickyScroll: Bool {
+        get {
+            if defaults.object(forKey: Key.stickyScroll) == nil { return true }
+            return defaults.bool(forKey: Key.stickyScroll)
+        }
+        set {
+            defaults.set(newValue, forKey: Key.stickyScroll)
+            NotificationCenter.default.post(name: .preferencesDidChange, object: nil)
+        }
+    }
+
+    var inlineDiagnostics: Bool {
+        get {
+            if defaults.object(forKey: Key.inlineDiagnostics) == nil { return true }
+            return defaults.bool(forKey: Key.inlineDiagnostics)
+        }
+        set {
+            defaults.set(newValue, forKey: Key.inlineDiagnostics)
             NotificationCenter.default.post(name: .preferencesDidChange, object: nil)
         }
     }

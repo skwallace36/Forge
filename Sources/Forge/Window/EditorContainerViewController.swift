@@ -255,7 +255,11 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
         // Wire up sticky scroll
         editor.onScroll = { [weak self] in
-            self?.stickyScroll.updateStickyLines()
+            guard let self = self, Preferences.shared.stickyScroll else {
+                self?.stickyScroll.isHidden = true
+                return
+            }
+            self.stickyScroll.updateStickyLines()
         }
         stickyScroll.onLineClicked = { [weak self] charOffset in
             guard let self = self else { return }
@@ -572,6 +576,23 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
     @objc func toggleBracketColorization(_ sender: Any?) {
         Preferences.shared.bracketPairColorization = !Preferences.shared.bracketPairColorization
+    }
+
+    @objc func toggleStickyScroll(_ sender: Any?) {
+        let prefs = Preferences.shared
+        prefs.stickyScroll = !prefs.stickyScroll
+        if !prefs.stickyScroll {
+            stickyScroll.isHidden = true
+        } else {
+            stickyScroll.updateStickyLines()
+        }
+    }
+
+    @objc func toggleInlineDiagnostics(_ sender: Any?) {
+        let prefs = Preferences.shared
+        prefs.inlineDiagnostics = !prefs.inlineDiagnostics
+        // Re-apply diagnostics to reflect the change
+        editor.updateDiagnostics(editor.diagnostics)
     }
 
     @objc func togglePinCurrentTab(_ sender: Any?) {
