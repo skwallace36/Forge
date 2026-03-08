@@ -337,6 +337,18 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
             revealItem.target = self
             revealItem.representedObject = node
             menu.addItem(revealItem)
+
+            menu.addItem(.separator())
+
+            let copyPathItem = NSMenuItem(title: "Copy Path", action: #selector(copyPathAction(_:)), keyEquivalent: "")
+            copyPathItem.target = self
+            copyPathItem.representedObject = node
+            menu.addItem(copyPathItem)
+
+            let copyRelativePathItem = NSMenuItem(title: "Copy Relative Path", action: #selector(copyRelativePathAction(_:)), keyEquivalent: "")
+            copyRelativePathItem.target = self
+            copyRelativePathItem.representedObject = node
+            menu.addItem(copyRelativePathItem)
         }
     }
 
@@ -389,6 +401,23 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
     @objc private func revealInFinderAction(_ sender: NSMenuItem) {
         guard let node = sender.representedObject as? FileNode else { return }
         NSWorkspace.shared.activateFileViewerSelecting([node.url])
+    }
+
+    @objc private func copyPathAction(_ sender: NSMenuItem) {
+        guard let node = sender.representedObject as? FileNode else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(node.url.path, forType: .string)
+    }
+
+    @objc private func copyRelativePathAction(_ sender: NSMenuItem) {
+        guard let node = sender.representedObject as? FileNode else { return }
+        let rootPath = project.rootURL.path
+        let nodePath = node.url.path
+        let relativePath = nodePath.hasPrefix(rootPath)
+            ? String(nodePath.dropFirst(rootPath.count + 1))
+            : nodePath
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(relativePath, forType: .string)
     }
 
     private func promptForName(title: String, message: String, defaultValue: String = "", completion: @escaping (String) -> Void) {

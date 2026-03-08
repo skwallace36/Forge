@@ -229,6 +229,15 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         }
     }
 
+    /// Auto-save modified documents (called on app deactivation)
+    func autoSaveAll() {
+        splitViewController.syncDocumentContent()
+        for tab in project.tabManager.tabs where tab.isModified {
+            try? tab.document.save()
+        }
+        // Don't refresh editor — just save silently
+    }
+
     // MARK: - Tab actions
 
     @objc func closeCurrentTab(_ sender: Any?) {

@@ -35,6 +35,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 
+    func applicationDidResignActive(_ notification: Notification) {
+        // Auto-save all modified documents when switching away from the app
+        windowController?.autoSaveAll()
+    }
+
     // MARK: - Main Menu
 
     private func setupMainMenu() {
