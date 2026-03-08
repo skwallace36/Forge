@@ -322,6 +322,14 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.resetFontSize()
     }
 
+    @objc func sortLines(_ sender: Any?) {
+        editor.sortLines()
+    }
+
+    @objc func removeDuplicateLines(_ sender: Any?) {
+        editor.removeDuplicateLines()
+    }
+
     @objc func goToLine(_ sender: Any?) {
         let alert = NSAlert()
         alert.messageText = "Go to Line"

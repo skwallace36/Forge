@@ -146,6 +146,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         renameItem.keyEquivalentModifierMask = [.command, .control]
         editMenu.addItem(renameItem)
 
+        editMenu.addItem(.separator())
+
+        let sortLinesItem = NSMenuItem(title: "Sort Lines", action: #selector(EditorContainerViewController.sortLines(_:)), keyEquivalent: "")
+        editMenu.addItem(sortLinesItem)
+
+        let removeDupsItem = NSMenuItem(title: "Remove Duplicate Lines", action: #selector(EditorContainerViewController.removeDuplicateLines(_:)), keyEquivalent: "")
+        editMenu.addItem(removeDupsItem)
+
         editMenuItem.submenu = editMenu
         mainMenu.addItem(editMenuItem)
 

@@ -1602,6 +1602,58 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         }
     }
 
+    // MARK: - Sort Lines
+
+    func sortLines() {
+        guard let ts = textView.textStorage else { return }
+        let text = ts.string as NSString
+        let sel = textView.selectedRange()
+
+        // If nothing selected, use entire document
+        let range = sel.length > 0 ? text.lineRange(for: sel) : NSRange(location: 0, length: ts.length)
+        let linesText = text.substring(with: range)
+        var lines = linesText.components(separatedBy: "\n")
+
+        // Remove trailing empty line from the split if present
+        if lines.last == "" { lines.removeLast() }
+
+        lines.sort { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        let sorted = lines.joined(separator: "\n") + (linesText.hasSuffix("\n") ? "\n" : "")
+
+        if textView.shouldChangeText(in: range, replacementString: sorted) {
+            ts.replaceCharacters(in: range, with: sorted)
+            textView.didChangeText()
+            textView.setSelectedRange(NSRange(location: range.location, length: (sorted as NSString).length))
+        }
+    }
+
+    func removeDuplicateLines() {
+        guard let ts = textView.textStorage else { return }
+        let text = ts.string as NSString
+        let sel = textView.selectedRange()
+
+        let range = sel.length > 0 ? text.lineRange(for: sel) : NSRange(location: 0, length: ts.length)
+        let linesText = text.substring(with: range)
+        var lines = linesText.components(separatedBy: "\n")
+
+        if lines.last == "" { lines.removeLast() }
+
+        var seen = Set<String>()
+        var unique: [String] = []
+        for line in lines {
+            if seen.insert(line).inserted {
+                unique.append(line)
+            }
+        }
+
+        let result = unique.joined(separator: "\n") + (linesText.hasSuffix("\n") ? "\n" : "")
+        if textView.shouldChangeText(in: range, replacementString: result) {
+            ts.replaceCharacters(in: range, with: result)
+            textView.didChangeText()
+            textView.setSelectedRange(NSRange(location: range.location, length: (result as NSString).length))
+        }
+    }
+
     // MARK: - Scroll to Line
 
     /// Scrolls to a specific line and column (0-based, LSP convention) and places the cursor there.
