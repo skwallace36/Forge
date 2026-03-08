@@ -214,6 +214,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         editMenu.addItem(.separator())
 
+        // Bookmarks
+        let toggleBookmarkItem = NSMenuItem(title: "Toggle Bookmark", action: #selector(EditorContainerViewController.toggleBookmark(_:)), keyEquivalent: "")
+        toggleBookmarkItem.keyEquivalent = String(UnicodeScalar(NSF2FunctionKey)!)
+        toggleBookmarkItem.keyEquivalentModifierMask = [.command]
+        editMenu.addItem(toggleBookmarkItem)
+
+        let nextBookmarkItem = NSMenuItem(title: "Next Bookmark", action: #selector(EditorContainerViewController.nextBookmark(_:)), keyEquivalent: "")
+        nextBookmarkItem.keyEquivalent = String(UnicodeScalar(NSF2FunctionKey)!)
+        nextBookmarkItem.keyEquivalentModifierMask = []
+        editMenu.addItem(nextBookmarkItem)
+
+        let prevBookmarkItem = NSMenuItem(title: "Previous Bookmark", action: #selector(EditorContainerViewController.previousBookmark(_:)), keyEquivalent: "")
+        prevBookmarkItem.keyEquivalent = String(UnicodeScalar(NSF2FunctionKey)!)
+        prevBookmarkItem.keyEquivalentModifierMask = [.shift]
+        editMenu.addItem(prevBookmarkItem)
+
+        let clearBookmarksItem = NSMenuItem(title: "Clear All Bookmarks", action: #selector(EditorContainerViewController.clearBookmarks(_:)), keyEquivalent: "")
+        editMenu.addItem(clearBookmarksItem)
+
+        editMenu.addItem(.separator())
+
         // Transform submenu
         let transformMenu = NSMenu(title: "Transform")
         let uppercaseItem = NSMenuItem(title: "Make Uppercase", action: #selector(EditorContainerViewController.transformToUppercase(_:)), keyEquivalent: "u")

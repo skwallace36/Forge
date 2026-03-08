@@ -17,6 +17,11 @@ class MinimapView: NSView {
         didSet { needsDisplay = true }
     }
 
+    /// Bookmarked line numbers (0-indexed), shown as blue markers
+    var bookmarkedLines: Set<Int> = [] {
+        didSet { needsDisplay = true }
+    }
+
     private let scale: CGFloat = 0.12
     private let minimapWidth: CGFloat = 80
 
@@ -134,6 +139,29 @@ class MinimapView: NSView {
                 let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIdx, effectiveRange: nil)
                 let y = (lineRect.origin.y + textView.textContainerInset.height) * scaleFactor
                 NSRect(x: bounds.width - 8, y: y, width: 7, height: max(2, 2)).fill()
+            }
+        }
+
+        // Draw bookmark markers on the right edge (blue)
+        if !bookmarkedLines.isEmpty {
+            let bookmarkColor = NSColor(red: 0.35, green: 0.55, blue: 0.95, alpha: 0.85)
+            bookmarkColor.setFill()
+            // Build line offsets for bookmark positions
+            var lineOffsets = [0]
+            let maxBookmarkLine = bookmarkedLines.max() ?? 0
+            for i in 0..<text.length where lineOffsets.count <= maxBookmarkLine {
+                if text.character(at: i) == 0x0A {
+                    lineOffsets.append(i + 1)
+                }
+            }
+            for line in bookmarkedLines {
+                guard line < lineOffsets.count else { continue }
+                let charIdx = lineOffsets[line]
+                guard charIdx < text.length else { continue }
+                let glyphIdx = layoutManager.glyphIndexForCharacter(at: charIdx)
+                let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIdx, effectiveRange: nil)
+                let y = (lineRect.origin.y + textView.textContainerInset.height) * scaleFactor
+                NSRect(x: bounds.width - 8, y: y, width: 7, height: max(2, 3)).fill()
             }
         }
     }

@@ -620,6 +620,22 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.sortImports(sender)
     }
 
+    @objc func toggleBookmark(_ sender: Any?) {
+        editor.toggleBookmark(sender)
+    }
+
+    @objc func nextBookmark(_ sender: Any?) {
+        editor.nextBookmark(sender)
+    }
+
+    @objc func previousBookmark(_ sender: Any?) {
+        editor.previousBookmark(sender)
+    }
+
+    @objc func clearBookmarks(_ sender: Any?) {
+        editor.clearBookmarks(sender)
+    }
+
     @objc func increaseFontSize(_ sender: Any?) {
         editor.increaseFontSize()
     }

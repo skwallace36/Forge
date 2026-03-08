@@ -12,6 +12,9 @@ class GutterView: NSView {
     /// Blame info indexed by 0-indexed line number
     var blameInfo: [Int: GitStatusTracker.BlameInfo] = [:]
 
+    /// Bookmarked lines (0-indexed)
+    var bookmarkedLines: Set<Int> = []
+
     /// Set of 0-indexed line numbers that start a foldable block (line ends with `{`)
     var foldableLines: Set<Int> = []
 
@@ -249,6 +252,21 @@ class GutterView: NSView {
                     : NSColor(red: 0.40, green: 0.60, blue: 0.95, alpha: 1.0)
                 barColor.setFill()
                 NSRect(x: 0, y: lineRect.origin.y, width: 3, height: lineRect.height).fill()
+            }
+
+            // Bookmark marker (blue diamond)
+            if bookmarkedLines.contains(zeroIndexedLine) {
+                let size: CGFloat = 6
+                let cx = bounds.width - 10.0
+                let cy = lineRect.origin.y + lineRect.height / 2
+                let path = NSBezierPath()
+                path.move(to: NSPoint(x: cx, y: cy - size / 2))
+                path.line(to: NSPoint(x: cx + size / 2, y: cy))
+                path.line(to: NSPoint(x: cx, y: cy + size / 2))
+                path.line(to: NSPoint(x: cx - size / 2, y: cy))
+                path.close()
+                NSColor(red: 0.35, green: 0.55, blue: 0.95, alpha: 1.0).setFill()
+                path.fill()
             }
 
             // Fold marker (triangle)

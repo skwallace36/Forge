@@ -2817,6 +2817,47 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         updateFoldableLines()
         gutterView.needsDisplay = true
     }
+
+    // MARK: - Bookmarks
+
+    /// Toggle a bookmark on the current cursor line
+    @objc func toggleBookmark(_ sender: Any? = nil) {
+        let (line, _) = characterIndexToLineColumn(textView.selectedRange().location)
+        if gutterView.bookmarkedLines.contains(line) {
+            gutterView.bookmarkedLines.remove(line)
+        } else {
+            gutterView.bookmarkedLines.insert(line)
+        }
+        gutterView.needsDisplay = true
+        minimapView?.bookmarkedLines = gutterView.bookmarkedLines
+    }
+
+    /// Jump to the next bookmarked line after the cursor
+    @objc func nextBookmark(_ sender: Any? = nil) {
+        let (currentLine, _) = characterIndexToLineColumn(textView.selectedRange().location)
+        let sorted = gutterView.bookmarkedLines.sorted()
+        guard !sorted.isEmpty else { return }
+
+        let target = sorted.first(where: { $0 > currentLine }) ?? sorted.first!
+        scrollToLine(target + 1, column: 1)
+    }
+
+    /// Jump to the previous bookmarked line before the cursor
+    @objc func previousBookmark(_ sender: Any? = nil) {
+        let (currentLine, _) = characterIndexToLineColumn(textView.selectedRange().location)
+        let sorted = gutterView.bookmarkedLines.sorted()
+        guard !sorted.isEmpty else { return }
+
+        let target = sorted.last(where: { $0 < currentLine }) ?? sorted.last!
+        scrollToLine(target + 1, column: 1)
+    }
+
+    /// Clear all bookmarks in the current file
+    @objc func clearBookmarks(_ sender: Any? = nil) {
+        gutterView.bookmarkedLines.removeAll()
+        gutterView.needsDisplay = true
+        minimapView?.bookmarkedLines = []
+    }
 }
 
 // MARK: - ForgeTextView (smart paste)
