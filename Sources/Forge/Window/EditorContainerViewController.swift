@@ -786,6 +786,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.formatDocument(sender)
     }
 
+    @objc func jumpToDefinition(_ sender: Any?) {
+        editor.jumpToDefinitionAction(sender)
+    }
+
     @objc func sendToClaude(_ sender: Any?) {
         editor.sendToClaudeAction(sender)
     }

@@ -193,7 +193,9 @@ class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate, N
                            action: #selector(EditorContainerViewController.transformToTitleCase(_:)), target: nil),
             PaletteCommand(title: "Find in Project", shortcut: "⌘⇧F", category: "Edit",
                            action: #selector(MainSplitViewController.findInProject(_:)), target: nil),
-            PaletteCommand(title: "Find All References", shortcut: "", category: "Edit",
+            PaletteCommand(title: "Jump to Definition", shortcut: "⌃⌘J", category: "Navigate",
+                           action: #selector(EditorContainerViewController.jumpToDefinition(_:)), target: nil),
+            PaletteCommand(title: "Find All References", shortcut: "", category: "Navigate",
                            action: #selector(EditorContainerViewController.findReferences(_:)), target: nil),
 
             // View

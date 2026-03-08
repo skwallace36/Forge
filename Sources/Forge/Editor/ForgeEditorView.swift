@@ -2775,7 +2775,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         selectAllOccurrences()
     }
 
-    @objc private func jumpToDefinitionAction(_ sender: Any?) {
+    @objc func jumpToDefinitionAction(_ sender: Any?) {
         guard let doc = document, let lsp = lspClient else { return }
         let (line, character) = characterIndexToLineColumn(textView.selectedRange().location)
 

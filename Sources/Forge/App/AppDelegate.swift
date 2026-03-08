@@ -421,6 +421,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let goToLine = NSMenuItem(title: "Go to Line…", action: #selector(EditorContainerViewController.goToLine(_:)), keyEquivalent: "l")
         navMenu.addItem(goToLine)
 
+        let jumpToDef = NSMenuItem(title: "Jump to Definition", action: #selector(EditorContainerViewController.jumpToDefinition(_:)), keyEquivalent: "J")
+        jumpToDef.keyEquivalentModifierMask = [.command, .control]
+        navMenu.addItem(jumpToDef)
+
         let findRefs = NSMenuItem(title: "Find All References", action: #selector(EditorContainerViewController.findReferences(_:)), keyEquivalent: "")
         navMenu.addItem(findRefs)
 
