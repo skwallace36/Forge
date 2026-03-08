@@ -203,6 +203,14 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
     }
 
+    /// Open a file as a preview tab (replaces existing preview, shown in italics)
+    func openFileAsPreview(_ url: URL) {
+        let doc = project.document(for: url)
+        project.tabManager.openPreview(document: doc)
+        project.navigationHistory.push(url: url)
+        splitViewController.editorAreaDidUpdate()
+    }
+
     /// Open a file and scroll to a specific line/column (0-based, LSP convention)
     func openFile(_ url: URL, atLine line: Int, column: Int, selectLength: Int = 0) {
         openFile(url)

@@ -38,6 +38,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Called when user wants to send selected code to Claude: (code, fileName, line)
     var onSendToClaude: ((String, String?, Int?) -> Void)?
 
+    /// Called when text content changes (for promoting preview tabs, etc.)
+    var onTextDidChange: (() -> Void)?
+
     let theme: Theme = .xcodeDefaultDark
     private(set) var fontSize: CGFloat = Preferences.shared.fontSize
     var editorFont: NSFont { Preferences.shared.editorFont(size: fontSize) }
@@ -451,6 +454,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         document?.isModified = true
         gutterView.needsDisplay = true
         minimapView?.invalidateCodeCache()
+        onTextDidChange?()
 
         rehighlightWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in

@@ -150,6 +150,15 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             self?.showReferencesMenu(locations)
         }
 
+        // Promote preview tab to permanent when user edits the file
+        editor.onTextDidChange = { [weak self] in
+            guard let self = self else { return }
+            self.project.tabManager.promoteCurrentPreview()
+            // Refresh tab bar to update italic → regular font
+            let tm = self.project.tabManager
+            self.tabBar.update(tabs: tm.tabs, selectedIndex: tm.selectedIndex, tabManager: tm)
+        }
+
         // Wire up jump bar symbol navigation
         jumpBar.onSymbolSelected = { [weak self] line, column in
             self?.editor.scrollToLine(line, column: column)

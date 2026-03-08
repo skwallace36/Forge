@@ -57,6 +57,8 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
 
         outlineView.dataSource = self
         outlineView.delegate = self
+        outlineView.target = self
+        outlineView.doubleAction = #selector(outlineViewDoubleClicked(_:))
 
         scrollView.documentView = outlineView
         container.addSubview(scrollView)
@@ -360,6 +362,16 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         guard row >= 0, let node = outlineView.item(atRow: row) as? FileNode else { return }
 
         if !node.isDirectory {
+            windowController?.openFileAsPreview(node.url)
+        }
+    }
+
+    @objc private func outlineViewDoubleClicked(_ sender: Any?) {
+        let row = outlineView.clickedRow
+        guard row >= 0, let node = outlineView.item(atRow: row) as? FileNode else { return }
+
+        if !node.isDirectory {
+            // Double-click opens as permanent tab (not preview)
             windowController?.openFile(node.url)
         }
     }

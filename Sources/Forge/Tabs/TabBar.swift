@@ -56,6 +56,7 @@ class TabBar: NSView {
             button.fileURL = tab.url
             button.isSelected = (index == selectedIndex)
             button.isModified = tab.isModified
+            button.isPreview = tab.isPreview
             button.index = index
             button.target = self
             button.selectAction = #selector(tabClicked(_:))
@@ -223,6 +224,7 @@ class TabButton: NSView {
     var fileExtension: String = "" { didSet { needsDisplay = true } }
     var isSelected: Bool = false { didSet { needsDisplay = true } }
     var isModified: Bool = false { didSet { needsDisplay = true } }
+    var isPreview: Bool = false { didSet { needsDisplay = true } }
     var index: Int = 0
     var fileURL: URL?
 
@@ -330,8 +332,16 @@ class TabButton: NSView {
         )
 
         // Title (with modified dot in close button area)
+        let titleFont: NSFont
+        if isPreview {
+            // Italic font for preview tabs
+            let base = NSFont.systemFont(ofSize: 12, weight: .regular)
+            titleFont = NSFontManager.shared.convert(base, toHaveTrait: .italicFontMask)
+        } else {
+            titleFont = NSFont.systemFont(ofSize: 12, weight: isSelected ? .medium : .regular)
+        }
         let titleAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 12, weight: isSelected ? .medium : .regular),
+            .font: titleFont,
             .foregroundColor: isSelected ? selectedTextColor : textColor,
         ]
         let titleStr = title as NSString

@@ -5,6 +5,8 @@ class TabManager {
     struct Tab {
         let document: ForgeDocument
         var isPinned: Bool = false
+        /// Preview tabs are shown in italics and get replaced by the next preview
+        var isPreview: Bool = false
 
         var title: String { document.fileName }
         var isModified: Bool { document.isModified }
@@ -43,6 +45,10 @@ class TabManager {
     func openOrFocus(document: ForgeDocument) {
         if let existingIndex = tabs.firstIndex(where: { $0.url == document.url }) {
             selectedIndex = existingIndex
+            // If this was a preview tab, promote it to permanent
+            if tabs[existingIndex].isPreview {
+                tabs[existingIndex].isPreview = false
+            }
         } else {
             let tab = Tab(document: document)
             // Insert after current tab
@@ -50,6 +56,45 @@ class TabManager {
             tabs.insert(tab, at: insertIndex)
             selectedIndex = insertIndex
         }
+    }
+
+    /// Open a document as a preview tab — replaces any existing preview tab.
+    /// If the document is already open (preview or permanent), just focuses it.
+    func openPreview(document: ForgeDocument) {
+        // If already open, just select it
+        if let existingIndex = tabs.firstIndex(where: { $0.url == document.url }) {
+            selectedIndex = existingIndex
+            return
+        }
+
+        // Replace existing preview tab if any
+        if let previewIndex = tabs.firstIndex(where: { $0.isPreview }) {
+            let closed = tabs.remove(at: previewIndex)
+            if !closed.isModified {
+                // Don't add unmodified preview tabs to recently closed
+            } else {
+                recentlyClosed.append(closed.document)
+            }
+            // Adjust selected index after removal
+            if selectedIndex > previewIndex {
+                selectedIndex -= 1
+            } else if selectedIndex == previewIndex {
+                selectedIndex = max(0, selectedIndex - 1)
+            }
+        }
+
+        var tab = Tab(document: document)
+        tab.isPreview = true
+        let insertIndex = selectedIndex >= 0 ? selectedIndex + 1 : tabs.count
+        tabs.insert(tab, at: insertIndex)
+        selectedIndex = insertIndex
+    }
+
+    /// Promote the current preview tab to a permanent tab (e.g., when user edits it)
+    func promoteCurrentPreview() {
+        guard selectedIndex >= 0 && selectedIndex < tabs.count,
+              tabs[selectedIndex].isPreview else { return }
+        tabs[selectedIndex].isPreview = false
     }
 
     func closeCurrent() {
