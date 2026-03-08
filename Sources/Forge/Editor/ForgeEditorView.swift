@@ -590,6 +590,10 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         updateCurrentLineHighlight()
         updateBracketMatch()
 
+        // Update minimap cursor position
+        let (line, _) = characterIndexToLineColumn(textView.selectedRange().location)
+        minimapView?.currentLine = line
+
         // Debounce occurrence highlighting to avoid lag during rapid selection changes
         occurrenceWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in
