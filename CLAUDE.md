@@ -106,6 +106,13 @@ See PLAN.md for full phase breakdown. Short version:
 - Line bookmarks (⌘F2 toggle, F2/⇧F2 navigate, gutter diamonds, minimap markers)
 - Clipboard history (⌃⇧V) — paste from ring of 20 recent clipboard entries
 - Both brackets highlighted in matching pairs
+- Minimap uses actual syntax colors from text storage
+- Custom Find/Replace bar (⌘F/⌘⌥F) — live match count, case/word/regex toggles, replace all
+- Diagnostic count in status bar (error/warning indicators)
+- Tab hover tooltips showing relative file path
+- Close Other Tabs (⌘⌥W)
+- Select Line command
+- File templates for new files (Swift, Python, HTML, etc.)
 
 ## Autonomous Development Mode
 
@@ -155,7 +162,7 @@ When Stuart says "keep going", "continue", "start phase N", or similar — work 
 Sources/Forge/
 ├── App/           — AppDelegate, ForgeProject, Preferences, PreferencesWindowController
 ├── Window/        — MainWindowController, MainSplitViewController, EditorContainerViewController
-├── Editor/        — ForgeEditorManager, ForgeLayoutManager, GutterView, MinimapView, ForgeDocument, StatusBar, CompletionWindow
+├── Editor/        — ForgeEditorManager, ForgeLayoutManager, GutterView, MinimapView, ForgeDocument, StatusBar, CompletionWindow, FindReplaceBar, StickyScrollView, ClipboardHistory
 ├── Tabs/          — TabBar, TabManager
 ├── Navigator/     — NavigatorViewController (NSOutlineView), FileNode
 ├── Inspector/     — InspectorViewController (file info + Quick Help)
