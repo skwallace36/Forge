@@ -870,6 +870,17 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.deleteLine(sender)
     }
 
+    @objc override func selectLine(_ sender: Any?) {
+        editor.selectLine(sender)
+    }
+
+    @objc func closeOtherTabs(_ sender: Any?) {
+        let index = project.tabManager.selectedIndex
+        guard index >= 0 else { return }
+        project.tabManager.closeOthers(keepingIndex: index)
+        refreshEditor()
+    }
+
     @objc func joinLines(_ sender: Any?) {
         editor.joinLines(sender)
     }

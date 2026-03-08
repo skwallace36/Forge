@@ -146,6 +146,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "Close Tab", action: #selector(MainWindowController.closeCurrentTab(_:)), keyEquivalent: "w")
+
+        let closeOtherTabs = NSMenuItem(title: "Close Other Tabs", action: #selector(EditorContainerViewController.closeOtherTabs(_:)), keyEquivalent: "w")
+        closeOtherTabs.keyEquivalentModifierMask = [.command, .option]
+        fileMenu.addItem(closeOtherTabs)
         fileMenuItem.submenu = fileMenu
         mainMenu.addItem(fileMenuItem)
 
@@ -159,6 +163,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
         editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
         editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editMenu.addItem(withTitle: "Select Line", action: #selector(EditorContainerViewController.selectLine(_:)), keyEquivalent: "")
         editMenu.addItem(.separator())
 
         editMenu.addItem(withTitle: "Find…", action: #selector(EditorContainerViewController.showFindBar(_:)), keyEquivalent: "f")

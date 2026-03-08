@@ -133,6 +133,10 @@ class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate, N
                            action: #selector(EditorContainerViewController.findPrevious(_:)), target: nil),
 
             // Edit
+            PaletteCommand(title: "Select Line", shortcut: "", category: "Edit",
+                           action: #selector(EditorContainerViewController.selectLine(_:)), target: nil),
+            PaletteCommand(title: "Close Other Tabs", shortcut: "⌘⌥W", category: "File",
+                           action: #selector(EditorContainerViewController.closeOtherTabs(_:)), target: nil),
             PaletteCommand(title: "Toggle Comment", shortcut: "⌘/", category: "Edit",
                            action: #selector(EditorContainerViewController.toggleComment(_:)), target: nil),
             PaletteCommand(title: "Re-Indent", shortcut: "⌃I", category: "Edit",

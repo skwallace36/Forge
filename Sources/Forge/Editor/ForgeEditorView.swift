@@ -2303,6 +2303,15 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
     }
 
+    /// Select the entire current line(s), expanding selection to include full lines
+    @objc func selectLine(_ sender: Any? = nil) {
+        let text = textView.string as NSString
+        guard text.length > 0 else { return }
+        let sel = textView.selectedRange()
+        let lineRange = text.lineRange(for: sel)
+        textView.setSelectedRange(lineRange)
+    }
+
     // MARK: - Insert Line Above/Below
 
     @objc func insertLineAbove(_ sender: Any? = nil) {
