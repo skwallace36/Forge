@@ -1454,8 +1454,10 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
     }
 
+    /// Position where the current completion prefix starts
+    private var completionPrefixStart: Int = 0
+
     private func handleCompletionOnTextChange() {
-        // Check if the character just typed is a completion trigger
         let text = textView.string as NSString
         let cursor = textView.selectedRange().location
         guard cursor > 0 else {
@@ -1465,21 +1467,42 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         let ch = text.character(at: cursor - 1)
         guard let scalar = Unicode.Scalar(ch) else { return }
-        let charStr = String(Character(scalar))
+        let isIdent = CharacterSet.alphanumerics.contains(scalar) || scalar == "_"
 
-        if charStr == "." {
+        if String(Character(scalar)) == "." {
             // Auto-trigger completion after `.` with a short delay
+            completionPrefixStart = cursor
             completionTriggerWorkItem?.cancel()
             let work = DispatchWorkItem { [weak self] in
                 self?.triggerCompletion()
             }
             completionTriggerWorkItem = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
-        } else if completionWindow?.isShowing == true {
-            // If completion is showing, dismiss on non-identifier characters
-            if !CharacterSet.alphanumerics.contains(scalar) && scalar != Unicode.Scalar("_") {
-                completionWindow?.dismiss()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
+        } else if isIdent {
+            if completionWindow?.isShowing == true {
+                // Filter existing completion list as user types
+                let prefix = text.substring(with: NSRange(location: completionPrefixStart, length: cursor - completionPrefixStart))
+                completionWindow?.filterItems(prefix: prefix)
+            } else {
+                // Count consecutive identifier characters to auto-trigger after 3
+                var wordStart = cursor - 1
+                while wordStart > 0 && isIdentChar(text.character(at: wordStart - 1)) {
+                    wordStart -= 1
+                }
+                let wordLen = cursor - wordStart
+                if wordLen >= 3 {
+                    completionPrefixStart = wordStart
+                    completionTriggerWorkItem?.cancel()
+                    let work = DispatchWorkItem { [weak self] in
+                        self?.triggerCompletion()
+                    }
+                    completionTriggerWorkItem = work
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
+                }
             }
+        } else {
+            // Non-identifier character — dismiss
+            completionWindow?.dismiss()
         }
     }
 

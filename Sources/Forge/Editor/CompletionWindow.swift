@@ -5,6 +5,7 @@ class CompletionWindow: NSPanel, NSTableViewDataSource, NSTableViewDelegate {
 
     private let tableView = NSTableView()
     private let scrollView = NSScrollView()
+    private var allItems: [LSPCompletionItem] = []
     private var items: [LSPCompletionItem] = []
     private var onSelect: ((LSPCompletionItem) -> Void)?
 
@@ -67,6 +68,7 @@ class CompletionWindow: NSPanel, NSTableViewDataSource, NSTableViewDelegate {
             return
         }
 
+        self.allItems = items
         self.items = items
         self.onSelect = onSelect
         tableView.reloadData()
@@ -94,7 +96,46 @@ class CompletionWindow: NSPanel, NSTableViewDataSource, NSTableViewDelegate {
     func dismiss() {
         parent?.removeChildWindow(self)
         orderOut(nil)
+        allItems = []
         items = []
+    }
+
+    /// Filter the completion list by prefix (case-insensitive)
+    func filterItems(prefix: String) {
+        guard !prefix.isEmpty else {
+            items = allItems
+            tableView.reloadData()
+            resizeToFit()
+            return
+        }
+
+        let lowered = prefix.lowercased()
+        items = allItems.filter { item in
+            item.label.lowercased().contains(lowered)
+                || (item.insertText?.lowercased().contains(lowered) ?? false)
+        }
+
+        if items.isEmpty {
+            dismiss()
+            return
+        }
+
+        tableView.reloadData()
+        resizeToFit()
+
+        if items.count > 0 {
+            tableView.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+        }
+    }
+
+    private func resizeToFit() {
+        let visibleRows = min(items.count, maxVisibleRows)
+        let height = CGFloat(visibleRows) * rowHeight + 4
+        var frame = self.frame
+        let oldMaxY = frame.maxY
+        frame.size.height = height
+        frame.origin.y = oldMaxY - height
+        setFrame(frame, display: true)
     }
 
     var isShowing: Bool {
