@@ -64,6 +64,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // File menu
         let fileMenuItem = NSMenuItem()
         let fileMenu = NSMenu(title: "File")
+        fileMenu.addItem(withTitle: "New File…", action: #selector(newFile(_:)), keyEquivalent: "n")
         fileMenu.addItem(withTitle: "Open…", action: #selector(openDocument(_:)), keyEquivalent: "o")
 
         let openQuickly = NSMenuItem(title: "Open Quickly…", action: #selector(MainWindowController.showOpenQuickly(_:)), keyEquivalent: "O")
@@ -234,6 +235,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: - Actions
+
+    @objc private func newFile(_ sender: Any?) {
+        guard let wc = windowController else { return }
+
+        let alert = NSAlert()
+        alert.messageText = "New File"
+        alert.informativeText = "Enter the file name:"
+        alert.addButton(withTitle: "Create")
+        alert.addButton(withTitle: "Cancel")
+
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        textField.placeholderString = "filename.swift"
+        alert.accessoryView = textField
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let name = textField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+
+        let fileURL = wc.project.rootURL.appendingPathComponent(name)
+        FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+        wc.openFile(fileURL)
+    }
 
     @objc private func openDocument(_ sender: Any?) {
         let panel = NSOpenPanel()
