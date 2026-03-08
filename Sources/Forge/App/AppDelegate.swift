@@ -260,8 +260,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         windowMenuItem.submenu = windowMenu
         mainMenu.addItem(windowMenuItem)
 
+        // Help menu
+        let helpMenuItem = NSMenuItem()
+        let helpMenu = NSMenu(title: "Help")
+        helpMenu.addItem(withTitle: "Keyboard Shortcuts", action: #selector(showKeyboardShortcuts(_:)), keyEquivalent: "")
+        helpMenuItem.submenu = helpMenu
+        mainMenu.addItem(helpMenuItem)
+
         NSApp.mainMenu = mainMenu
         NSApp.windowsMenu = windowMenu
+        NSApp.helpMenu = helpMenu
     }
 
     // MARK: - Actions
@@ -313,6 +321,41 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func saveAllDocuments(_ sender: Any?) {
         windowController?.saveAllDocuments()
+    }
+
+    @objc private func showKeyboardShortcuts(_ sender: Any?) {
+        let alert = NSAlert()
+        alert.messageText = "Forge Keyboard Shortcuts"
+        alert.informativeText = """
+        File
+          ⌘N   New File          ⌘O   Open File
+          ⌘S   Save              ⌘⌥S  Save All
+          ⌘W   Close Tab
+
+        Edit
+          ⌘F   Find              ⌘⌥F  Find & Replace
+          ⌘⇧F  Find in Project   ⌘L   Go to Line
+          ⌘/   Toggle Comment    ⌃I   Re-Indent
+          ⌃⇧K  Delete Line       ⌘⇧L  Select All Occurrences
+
+        Navigation
+          ⇧⌘O  Open Quickly      ⌘1-9 Select Tab
+          ⌘⇧[  Previous Tab      ⌘⇧]  Next Tab
+          ⌘⇧T  Reopen Tab        ⌘⇧J  Reveal in Navigator
+          ⌃⌘←  Go Back           ⌃⌘→  Go Forward
+          Esc   Focus Editor
+
+        View
+          ⌘0   Toggle Navigator   ⌘⇧Y  Toggle Bottom Panel
+          ⌃⌘M  Toggle Minimap     ⌘⌥L  Toggle Word Wrap
+          ⌘+   Zoom In            ⌘-   Zoom Out
+
+        Build
+          ⌘B   Build              ⌘R   Run
+          ⌘.   Stop               ⌘⇧K  Clean Build
+        """
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     @objc private func showPreferences(_ sender: Any?) {
