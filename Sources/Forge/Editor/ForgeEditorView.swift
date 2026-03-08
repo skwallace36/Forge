@@ -1233,6 +1233,26 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         minimapView?.searchMatchRanges = occurrenceHighlightRanges
     }
 
+    /// Jump to the next occurrence of the highlighted word
+    @objc func nextOccurrence(_ sender: Any? = nil) {
+        guard !occurrenceHighlightRanges.isEmpty else { return }
+        let cursor = textView.selectedRange().location
+        let next = occurrenceHighlightRanges.first(where: { $0.location > cursor })
+            ?? occurrenceHighlightRanges.first!
+        textView.setSelectedRange(next)
+        textView.scrollRangeToVisible(next)
+    }
+
+    /// Jump to the previous occurrence of the highlighted word
+    @objc func previousOccurrence(_ sender: Any? = nil) {
+        guard !occurrenceHighlightRanges.isEmpty else { return }
+        let cursor = textView.selectedRange().location
+        let prev = occurrenceHighlightRanges.last(where: { $0.location < cursor })
+            ?? occurrenceHighlightRanges.last!
+        textView.setSelectedRange(prev)
+        textView.scrollRangeToVisible(prev)
+    }
+
     private func wordRangeAtIndex(_ index: Int, in text: NSString) -> NSRange {
         guard index < text.length else { return NSRange(location: index, length: 0) }
 
@@ -1743,6 +1763,17 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         if mods == [.control, .shift, .command] && event.keyCode == 124 { // right arrow
             selectEnclosingBrackets(nil)
             return true
+        }
+
+        // ⌃⌥↓ → next occurrence, ⌃⌥↑ → previous occurrence
+        if mods == [.control, .option] {
+            if event.keyCode == 125 { // down arrow
+                nextOccurrence(nil)
+                return true
+            } else if event.keyCode == 126 { // up arrow
+                previousOccurrence(nil)
+                return true
+            }
         }
 
         // If completion window is showing, handle navigation keys

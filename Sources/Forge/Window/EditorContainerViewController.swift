@@ -640,6 +640,14 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.pasteFromHistory(sender)
     }
 
+    @objc func nextOccurrence(_ sender: Any?) {
+        editor.nextOccurrence(sender)
+    }
+
+    @objc func previousOccurrence(_ sender: Any?) {
+        editor.previousOccurrence(sender)
+    }
+
     @objc func increaseFontSize(_ sender: Any?) {
         editor.increaseFontSize()
     }
