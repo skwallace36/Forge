@@ -76,6 +76,10 @@ class MainSplitViewController: NSSplitViewController {
         // Wire up source control view
         bottomPanelVC.sourceControlView.setProjectRoot(project.rootURL)
         bottomPanelVC.sourceControlView.delegate = self
+        bottomPanelVC.onSourceControlShown = { [weak self] in
+            guard let self = self else { return }
+            self.bottomPanelVC.sourceControlView.refresh(gitStatus: self.project.gitStatus)
+        }
     }
 
     func editorAreaDidUpdate() {

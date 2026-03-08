@@ -61,6 +61,9 @@ class BottomPanelViewController: NSViewController {
         showPanel(at: sender.selectedSegment)
     }
 
+    /// Called when source control tab is selected to auto-refresh
+    var onSourceControlShown: (() -> Void)?
+
     private func showPanel(at index: Int) {
         currentPanelIndex = index
         buildLogView.isHidden = index != 0
@@ -76,6 +79,8 @@ class BottomPanelViewController: NSViewController {
         } else if index == 2 {
             claudeView.launchClaude()
             claudeView.focus()
+        } else if index == 4 {
+            onSourceControlShown?()
         }
     }
 
