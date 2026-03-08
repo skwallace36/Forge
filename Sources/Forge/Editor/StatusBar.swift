@@ -6,6 +6,7 @@ class StatusBar: NSView {
     private let lineColLabel = NSTextField(labelWithString: "Ln 1, Col 1")
     private let fileTypeLabel = NSTextField(labelWithString: "")
     private let encodingLabel = NSTextField(labelWithString: "UTF-8")
+    private let lineEndingLabel = NSTextField(labelWithString: "LF")
     private let indentLabel = NSTextField(labelWithString: "Spaces: 4")
     private let branchLabel = NSTextField(labelWithString: "")
 
@@ -27,7 +28,7 @@ class StatusBar: NSView {
         wantsLayer = true
         layer?.backgroundColor = bgColor.cgColor
 
-        let labels = [lineColLabel, fileTypeLabel, encodingLabel, indentLabel, branchLabel]
+        let labels = [lineColLabel, fileTypeLabel, encodingLabel, lineEndingLabel, indentLabel, branchLabel]
         for label in labels {
             label.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
             label.textColor = textColor
@@ -45,10 +46,13 @@ class StatusBar: NSView {
             encodingLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
             encodingLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
 
-            branchLabel.trailingAnchor.constraint(equalTo: fileTypeLabel.leadingAnchor, constant: -20),
+            lineEndingLabel.trailingAnchor.constraint(equalTo: encodingLabel.leadingAnchor, constant: -12),
+            lineEndingLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+            branchLabel.trailingAnchor.constraint(equalTo: fileTypeLabel.leadingAnchor, constant: -12),
             branchLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
 
-            fileTypeLabel.trailingAnchor.constraint(equalTo: encodingLabel.leadingAnchor, constant: -20),
+            fileTypeLabel.trailingAnchor.constraint(equalTo: lineEndingLabel.leadingAnchor, constant: -12),
             fileTypeLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
     }
@@ -65,6 +69,14 @@ class StatusBar: NSView {
             fileTypeLabel.stringValue = languageName(for: ext)
         } else {
             fileTypeLabel.stringValue = ""
+        }
+    }
+
+    func updateLineEnding(_ text: String) {
+        if text.contains("\r\n") {
+            lineEndingLabel.stringValue = "CRLF"
+        } else {
+            lineEndingLabel.stringValue = "LF"
         }
     }
 
