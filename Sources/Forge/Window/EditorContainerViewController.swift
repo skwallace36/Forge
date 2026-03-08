@@ -325,6 +325,26 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         refreshEditor()
     }
 
+    func tabBarDidRequestNewFile(_ tabBar: TabBar) {
+        let alert = NSAlert()
+        alert.messageText = "New File"
+        alert.informativeText = "Enter the file name:"
+        alert.addButton(withTitle: "Create")
+        alert.addButton(withTitle: "Cancel")
+
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        textField.placeholderString = "filename.swift"
+        alert.accessoryView = textField
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let name = textField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+
+        let fileURL = project.rootURL.appendingPathComponent(name)
+        FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+        windowController?.openFile(fileURL)
+    }
+
     // MARK: - Minimap Toggle
 
     @objc func toggleMinimap(_ sender: Any?) {

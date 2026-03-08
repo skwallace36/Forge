@@ -7,6 +7,11 @@ protocol TabBarDelegate: AnyObject {
     func tabBarDidRequestCloseOthers(_ tabBar: TabBar, keepingIndex index: Int)
     func tabBarDidRequestCloseAll(_ tabBar: TabBar)
     func tabBarDidRequestCloseToRight(_ tabBar: TabBar, fromIndex index: Int)
+    func tabBarDidRequestNewFile(_ tabBar: TabBar)
+}
+
+extension TabBarDelegate {
+    func tabBarDidRequestNewFile(_ tabBar: TabBar) {}
 }
 
 /// Custom tab bar view — single row of tabs above the editor.
@@ -133,6 +138,15 @@ class TabBar: NSView {
 
     @objc private func tabCloseClicked(_ sender: TabButton) {
         delegate?.tabBar(self, didCloseTabAt: sender.index)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2 {
+            // Double-click on empty tab bar area → new file
+            delegate?.tabBarDidRequestNewFile(self)
+            return
+        }
+        super.mouseDown(with: event)
     }
 
     /// Called during drag to reorder tabs visually and notify delegate

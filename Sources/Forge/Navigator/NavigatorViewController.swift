@@ -331,7 +331,9 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
             ])
         }
 
-        cell.textField?.stringValue = node.name
+        // Show modified indicator (dot) for files with unsaved changes
+        let isUnsaved = project.tabManager.tabs.contains { $0.url == node.url && $0.isModified }
+        cell.textField?.stringValue = isUnsaved ? "● \(node.name)" : node.name
         cell.imageView?.image = node.icon
 
         // Git status coloring
