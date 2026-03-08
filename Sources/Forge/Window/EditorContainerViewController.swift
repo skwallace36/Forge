@@ -337,16 +337,30 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     }
 
     func tabBarDidRequestCloseOthers(_ tabBar: TabBar, keepingIndex index: Int) {
+        // Check for unsaved changes in tabs being closed
+        editor.syncDocumentContent()
+        for (i, tab) in project.tabManager.tabs.enumerated() where i != index {
+            if tab.isModified && !promptSaveForClose(doc: tab.document) { return }
+        }
         project.tabManager.closeOthers(keepingIndex: index)
         refreshEditor()
     }
 
     func tabBarDidRequestCloseAll(_ tabBar: TabBar) {
+        editor.syncDocumentContent()
+        for tab in project.tabManager.tabs {
+            if tab.isModified && !promptSaveForClose(doc: tab.document) { return }
+        }
         project.tabManager.closeAll()
         refreshEditor()
     }
 
     func tabBarDidRequestCloseToRight(_ tabBar: TabBar, fromIndex index: Int) {
+        editor.syncDocumentContent()
+        let tabs = project.tabManager.tabs
+        for i in (index + 1)..<tabs.count {
+            if tabs[i].isModified && !promptSaveForClose(doc: tabs[i].document) { return }
+        }
         project.tabManager.closeToRight(fromIndex: index)
         refreshEditor()
     }
@@ -676,6 +690,29 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
     func syncDocumentContent() {
         editor.syncDocumentContent()
+    }
+
+    /// Prompt user to save a modified document before closing.
+    /// Returns true if OK to proceed (saved or discarded), false if user cancelled.
+    private func promptSaveForClose(doc: ForgeDocument) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = "Do you want to save changes to \(doc.fileName)?"
+        alert.informativeText = "Your changes will be lost if you don't save them."
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Don't Save")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+
+        let response = alert.runModal()
+        switch response {
+        case .alertFirstButtonReturn:
+            try? doc.save()
+            return true
+        case .alertSecondButtonReturn:
+            return true
+        default:
+            return false
+        }
     }
 }
 
