@@ -10,6 +10,11 @@ class JumpBar: NSView {
     /// Called to fetch document symbols asynchronously
     var onRequestSymbols: ((@escaping ([LSPDocumentSymbol]) -> Void) -> Void)?
 
+    /// Called when user selects a sibling file from breadcrumb popup
+    var onFileSelected: ((URL) -> Void)?
+
+    private var fileURL: URL?
+    private var projectRoot: URL?
     private var pathComponents: [String] = []
     private var labels: [NSTextField] = []
     private var separators: [NSTextField] = []
@@ -35,6 +40,9 @@ class JumpBar: NSView {
     }
 
     func update(fileURL: URL?, projectRoot: URL?) {
+        self.fileURL = fileURL
+        self.projectRoot = projectRoot
+
         // Clear old views
         labels.forEach { $0.removeFromSuperview() }
         separators.forEach { $0.removeFromSuperview() }
@@ -78,29 +86,68 @@ class JumpBar: NSView {
             let label = makeLabel(component, color: isLast ? activeTextColor : textColor, bold: isLast)
             label.frame.origin = NSPoint(x: xOffset, y: (barHeight - label.frame.height) / 2)
 
-            // Make the last label clickable for symbol navigation
-            if isLast {
-                let button = ClickableLabel(frame: label.frame)
-                button.stringValue = component
-                button.font = label.font
-                button.textColor = label.textColor
-                button.isBezeled = false
-                button.drawsBackground = false
-                button.isEditable = false
-                button.isSelectable = false
-                button.target = self
-                button.action = #selector(fileNameClicked(_:))
-                button.sizeToFit()
-                button.frame.origin = label.frame.origin
-                addSubview(button)
-                labels.append(button)
-                xOffset += button.frame.width + 4
-            } else {
-                addSubview(label)
-                labels.append(label)
-                xOffset += label.frame.width + 4
-            }
+            // Make all labels clickable
+            let button = ClickableLabel(frame: label.frame)
+            button.stringValue = component
+            button.font = label.font
+            button.textColor = label.textColor
+            button.isBezeled = false
+            button.drawsBackground = false
+            button.isEditable = false
+            button.isSelectable = false
+            button.target = self
+            button.tag = index
+            button.action = isLast ? #selector(fileNameClicked(_:)) : #selector(pathComponentClicked(_:))
+            button.sizeToFit()
+            button.frame.origin = label.frame.origin
+            addSubview(button)
+            labels.append(button)
+            xOffset += button.frame.width + 4
         }
+    }
+
+    @objc private func pathComponentClicked(_ sender: NSTextField) {
+        guard let root = projectRoot else { return }
+
+        // Build the directory URL from the breadcrumb index
+        let clickedIndex = sender.tag
+        var dirURL = root
+        // pathComponents[0] is the project root name, pathComponents[1..n] are subdirs/file
+        for i in 1...clickedIndex {
+            dirURL = dirURL.appendingPathComponent(pathComponents[i])
+        }
+
+        // List sibling files/dirs in this directory
+        let fm = FileManager.default
+        guard let items = try? fm.contentsOfDirectory(at: dirURL, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) else { return }
+
+        let sorted = items.sorted { a, b in
+            let aDir = (try? a.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            let bDir = (try? b.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            if aDir != bDir { return aDir }
+            return a.lastPathComponent.localizedCaseInsensitiveCompare(b.lastPathComponent) == .orderedAscending
+        }
+
+        let menu = NSMenu()
+        for item in sorted {
+            let isDir = (try? item.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            let title = isDir ? "\(item.lastPathComponent)/" : item.lastPathComponent
+            let menuItem = NSMenuItem(title: title, action: #selector(breadcrumbFileSelected(_:)), keyEquivalent: "")
+            menuItem.target = self
+            menuItem.representedObject = item
+            if isDir {
+                menuItem.isEnabled = false // Directories not navigable in this simple version
+            }
+            menu.addItem(menuItem)
+        }
+
+        let location = NSPoint(x: sender.frame.origin.x, y: sender.frame.maxY + 2)
+        menu.popUp(positioning: nil, at: location, in: self)
+    }
+
+    @objc private func breadcrumbFileSelected(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? URL else { return }
+        onFileSelected?(url)
     }
 
     @objc private func fileNameClicked(_ sender: NSTextField) {

@@ -169,6 +169,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             }
         }
 
+        jumpBar.onFileSelected = { [weak self] url in
+            self?.windowController?.openFile(url)
+        }
+
         refreshEditor()
 
         // Initial git branch display
