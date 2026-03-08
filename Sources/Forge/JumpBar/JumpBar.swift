@@ -16,6 +16,13 @@ class JumpBar: NSView {
     /// Provider for the current document text (for MARK comment extraction)
     var documentTextProvider: (() -> String?)?
 
+    /// Cached document symbols for scope lookup
+    private var cachedSymbols: [LSPDocumentSymbol] = []
+
+    /// Current scope display label
+    private var scopeLabel: ClickableLabel?
+    private var scopeSeparator: NSTextField?
+
     private var fileURL: URL?
     private var projectRoot: URL?
     private var pathComponents: [String] = []
@@ -45,12 +52,17 @@ class JumpBar: NSView {
     func update(fileURL: URL?, projectRoot: URL?) {
         self.fileURL = fileURL
         self.projectRoot = projectRoot
+        cachedSymbols = []
 
         // Clear old views
         labels.forEach { $0.removeFromSuperview() }
         separators.forEach { $0.removeFromSuperview() }
         labels.removeAll()
         separators.removeAll()
+        scopeLabel?.removeFromSuperview()
+        scopeLabel = nil
+        scopeSeparator?.removeFromSuperview()
+        scopeSeparator = nil
 
         guard let fileURL = fileURL else {
             pathComponents = []
@@ -107,6 +119,135 @@ class JumpBar: NSView {
             labels.append(button)
             xOffset += button.frame.width + 4
         }
+    }
+
+    // MARK: - Scope Display
+
+    /// Update cached document symbols (call when file opens or text changes)
+    func updateSymbols(_ symbols: [LSPDocumentSymbol]) {
+        cachedSymbols = symbols
+    }
+
+    /// Update the current scope display based on cursor position (0-indexed line, column)
+    func updateScope(line: Int, column: Int) {
+        // Try LSP symbols first, fall back to regex-based detection
+        if !cachedSymbols.isEmpty {
+            let scopeName = findContainingSymbol(line: line, column: column)
+            updateScopeLabel(scopeName)
+        } else if let text = documentTextProvider?() {
+            let scopeName = findScopeByRegex(in: text, line: line)
+            updateScopeLabel(scopeName)
+        }
+    }
+
+    /// Find the deepest symbol containing the cursor position, returning a scope path
+    private func findContainingSymbol(line: Int, column: Int) -> String? {
+        // Type-level symbol kinds (class, enum, interface/protocol, struct, module/namespace)
+        let typeKinds: Set<Int> = [5, 10, 11, 23, 2]
+
+        // Walk the tree collecting the scope path
+        var path: [String] = []
+
+        func search(_ symbols: [LSPDocumentSymbol]) {
+            for sym in symbols {
+                let r = sym.range
+                let inRange = (line > r.start.line || (line == r.start.line && column >= r.start.character))
+                    && (line < r.end.line || (line == r.end.line && column <= r.end.character))
+
+                guard inRange else { continue }
+
+                // Add this symbol to the path
+                if typeKinds.contains(sym.kind) {
+                    path.append(sym.name)
+                    // Search children for deeper match
+                    if let children = sym.children, !children.isEmpty {
+                        search(children)
+                    }
+                    return
+                } else {
+                    // Non-type symbol (function, property, etc.) — this is the leaf
+                    path.append(sym.name)
+                    return
+                }
+            }
+        }
+
+        search(cachedSymbols)
+        return path.isEmpty ? nil : path.joined(separator: " › ")
+    }
+
+    /// Regex-based scope detection for when LSP symbols aren't available
+    private func findScopeByRegex(in text: String, line: Int) -> String? {
+        let lines = text.components(separatedBy: "\n")
+        guard line < lines.count else { return nil }
+
+        // Scan backwards from cursor line to find the nearest scope-defining line
+        // Track brace depth to handle nested scopes
+        let scopePattern = try? NSRegularExpression(
+            pattern: #"^\s*(?:(?:public|private|internal|fileprivate|open|static|override|final|class|@objc)\s+)*(?:func|class|struct|enum|protocol|extension|init|deinit|var|let)\s+(\S+)"#,
+            options: []
+        )
+        guard let pattern = scopePattern else { return nil }
+
+        var braceDepth = 0
+        // Count braces from cursor line down (to track where we are)
+        for i in stride(from: line, through: 0, by: -1) {
+            let ln = lines[i]
+            for ch in ln {
+                if ch == "}" { braceDepth += 1 }
+                else if ch == "{" { braceDepth -= 1 }
+            }
+
+            if braceDepth <= 0 {
+                let nsLine = ln as NSString
+                let range = NSRange(location: 0, length: nsLine.length)
+                if let match = pattern.firstMatch(in: ln, range: range), match.numberOfRanges > 1 {
+                    let nameRange = match.range(at: 1)
+                    var name = nsLine.substring(with: nameRange)
+                    // Clean up: remove trailing ( or { or :
+                    while name.hasSuffix("(") || name.hasSuffix("{") || name.hasSuffix(":") || name.hasSuffix("<") {
+                        name = String(name.dropLast())
+                    }
+                    if !name.isEmpty { return name }
+                }
+            }
+        }
+        return nil
+    }
+
+    private func updateScopeLabel(_ text: String?) {
+        // Remove existing scope display
+        scopeLabel?.removeFromSuperview()
+        scopeLabel = nil
+        scopeSeparator?.removeFromSuperview()
+        scopeSeparator = nil
+
+        guard let text = text, !text.isEmpty else { return }
+
+        // Find the rightmost label position
+        let lastX = labels.last.map { $0.frame.maxX + 4 } ?? CGFloat(10)
+
+        // Add separator
+        let sep = makeLabel("›", color: separatorColor, bold: false)
+        sep.frame.origin = NSPoint(x: lastX, y: (barHeight - sep.frame.height) / 2)
+        addSubview(sep)
+        scopeSeparator = sep
+
+        // Add scope label
+        let label = ClickableLabel(frame: .zero)
+        label.stringValue = text
+        label.font = NSFont.systemFont(ofSize: 12, weight: .regular)
+        label.textColor = NSColor(red: 0.55, green: 0.72, blue: 0.92, alpha: 1.0) // blue-ish for scope
+        label.isBezeled = false
+        label.drawsBackground = false
+        label.isEditable = false
+        label.isSelectable = false
+        label.target = self
+        label.action = #selector(fileNameClicked(_:)) // Same as clicking filename — shows symbol list
+        label.sizeToFit()
+        label.frame.origin = NSPoint(x: lastX + sep.frame.width + 4, y: (barHeight - label.frame.height) / 2)
+        addSubview(label)
+        scopeLabel = label
     }
 
     @objc private func pathComponentClicked(_ sender: NSTextField) {

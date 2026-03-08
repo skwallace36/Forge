@@ -13,6 +13,8 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     private let binaryLabel = NSTextField(labelWithString: "")
     private let imagePreview = NSImageView()
     private lazy var gutterWidthConstraint = editor.gutterView.widthAnchor.constraint(equalToConstant: editor.gutterWidth)
+    private var symbolRefreshWorkItem: DispatchWorkItem?
+    private var lastScopeLine: Int = -1
 
     init(project: ForgeProject) {
         self.project = project
@@ -153,7 +155,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             self?.gutterWidthConstraint.constant = newWidth
         }
 
-        // Wire up cursor position to status bar and inspector
+        // Wire up cursor position to status bar, inspector, and scope display
         editor.onCursorChange = { [weak self] line, column, totalLines, selectionLength in
             guard let self = self else { return }
             let doc = self.project.tabManager.currentDocument
@@ -165,6 +167,11 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             // Forward cursor position for Quick Help in inspector
             if let url = doc?.url {
                 self.onCursorPositionChange?(url, line - 1, column - 1)
+            }
+            // Update scope display in jump bar (debounced — only when line changes)
+            if line != self.lastScopeLine {
+                self.lastScopeLine = line
+                self.jumpBar.updateScope(line: line - 1, column: column - 1)
             }
         }
 
@@ -199,6 +206,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             self.tabBar.update(tabs: tm.tabs, selectedIndex: tm.selectedIndex, tabManager: tm)
             // Update window close-button edited indicator
             self.view.window?.isDocumentEdited = self.project.tabManager.currentDocument?.isModified ?? false
+            // Refresh document symbols for scope display (debounced)
+            if let url = self.project.tabManager.currentDocument?.url {
+                self.refreshDocumentSymbols(for: url)
+            }
         }
 
         // Wire up jump bar symbol navigation
@@ -278,6 +289,9 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             statusBar.update(line: 1, column: 1, totalLines: 1, fileExtension: doc.fileExtension)
             statusBar.setLineEnding(doc.lineEnding)
 
+            // Fetch document symbols for scope display
+            refreshDocumentSymbols(for: doc.url)
+
             // Fetch git diff change markers for gutter
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 guard let self = self else { return }
@@ -318,6 +332,27 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
                 window.isDocumentEdited = false
             }
         }
+    }
+
+    // MARK: - Document Symbols
+
+    private func refreshDocumentSymbols(for url: URL) {
+        symbolRefreshWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            Task {
+                let symbols = (try? await self.project.lspClient.documentSymbols(url: url)) ?? []
+                await MainActor.run {
+                    self.jumpBar.updateSymbols(symbols)
+                    // Re-evaluate scope at current cursor position
+                    if self.lastScopeLine > 0 {
+                        self.jumpBar.updateScope(line: self.lastScopeLine - 1, column: 0)
+                    }
+                }
+            }
+        }
+        symbolRefreshWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: workItem)
     }
 
     // MARK: - TabBarDelegate
