@@ -365,6 +365,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         resetZoom.keyEquivalentModifierMask = [.command, .option]
         viewMenu.addItem(resetZoom)
 
+        let markdownPreviewItem = NSMenuItem(title: "Toggle Markdown Preview", action: #selector(EditorContainerViewController.toggleMarkdownPreview(_:)), keyEquivalent: "p")
+        markdownPreviewItem.keyEquivalentModifierMask = [.command, .shift]
+        viewMenu.addItem(markdownPreviewItem)
+
         viewMenu.addItem(.separator())
 
         let foldItem = NSMenuItem(title: "Fold", action: #selector(EditorContainerViewController.foldAtCursor(_:)), keyEquivalent: String(Character(UnicodeScalar(NSLeftArrowFunctionKey)!)))

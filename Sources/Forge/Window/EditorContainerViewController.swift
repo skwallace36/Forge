@@ -17,6 +17,9 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     private let binaryLabel = NSTextField(labelWithString: "")
     private let imagePreview = NSImageView()
     private lazy var gutterWidthConstraint = editor.gutterView.widthAnchor.constraint(equalToConstant: editor.gutterWidth)
+    private let markdownPreview = MarkdownPreviewView()
+    private var markdownPreviewWidthConstraint: NSLayoutConstraint?
+    private var markdownUpdateWorkItem: DispatchWorkItem?
     private var symbolRefreshWorkItem: DispatchWorkItem?
     private var lastScopeLine: Int = -1
 
@@ -102,6 +105,14 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         imagePreview.isHidden = true
         container.addSubview(imagePreview)
 
+        // Markdown preview pane (hidden by default)
+        markdownPreview.translatesAutoresizingMaskIntoConstraints = false
+        markdownPreview.isHidden = true
+        container.addSubview(markdownPreview)
+
+        let mdWidthConstraint = markdownPreview.widthAnchor.constraint(equalToConstant: 0)
+        markdownPreviewWidthConstraint = mdWidthConstraint
+
         NSLayoutConstraint.activate([
             jumpBar.topAnchor.constraint(equalTo: container.topAnchor),
             jumpBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
@@ -136,11 +147,17 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             sv.trailingAnchor.constraint(equalTo: minimap.leadingAnchor),
             sv.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
 
-            // Minimap: right side
+            // Minimap: right of editor, left of markdown preview
             minimap.topAnchor.constraint(equalTo: findReplaceBar.bottomAnchor),
-            minimap.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            minimap.trailingAnchor.constraint(equalTo: markdownPreview.leadingAnchor),
             minimap.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
             minimap.widthAnchor.constraint(equalToConstant: 80),
+
+            // Markdown preview: right side (0 width when hidden)
+            markdownPreview.topAnchor.constraint(equalTo: findReplaceBar.bottomAnchor),
+            markdownPreview.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            markdownPreview.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
+            mdWidthConstraint,
 
             // Sticky scroll: overlays top of editor scroll view
             stickyScroll.topAnchor.constraint(equalTo: findReplaceBar.bottomAnchor),
@@ -245,6 +262,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             if let url = self.project.tabManager.currentDocument?.url {
                 self.refreshDocumentSymbols(for: url)
             }
+            // Update Markdown preview if visible
+            if self.isMarkdownPreviewVisible {
+                self.scheduleMarkdownUpdate()
+            }
         }
 
         // Wire up jump bar symbol navigation
@@ -347,6 +368,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
                 minimap.isHidden = true
                 placeholderLabel.isHidden = true
                 imagePreview.isHidden = true
+                hideMarkdownPreview()
 
                 // Check if it's an image file
                 let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "bmp", "tiff", "tif", "ico", "webp", "heic", "svg"]
@@ -378,6 +400,9 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             jumpBar.update(fileURL: doc.url, projectRoot: project.rootURL)
             statusBar.update(line: 1, column: 1, totalLines: 1, fileExtension: doc.fileExtension)
             statusBar.setLineEnding(doc.lineEnding)
+
+            // Show/hide Markdown preview
+            updateMarkdownPreview(for: doc)
 
             // Fetch document symbols for scope display
             refreshDocumentSymbols(for: doc.url)
@@ -415,6 +440,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             placeholderLabel.isHidden = false
             binaryLabel.isHidden = true
             imagePreview.isHidden = true
+            hideMarkdownPreview()
             jumpBar.update(fileURL: nil, projectRoot: nil)
 
             if let window = view.window {
@@ -674,6 +700,69 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
     @objc func renameSymbol(_ sender: Any?) {
         editor.renameSymbol(sender)
+    }
+
+    // MARK: - Markdown Preview
+
+    private var isMarkdownPreviewVisible = false
+
+    private func updateMarkdownPreview(for doc: ForgeDocument) {
+        let isMarkdown = ["md", "markdown"].contains(doc.fileExtension.lowercased())
+
+        if isMarkdown {
+            showMarkdownPreview()
+            markdownPreview.updateMarkdown(doc.textStorage.string)
+        } else {
+            hideMarkdownPreview()
+        }
+    }
+
+    private func showMarkdownPreview() {
+        guard !isMarkdownPreviewVisible else { return }
+        isMarkdownPreviewVisible = true
+        markdownPreview.isHidden = false
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            self.markdownPreviewWidthConstraint?.animator().constant = max(300, self.view.bounds.width * 0.4)
+        }
+    }
+
+    private func hideMarkdownPreview() {
+        guard isMarkdownPreviewVisible else { return }
+        isMarkdownPreviewVisible = false
+
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.2
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            self.markdownPreviewWidthConstraint?.animator().constant = 0
+        }, completionHandler: {
+            self.markdownPreview.isHidden = true
+        })
+    }
+
+    private func scheduleMarkdownUpdate() {
+        markdownUpdateWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self,
+                  let doc = self.project.tabManager.currentDocument else { return }
+            self.markdownPreview.updateMarkdown(doc.textStorage.string)
+        }
+        markdownUpdateWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
+    }
+
+    @objc func toggleMarkdownPreview(_ sender: Any?) {
+        guard let doc = project.tabManager.currentDocument,
+              ["md", "markdown"].contains(doc.fileExtension.lowercased()) else { return }
+
+        if isMarkdownPreviewVisible {
+            hideMarkdownPreview()
+        } else {
+            showMarkdownPreview()
+            markdownPreview.updateMarkdown(doc.textStorage.string)
+        }
     }
 
     // MARK: - Find / Replace Bar
