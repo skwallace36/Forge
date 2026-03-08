@@ -197,6 +197,8 @@ class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate, N
                            action: #selector(EditorContainerViewController.jumpToDefinition(_:)), target: nil),
             PaletteCommand(title: "Show Quick Actions", shortcut: "⌃⇧A", category: "Navigate",
                            action: #selector(EditorContainerViewController.showQuickActions(_:)), target: nil),
+            PaletteCommand(title: "Jump to Matching Bracket", shortcut: "⌃⇧M", category: "Navigate",
+                           action: #selector(EditorContainerViewController.jumpToMatchingBracket(_:)), target: nil),
             PaletteCommand(title: "Find All References", shortcut: "", category: "Navigate",
                            action: #selector(EditorContainerViewController.findReferences(_:)), target: nil),
 

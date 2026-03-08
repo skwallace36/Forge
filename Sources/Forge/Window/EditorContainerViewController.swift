@@ -790,6 +790,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.jumpToDefinitionAction(sender)
     }
 
+    @objc func jumpToMatchingBracket(_ sender: Any?) {
+        editor.jumpToMatchingBracket(sender)
+    }
+
     @objc func showQuickActions(_ sender: Any?) {
         editor.showQuickActions(sender)
     }

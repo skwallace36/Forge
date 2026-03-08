@@ -1560,6 +1560,55 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         return nil
     }
 
+    // MARK: - Jump to Matching Bracket
+
+    @objc func jumpToMatchingBracket(_ sender: Any?) {
+        let text = textView.string as NSString
+        guard text.length > 0 else { return }
+        let cursor = textView.selectedRange().location
+        guard cursor > 0 || cursor < text.length else { return }
+
+        // Check character before cursor
+        if cursor > 0 {
+            let charBefore = text.character(at: cursor - 1)
+            for pair in Self.bracketPairs {
+                if charBefore == pair.close {
+                    if let matchIndex = findMatchingBracket(in: text, at: cursor - 1, open: pair.open, close: pair.close, forward: false) {
+                        textView.setSelectedRange(NSRange(location: matchIndex + 1, length: 0))
+                        textView.scrollRangeToVisible(NSRange(location: matchIndex, length: 1))
+                        return
+                    }
+                } else if charBefore == pair.open {
+                    if let matchIndex = findMatchingBracket(in: text, at: cursor - 1, open: pair.open, close: pair.close, forward: true) {
+                        textView.setSelectedRange(NSRange(location: matchIndex + 1, length: 0))
+                        textView.scrollRangeToVisible(NSRange(location: matchIndex, length: 1))
+                        return
+                    }
+                }
+            }
+        }
+
+        // Check character after cursor
+        if cursor < text.length {
+            let charAfter = text.character(at: cursor)
+            for pair in Self.bracketPairs {
+                if charAfter == pair.open {
+                    if let matchIndex = findMatchingBracket(in: text, at: cursor, open: pair.open, close: pair.close, forward: true) {
+                        textView.setSelectedRange(NSRange(location: matchIndex + 1, length: 0))
+                        textView.scrollRangeToVisible(NSRange(location: matchIndex, length: 1))
+                        return
+                    }
+                } else if charAfter == pair.close {
+                    if let matchIndex = findMatchingBracket(in: text, at: cursor, open: pair.open, close: pair.close, forward: false) {
+                        textView.setSelectedRange(NSRange(location: matchIndex + 1, length: 0))
+                        textView.scrollRangeToVisible(NSRange(location: matchIndex, length: 1))
+                        return
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Re-indent Selection (⌃I)
 
     @objc func reindentSelection(_ sender: Any?) {

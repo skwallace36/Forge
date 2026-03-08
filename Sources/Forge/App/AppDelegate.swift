@@ -440,6 +440,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         quickActions.keyEquivalentModifierMask = [.control, .shift]
         navMenu.addItem(quickActions)
 
+        let matchBracket = NSMenuItem(title: "Jump to Matching Bracket", action: #selector(EditorContainerViewController.jumpToMatchingBracket(_:)), keyEquivalent: "M")
+        matchBracket.keyEquivalentModifierMask = [.control, .shift]
+        navMenu.addItem(matchBracket)
+
         let findRefs = NSMenuItem(title: "Find All References", action: #selector(EditorContainerViewController.findReferences(_:)), keyEquivalent: "")
         navMenu.addItem(findRefs)
 
