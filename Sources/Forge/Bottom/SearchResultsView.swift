@@ -19,6 +19,8 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     weak var delegate: SearchResultsViewDelegate?
 
     private let searchField = NSSearchField()
+    private let regexToggle = NSButton(checkboxWithTitle: "Regex", target: nil, action: nil)
+    private let caseSensitiveToggle = NSButton(checkboxWithTitle: "Aa", target: nil, action: nil)
     private let tableView = NSTableView()
     private let scrollView = NSScrollView()
     private let statusLabel = NSTextField(labelWithString: "")
@@ -29,7 +31,8 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
     private let bgColor = NSColor(red: 0.11, green: 0.12, blue: 0.14, alpha: 1.0)
     private let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-    private let matchHighlightColor = NSColor(red: 0.85, green: 0.65, blue: 0.20, alpha: 0.3)
+    private let matchHighlightColor = NSColor(red: 0.85, green: 0.65, blue: 0.20, alpha: 0.4)
+    private let filePathColor = NSColor(red: 0.50, green: 0.65, blue: 0.85, alpha: 1.0)
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -55,6 +58,19 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         searchField.sendsWholeSearchString = false
         addSubview(searchField)
 
+        // Toggles
+        regexToggle.translatesAutoresizingMaskIntoConstraints = false
+        regexToggle.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+        regexToggle.target = self
+        regexToggle.action = #selector(toggleChanged(_:))
+        addSubview(regexToggle)
+
+        caseSensitiveToggle.translatesAutoresizingMaskIntoConstraints = false
+        caseSensitiveToggle.font = NSFont.systemFont(ofSize: 11)
+        caseSensitiveToggle.target = self
+        caseSensitiveToggle.action = #selector(toggleChanged(_:))
+        addSubview(caseSensitiveToggle)
+
         // Status label
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         statusLabel.font = NSFont.systemFont(ofSize: 11)
@@ -66,7 +82,7 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         column.isEditable = false
         tableView.addTableColumn(column)
         tableView.headerView = nil
-        tableView.rowHeight = 20
+        tableView.rowHeight = 22
         tableView.backgroundColor = .clear
         tableView.dataSource = self
         tableView.delegate = self
@@ -86,11 +102,16 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             searchField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             searchField.heightAnchor.constraint(equalToConstant: 24),
 
-            statusLabel.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 2),
-            statusLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            regexToggle.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 3),
+            regexToggle.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+
+            caseSensitiveToggle.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 3),
+            caseSensitiveToggle.leadingAnchor.constraint(equalTo: regexToggle.trailingAnchor, constant: 12),
+
+            statusLabel.centerYAnchor.constraint(equalTo: regexToggle.centerYAnchor),
             statusLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
 
-            scrollView.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 2),
+            scrollView.topAnchor.constraint(equalTo: regexToggle.bottomAnchor, constant: 4),
             scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -103,6 +124,11 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
     func focusSearchField() {
         window?.makeFirstResponder(searchField)
+    }
+
+    @objc private func toggleChanged(_ sender: NSButton) {
+        // Re-run search with new settings
+        searchFieldChanged(searchField)
     }
 
     @objc private func searchFieldChanged(_ sender: NSSearchField) {
@@ -126,9 +152,12 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     private func performSearch(query: String) {
         guard let root = projectRoot else { return }
 
+        let isRegex = regexToggle.state == .on
+        let isCaseSensitive = caseSensitiveToggle.state == .on
+
         var found: [SearchResult] = []
         let fm = FileManager.default
-        let maxResults = 500
+        let maxResults = 1000
 
         let skipDirs: Set<String> = [
             ".git", ".build", ".swiftpm", "DerivedData", "node_modules",
@@ -137,6 +166,7 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         let searchExtensions: Set<String> = [
             "swift", "json", "md", "yml", "yaml", "txt", "py", "js", "ts",
             "h", "m", "c", "cpp", "html", "css", "xml", "plist", "resolved",
+            "sh", "bash", "zsh", "rb", "go", "rs", "toml", "tsx", "jsx",
         ]
 
         guard let enumerator = fm.enumerator(
@@ -144,6 +174,11 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             includingPropertiesForKeys: [.isRegularFileKey, .isDirectoryKey],
             options: [.skipsHiddenFiles]
         ) else { return }
+
+        // Build search options
+        let searchOptions: String.CompareOptions = isCaseSensitive
+            ? (isRegex ? .regularExpression : .literal)
+            : (isRegex ? [.regularExpression, .caseInsensitive] : .caseInsensitive)
 
         for case let url as URL in enumerator {
             if found.count >= maxResults { break }
@@ -165,14 +200,14 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             for (lineIndex, lineText) in lines.enumerated() {
                 if found.count >= maxResults { break }
 
-                if let range = lineText.range(of: query, options: .caseInsensitive) {
+                if let range = lineText.range(of: query, options: searchOptions) {
                     let col = lineText.distance(from: lineText.startIndex, to: range.lowerBound) + 1
                     found.append(SearchResult(
                         url: url,
                         line: lineIndex + 1,
                         column: col,
                         lineText: lineText,
-                        matchRange: range
+                        matchRange: range,
                     ))
                 }
             }
@@ -228,7 +263,7 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             cell = c
         }
 
-        // Format: filename:line — matched text
+        // Format: filename:line — matched text with highlight
         let relativePath: String
         if let root = projectRoot {
             relativePath = result.url.path.replacingOccurrences(of: root.path + "/", with: "")
@@ -239,22 +274,34 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         let prefix = "\(relativePath):\(result.line)  "
         let attrStr = NSMutableAttributedString(string: prefix, attributes: [
             .font: font,
-            .foregroundColor: NSColor(white: 0.6, alpha: 1.0),
+            .foregroundColor: filePathColor,
         ])
 
+        // Build the line text with match highlighting
         let trimmedLine = result.lineText.trimmingCharacters(in: .whitespaces)
-        let lineStr = NSAttributedString(string: trimmedLine, attributes: [
+        let lineAttrStr = NSMutableAttributedString(string: trimmedLine, attributes: [
             .font: font,
             .foregroundColor: NSColor(white: 0.8, alpha: 1.0),
         ])
-        attrStr.append(lineStr)
 
+        // Find the match range within the trimmed text
+        let leadingSpaces = result.lineText.prefix(while: { $0 == " " || $0 == "\t" }).count
+        let matchStart = result.lineText.distance(from: result.lineText.startIndex, to: result.matchRange.lowerBound) - leadingSpaces
+        let matchLength = result.lineText.distance(from: result.matchRange.lowerBound, to: result.matchRange.upperBound)
+
+        if matchStart >= 0 && matchStart + matchLength <= trimmedLine.count {
+            let highlightRange = NSRange(location: matchStart, length: matchLength)
+            lineAttrStr.addAttribute(.backgroundColor, value: matchHighlightColor, range: highlightRange)
+            lineAttrStr.addAttribute(.foregroundColor, value: NSColor.white, range: highlightRange)
+        }
+
+        attrStr.append(lineAttrStr)
         cell.textField?.attributedStringValue = attrStr
         return cell
     }
 
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-        20
+        22
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
