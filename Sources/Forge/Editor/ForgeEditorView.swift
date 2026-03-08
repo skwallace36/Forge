@@ -526,10 +526,22 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         gutterView.firstVisibleLine = line
     }
 
+    private var scrollRehighlightWorkItem: DispatchWorkItem?
+
     @objc private func scrollViewDidScroll(_ notification: Notification) {
         updateGutterFirstVisibleLine()
         gutterView.needsDisplay = true
         minimapView?.needsDisplay = true
+
+        // For large files, rehighlight visible range on scroll (debounced)
+        if let ts = textView.textStorage, ts.length > Self.largeFileThreshold {
+            scrollRehighlightWorkItem?.cancel()
+            let workItem = DispatchWorkItem { [weak self] in
+                self?.rehighlight()
+            }
+            scrollRehighlightWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: workItem)
+        }
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
@@ -574,16 +586,33 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         onCursorChange?(zeroLine + 1, zeroCol + 1, cachedTotalLines, sel.length)
     }
 
+    /// Threshold for switching to visible-range-only highlighting (characters)
+    private static let largeFileThreshold = 100_000
+
     private func rehighlight() {
         guard let ts = textView.textStorage else { return }
         let selectedRange = textView.selectedRange()
+        let isLarge = ts.length > Self.largeFileThreshold
 
         if let highlighter = highlighter {
             let text = ts.string
             highlighter.parse(text)
-            highlighter.highlight(ts)
+            if isLarge, let visibleRange = visibleCharacterRange() {
+                // For large files, only highlight the visible portion + margin
+                let margin = 2000
+                let expandedStart = max(0, visibleRange.location - margin)
+                let expandedEnd = min(ts.length, NSMaxRange(visibleRange) + margin)
+                let expandedRange = NSRange(location: expandedStart, length: expandedEnd - expandedStart)
+                highlighter.highlight(ts, in: expandedRange)
+            } else {
+                highlighter.highlight(ts)
+            }
         } else if let simple = simpleHighlighter {
-            simple.highlight(ts)
+            if isLarge, let visibleRange = visibleCharacterRange() {
+                simple.highlight(ts, in: visibleRange)
+            } else {
+                simple.highlight(ts)
+            }
         }
 
         highlightAnnotations(in: ts)
@@ -591,6 +620,14 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         applyDiagnosticUnderlines()
         updateCurrentLineHighlight()
         textView.setSelectedRange(selectedRange)
+    }
+
+    private func visibleCharacterRange() -> NSRange? {
+        guard let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else { return nil }
+        let visibleRect = scrollView.contentView.bounds
+        let glyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: textContainer)
+        return layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
     }
 
     // MARK: - Bracket Pair Colorization

@@ -20,8 +20,17 @@ class SimpleHighlighter {
     }
 
     func highlight(_ textStorage: NSTextStorage) {
-        let fullRange = NSRange(location: 0, length: textStorage.length)
+        highlight(textStorage, in: NSRange(location: 0, length: textStorage.length))
+    }
+
+    func highlight(_ textStorage: NSTextStorage, in range: NSRange) {
         let text = textStorage.string as NSString
+        guard range.location >= 0, NSMaxRange(range) <= textStorage.length else { return }
+
+        // Expand to full lines for correct regex matching
+        let lineStart = text.lineRange(for: NSRange(location: range.location, length: 0)).location
+        let lineEnd = NSMaxRange(text.lineRange(for: NSRange(location: max(0, NSMaxRange(range) - 1), length: 0)))
+        let expandedRange = NSRange(location: lineStart, length: min(lineEnd - lineStart, text.length - lineStart))
 
         let defaultAttrs: [NSAttributedString.Key: Any] = [
             .foregroundColor: theme.foreground,
@@ -29,15 +38,15 @@ class SimpleHighlighter {
         ]
 
         textStorage.beginEditing()
-        textStorage.setAttributes(defaultAttrs, range: fullRange)
+        textStorage.setAttributes(defaultAttrs, range: expandedRange)
 
         for rule in rules {
-            let matches = rule.pattern.matches(in: text as String, range: fullRange)
+            let matches = rule.pattern.matches(in: text as String, range: expandedRange)
             for match in matches {
-                let range = match.range
-                guard range.length > 0, NSMaxRange(range) <= textStorage.length else { continue }
+                let matchRange = match.range
+                guard matchRange.length > 0, NSMaxRange(matchRange) <= textStorage.length else { continue }
                 if let attrs = theme.attributes(for: rule.captureName, fontSize: fontSize) {
-                    textStorage.addAttributes(attrs, range: range)
+                    textStorage.addAttributes(attrs, range: matchRange)
                 }
             }
         }
