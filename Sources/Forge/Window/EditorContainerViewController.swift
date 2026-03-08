@@ -345,6 +345,14 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.selectNextOccurrence(sender)
     }
 
+    @objc func jumpToNextIssue(_ sender: Any?) {
+        editor.jumpToNextIssue(sender)
+    }
+
+    @objc func jumpToPreviousIssue(_ sender: Any?) {
+        editor.jumpToPreviousIssue(sender)
+    }
+
     @objc func goToLine(_ sender: Any?) {
         let alert = NSAlert()
         alert.messageText = "Go to Line"

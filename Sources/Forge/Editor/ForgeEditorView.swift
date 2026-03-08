@@ -1579,6 +1579,46 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         textView.performFindPanelAction(menuItem)
     }
 
+    // MARK: - Jump to Issue
+
+    @objc func jumpToNextIssue(_ sender: Any?) {
+        jumpToIssue(forward: true)
+    }
+
+    @objc func jumpToPreviousIssue(_ sender: Any?) {
+        jumpToIssue(forward: false)
+    }
+
+    private func jumpToIssue(forward: Bool) {
+        guard !diagnostics.isEmpty else { return }
+        let text = textView.string as NSString
+        let cursorPos = textView.selectedRange().location
+        let (currentLine, _) = characterIndexToLineColumn(cursorPos)
+
+        // Sort diagnostics by line
+        let sorted = diagnostics.sorted { $0.range.start.line < $1.range.start.line }
+
+        if forward {
+            // Find next diagnostic after current line
+            if let next = sorted.first(where: { $0.range.start.line > currentLine }) {
+                scrollToLine(next.range.start.line, column: next.range.start.character)
+            } else {
+                // Wrap to first
+                let first = sorted[0]
+                scrollToLine(first.range.start.line, column: first.range.start.character)
+            }
+        } else {
+            // Find previous diagnostic before current line
+            if let prev = sorted.last(where: { $0.range.start.line < currentLine }) {
+                scrollToLine(prev.range.start.line, column: prev.range.start.character)
+            } else {
+                // Wrap to last
+                let last = sorted[sorted.count - 1]
+                scrollToLine(last.range.start.line, column: last.range.start.character)
+            }
+        }
+    }
+
     // MARK: - Select Next Occurrence (⌘D)
 
     @objc func selectNextOccurrence(_ sender: Any?) {

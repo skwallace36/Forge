@@ -257,6 +257,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         goForward.keyEquivalentModifierMask = [.command, .control]
         navMenu.addItem(goForward)
 
+        navMenu.addItem(.separator())
+
+        let goToLine = NSMenuItem(title: "Go to Line…", action: #selector(EditorContainerViewController.goToLine(_:)), keyEquivalent: "l")
+        navMenu.addItem(goToLine)
+
+        let nextIssue = NSMenuItem(title: "Jump to Next Issue", action: #selector(EditorContainerViewController.jumpToNextIssue(_:)), keyEquivalent: "'")
+        nextIssue.keyEquivalentModifierMask = [.command, .control]
+        navMenu.addItem(nextIssue)
+
+        let prevIssue = NSMenuItem(title: "Jump to Previous Issue", action: #selector(EditorContainerViewController.jumpToPreviousIssue(_:)), keyEquivalent: "\"")
+        prevIssue.keyEquivalentModifierMask = [.command, .control]
+        navMenu.addItem(prevIssue)
+
         navMenuItem.submenu = navMenu
         mainMenu.addItem(navMenuItem)
 
