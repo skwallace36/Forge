@@ -145,6 +145,10 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         // Small left padding for text (gutter is beside the scroll view, not overlaying)
         textView.textContainerInset = NSSize(width: 4, height: 0)
 
+        // Allow scrolling past end of file so the last line isn't stuck at the bottom
+        scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 200, right: 0)
+        scrollView.automaticallyAdjustsContentInsets = false
+
         // Configure indent guides and column ruler
         forgeLayoutManager?.tabSpaces = tabWidth
         forgeLayoutManager?.rulerColumn = Preferences.shared.columnRuler

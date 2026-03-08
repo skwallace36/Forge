@@ -65,8 +65,23 @@ class GutterView: NSView {
 
         guard charIndex < text.length else { return nil }
 
-        let preText = text.substring(with: NSRange(location: 0, length: charIndex))
-        return preText.components(separatedBy: "\n").count - 1
+        return Self.countNewlines(in: text, upTo: charIndex)
+    }
+
+    /// Count newlines in text up to (not including) the given character index.
+    /// O(n) scan but avoids allocating substring arrays — much faster than components(separatedBy:).
+    private static func countNewlines(in text: NSString, upTo index: Int) -> Int {
+        var count = 0
+        let limit = min(index, text.length)
+        // Use UTF-16 buffer for fast access
+        let buffer = UnsafeMutablePointer<unichar>.allocate(capacity: limit)
+        defer { buffer.deallocate() }
+        text.getCharacters(buffer, range: NSRange(location: 0, length: limit))
+        let newline: unichar = 0x0A // \n
+        for i in 0..<limit {
+            if buffer[i] == newline { count += 1 }
+        }
+        return count
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -92,8 +107,7 @@ class GutterView: NSView {
 
             if charIndex < text.length {
                 // Find the line number
-                let preText = text.substring(with: NSRange(location: 0, length: charIndex))
-                let lineNum = preText.components(separatedBy: "\n").count - 1
+                let lineNum = Self.countNewlines(in: text, upTo: charIndex)
 
                 if foldableLines.contains(lineNum) {
                     onFoldToggle?(lineNum)
@@ -153,9 +167,8 @@ class GutterView: NSView {
         let visibleGlyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: textContainer)
         let visibleCharRange = layoutManager.characterRange(forGlyphRange: visibleGlyphRange, actualGlyphRange: nil)
 
-        // Count lines before visible range
-        let preText = text.substring(with: NSRange(location: 0, length: min(visibleCharRange.location, text.length)))
-        var lineNumber = preText.components(separatedBy: "\n").count
+        // Count lines before visible range (newline count + 1 = line number)
+        var lineNumber = Self.countNewlines(in: text, upTo: min(visibleCharRange.location, text.length)) + 1
 
         var charIndex = visibleCharRange.location
 
