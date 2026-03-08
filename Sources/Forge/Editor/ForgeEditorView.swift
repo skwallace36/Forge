@@ -34,6 +34,15 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
     /// Tracks the previously highlighted line range so we can clear it
     private var currentLineRange: NSRange?
 
+    /// Tracks occurrence highlight ranges so we can clear them
+    private var occurrenceHighlightRanges: [NSRange] = []
+
+    /// Tracks bracket match highlight range
+    private var bracketMatchRange: NSRange?
+
+    /// Debounce for occurrence highlighting
+    private var occurrenceWorkItem: DispatchWorkItem?
+
     /// Completion popup
     private var completionWindow: CompletionWindow?
 
@@ -364,6 +373,15 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         gutterView.needsDisplay = true
         notifyCursorPosition()
         updateCurrentLineHighlight()
+        updateBracketMatch()
+
+        // Debounce occurrence highlighting to avoid lag during rapid selection changes
+        occurrenceWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.updateOccurrenceHighlights()
+        }
+        occurrenceWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
     }
 
     private func notifyCursorPosition() {
@@ -578,6 +596,168 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             let newRange = NSRange(location: lineRange.location, length: (newText as NSString).length)
             textView.setSelectedRange(newRange)
         }
+    }
+
+    // MARK: - Occurrence Highlighting
+
+    private let occurrenceHighlightColor = NSColor(red: 0.30, green: 0.35, blue: 0.45, alpha: 0.5)
+
+    private func updateOccurrenceHighlights() {
+        guard let ts = textView.textStorage else { return }
+        let text = ts.string as NSString
+
+        // Clear previous highlights
+        ts.beginEditing()
+        for range in occurrenceHighlightRanges {
+            if range.location + range.length <= ts.length {
+                ts.removeAttribute(.backgroundColor, range: range)
+            }
+        }
+        occurrenceHighlightRanges.removeAll()
+
+        // Get selected word
+        let sel = textView.selectedRange()
+        guard sel.length == 0, text.length > 0 else {
+            ts.endEditing()
+            updateCurrentLineHighlight()
+            return
+        }
+
+        let cursor = min(sel.location, text.length)
+        let wordRange = wordRangeAtIndex(cursor, in: text)
+        guard wordRange.length >= 2 else {
+            ts.endEditing()
+            updateCurrentLineHighlight()
+            return
+        }
+
+        let word = text.substring(with: wordRange)
+
+        // Find all occurrences of the word
+        var searchRange = NSRange(location: 0, length: text.length)
+        while searchRange.location < text.length {
+            let foundRange = text.range(of: word, options: .literal, range: searchRange)
+            guard foundRange.location != NSNotFound else { break }
+
+            // Only highlight whole word matches
+            let before = foundRange.location > 0 ? text.character(at: foundRange.location - 1) : UInt16(0x20)
+            let after = NSMaxRange(foundRange) < text.length ? text.character(at: NSMaxRange(foundRange)) : UInt16(0x20)
+
+            let isWordBoundaryBefore = !isIdentChar(before)
+            let isWordBoundaryAfter = !isIdentChar(after)
+
+            if isWordBoundaryBefore && isWordBoundaryAfter && foundRange != wordRange {
+                ts.addAttribute(.backgroundColor, value: occurrenceHighlightColor, range: foundRange)
+                occurrenceHighlightRanges.append(foundRange)
+            }
+
+            searchRange.location = NSMaxRange(foundRange)
+            searchRange.length = text.length - searchRange.location
+        }
+
+        ts.endEditing()
+        updateCurrentLineHighlight()
+    }
+
+    private func wordRangeAtIndex(_ index: Int, in text: NSString) -> NSRange {
+        guard index < text.length else { return NSRange(location: index, length: 0) }
+
+        var start = index
+        var end = index
+
+        // Expand backwards
+        while start > 0 && isIdentChar(text.character(at: start - 1)) {
+            start -= 1
+        }
+
+        // Expand forwards
+        while end < text.length && isIdentChar(text.character(at: end)) {
+            end += 1
+        }
+
+        return NSRange(location: start, length: end - start)
+    }
+
+    private func isIdentChar(_ ch: UInt16) -> Bool {
+        guard let scalar = Unicode.Scalar(ch) else { return false }
+        return CharacterSet.alphanumerics.contains(scalar) || scalar == "_"
+    }
+
+    // MARK: - Bracket Matching
+
+    private let bracketHighlightColor = NSColor(red: 0.40, green: 0.50, blue: 0.60, alpha: 0.5)
+    private static let bracketPairs: [(open: UInt16, close: UInt16)] = [
+        (UInt16(Character("(").asciiValue!), UInt16(Character(")").asciiValue!)),
+        (UInt16(Character("[").asciiValue!), UInt16(Character("]").asciiValue!)),
+        (UInt16(Character("{").asciiValue!), UInt16(Character("}").asciiValue!)),
+    ]
+
+    private func updateBracketMatch() {
+        guard let ts = textView.textStorage else { return }
+        let text = ts.string as NSString
+
+        ts.beginEditing()
+
+        // Clear previous bracket highlight
+        if let prev = bracketMatchRange, prev.location + prev.length <= ts.length {
+            ts.removeAttribute(.backgroundColor, range: prev)
+        }
+        bracketMatchRange = nil
+
+        let cursor = textView.selectedRange().location
+        guard cursor > 0, text.length > 0 else {
+            ts.endEditing()
+            return
+        }
+
+        let charBefore = text.character(at: cursor - 1)
+
+        // Check if char before cursor is a bracket
+        for pair in Self.bracketPairs {
+            if charBefore == pair.close {
+                // Search backwards for matching open bracket
+                if let matchIndex = findMatchingBracket(in: text, at: cursor - 1, open: pair.open, close: pair.close, forward: false) {
+                    let range = NSRange(location: matchIndex, length: 1)
+                    ts.addAttribute(.backgroundColor, value: bracketHighlightColor, range: range)
+                    bracketMatchRange = range
+                }
+                break
+            } else if charBefore == pair.open {
+                // Search forwards for matching close bracket
+                if let matchIndex = findMatchingBracket(in: text, at: cursor - 1, open: pair.open, close: pair.close, forward: true) {
+                    let range = NSRange(location: matchIndex, length: 1)
+                    ts.addAttribute(.backgroundColor, value: bracketHighlightColor, range: range)
+                    bracketMatchRange = range
+                }
+                break
+            }
+        }
+
+        ts.endEditing()
+    }
+
+    private func findMatchingBracket(in text: NSString, at index: Int, open: UInt16, close: UInt16, forward: Bool) -> Int? {
+        var depth = 0
+        if forward {
+            for i in (index + 1)..<text.length {
+                let ch = text.character(at: i)
+                if ch == open { depth += 1 }
+                if ch == close {
+                    if depth == 0 { return i }
+                    depth -= 1
+                }
+            }
+        } else {
+            for i in stride(from: index - 1, through: 0, by: -1) {
+                let ch = text.character(at: i)
+                if ch == close { depth += 1 }
+                if ch == open {
+                    if depth == 0 { return i }
+                    depth -= 1
+                }
+            }
+        }
+        return nil
     }
 
     // MARK: - Re-indent Selection (⌃I)
