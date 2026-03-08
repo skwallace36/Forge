@@ -1,6 +1,6 @@
 import AppKit
 
-class MainWindowController: NSWindowController, OpenQuicklyDelegate {
+class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDelegate {
 
     let project: ForgeProject
     private var splitViewController: MainSplitViewController!
@@ -26,6 +26,7 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
         window.appearance = NSAppearance(named: .darkAqua)
 
         super.init(window: window)
+        window.delegate = self
 
         splitViewController = MainSplitViewController(project: project, windowController: self)
         window.contentViewController = splitViewController
@@ -44,6 +45,59 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) not implemented")
+    }
+
+    // MARK: - NSWindowDelegate
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        let unsavedDocs = project.tabManager.tabs.filter(\.isModified)
+        guard !unsavedDocs.isEmpty else { return true }
+
+        // Sync current document
+        splitViewController.syncDocumentContent()
+
+        if unsavedDocs.count == 1 {
+            let doc = unsavedDocs[0].document
+            let alert = NSAlert()
+            alert.messageText = "Do you want to save changes to \(doc.fileName)?"
+            alert.informativeText = "Your changes will be lost if you don't save them."
+            alert.addButton(withTitle: "Save")
+            alert.addButton(withTitle: "Don't Save")
+            alert.addButton(withTitle: "Cancel")
+            alert.alertStyle = .warning
+
+            let response = alert.runModal()
+            switch response {
+            case .alertFirstButtonReturn:
+                try? doc.save()
+                return true
+            case .alertSecondButtonReturn:
+                return true
+            default:
+                return false
+            }
+        } else {
+            let alert = NSAlert()
+            alert.messageText = "You have \(unsavedDocs.count) unsaved documents."
+            alert.informativeText = "Do you want to save all changes before closing?"
+            alert.addButton(withTitle: "Save All")
+            alert.addButton(withTitle: "Discard All")
+            alert.addButton(withTitle: "Cancel")
+            alert.alertStyle = .warning
+
+            let response = alert.runModal()
+            switch response {
+            case .alertFirstButtonReturn:
+                for tab in unsavedDocs {
+                    try? tab.document.save()
+                }
+                return true
+            case .alertSecondButtonReturn:
+                return true
+            default:
+                return false
+            }
+        }
     }
 
     // MARK: - File operations
