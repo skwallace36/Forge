@@ -1,6 +1,6 @@
 import AppKit
 
-class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate {
+class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate {
 
     private let project: ForgeProject
     private weak var windowController: MainWindowController?
@@ -62,6 +62,13 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         super.viewDidLoad()
         loadFileTree()
         startFileWatcher()
+        setupContextMenu()
+    }
+
+    private func setupContextMenu() {
+        let menu = NSMenu()
+        menu.delegate = self
+        outlineView.menu = menu
     }
 
     private func startFileWatcher() {
@@ -263,6 +270,127 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
               let node = notification.userInfo?["NSObject"] as? FileNode else { return }
         node.loadChildren()
         outlineView.reloadItem(node, reloadChildren: true)
+    }
+
+    // MARK: - NSMenuDelegate
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+
+        let clickedRow = outlineView.clickedRow
+        let clickedNode = clickedRow >= 0 ? outlineView.item(atRow: clickedRow) as? FileNode : nil
+
+        // Select the clicked row so the user sees what they right-clicked
+        if clickedRow >= 0 {
+            outlineView.selectRowIndexes(IndexSet(integer: clickedRow), byExtendingSelection: false)
+        }
+
+        // Determine the parent directory for new file/folder
+        let targetDir: URL
+        if let node = clickedNode {
+            targetDir = node.isDirectory ? node.url : node.url.deletingLastPathComponent()
+        } else {
+            targetDir = project.rootURL
+        }
+
+        let newFileItem = NSMenuItem(title: "New File…", action: #selector(newFileAction(_:)), keyEquivalent: "")
+        newFileItem.target = self
+        newFileItem.representedObject = targetDir
+        menu.addItem(newFileItem)
+
+        let newFolderItem = NSMenuItem(title: "New Folder…", action: #selector(newFolderAction(_:)), keyEquivalent: "")
+        newFolderItem.target = self
+        newFolderItem.representedObject = targetDir
+        menu.addItem(newFolderItem)
+
+        if let node = clickedNode {
+            menu.addItem(.separator())
+
+            let renameItem = NSMenuItem(title: "Rename…", action: #selector(renameAction(_:)), keyEquivalent: "")
+            renameItem.target = self
+            renameItem.representedObject = node
+            menu.addItem(renameItem)
+
+            let deleteItem = NSMenuItem(title: "Delete", action: #selector(deleteAction(_:)), keyEquivalent: "")
+            deleteItem.target = self
+            deleteItem.representedObject = node
+            menu.addItem(deleteItem)
+
+            menu.addItem(.separator())
+
+            let revealItem = NSMenuItem(title: "Reveal in Finder", action: #selector(revealInFinderAction(_:)), keyEquivalent: "")
+            revealItem.target = self
+            revealItem.representedObject = node
+            menu.addItem(revealItem)
+        }
+    }
+
+    @objc private func newFileAction(_ sender: NSMenuItem) {
+        guard let parentURL = sender.representedObject as? URL else { return }
+        promptForName(title: "New File", message: "Enter the file name:") { name in
+            let fileURL = parentURL.appendingPathComponent(name)
+            FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+            self.reloadFileTree()
+            self.windowController?.openFile(fileURL)
+        }
+    }
+
+    @objc private func newFolderAction(_ sender: NSMenuItem) {
+        guard let parentURL = sender.representedObject as? URL else { return }
+        promptForName(title: "New Folder", message: "Enter the folder name:") { name in
+            let folderURL = parentURL.appendingPathComponent(name)
+            try? FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
+            self.reloadFileTree()
+        }
+    }
+
+    @objc private func renameAction(_ sender: NSMenuItem) {
+        guard let node = sender.representedObject as? FileNode else { return }
+        promptForName(title: "Rename", message: "Enter the new name:", defaultValue: node.name) { name in
+            let newURL = node.url.deletingLastPathComponent().appendingPathComponent(name)
+            try? FileManager.default.moveItem(at: node.url, to: newURL)
+            self.reloadFileTree()
+        }
+    }
+
+    @objc private func deleteAction(_ sender: NSMenuItem) {
+        guard let node = sender.representedObject as? FileNode else { return }
+
+        let alert = NSAlert()
+        alert.messageText = "Delete \"\(node.name)\"?"
+        alert.informativeText = node.isDirectory
+            ? "This folder and all its contents will be moved to the Trash."
+            : "This file will be moved to the Trash."
+        alert.addButton(withTitle: "Move to Trash")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        try? FileManager.default.trashItem(at: node.url, resultingItemURL: nil)
+        reloadFileTree()
+    }
+
+    @objc private func revealInFinderAction(_ sender: NSMenuItem) {
+        guard let node = sender.representedObject as? FileNode else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([node.url])
+    }
+
+    private func promptForName(title: String, message: String, defaultValue: String = "", completion: @escaping (String) -> Void) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        textField.stringValue = defaultValue
+        alert.accessoryView = textField
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let name = textField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        completion(name)
     }
 
     // MARK: - Reveal in Navigator (⌘⇧J)
