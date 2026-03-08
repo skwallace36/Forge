@@ -61,7 +61,70 @@ class BuildSystem {
         }
     }
 
-    /// Cancel the current build.
+    /// Build and then run the product.
+    func buildAndRun() {
+        guard !isBuilding else { return }
+
+        // Save original callbacks
+        let origOnComplete = onComplete
+        onComplete = { [weak self] success in
+            guard let self = self else { return }
+            self.onComplete = origOnComplete
+            if success {
+                self.run()
+            } else {
+                origOnComplete?(false)
+            }
+        }
+        build()
+    }
+
+    /// Run the built product.
+    func run() {
+        guard !isBuilding else { return }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
+        process.arguments = ["run"]
+        process.currentDirectoryURL = projectRoot
+
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+            DispatchQueue.main.async {
+                self?.onOutput?(text)
+            }
+        }
+
+        process.terminationHandler = { [weak self] proc in
+            DispatchQueue.main.async {
+                pipe.fileHandleForReading.readabilityHandler = nil
+                self?.currentProcess = nil
+                self?.onComplete?(proc.terminationStatus == 0)
+            }
+        }
+
+        self.currentProcess = process
+
+        do {
+            try process.run()
+            DispatchQueue.main.async {
+                self.onOutput?("Running...\n")
+            }
+        } catch {
+            DispatchQueue.main.async {
+                self.onOutput?("Failed to run: \(error.localizedDescription)\n")
+                self.currentProcess = nil
+                self.onComplete?(false)
+            }
+        }
+    }
+
+    /// Cancel the current build or run.
     func cancel() {
         currentProcess?.terminate()
         currentProcess = nil

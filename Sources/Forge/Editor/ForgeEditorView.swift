@@ -178,6 +178,15 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         updateCurrentLineHighlight()
     }
 
+    /// Sync the editor text back to the document before saving
+    func syncDocumentContent() {
+        guard let doc = document else { return }
+        let editorText = textView.string
+        doc.textStorage.beginEditing()
+        doc.textStorage.replaceCharacters(in: NSRange(location: 0, length: doc.textStorage.length), with: editorText)
+        doc.textStorage.endEditing()
+    }
+
     // MARK: - Diagnostics
 
     func updateDiagnostics(_ newDiagnostics: [LSPDiagnostic]) {

@@ -63,6 +63,8 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
 
     func saveCurrentDocument() {
         guard let doc = project.tabManager.currentDocument else { return }
+        // Sync editor text back to document before saving
+        splitViewController.syncDocumentContent()
         try? doc.save()
         splitViewController.editorAreaDidUpdate()
     }
@@ -106,6 +108,23 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
 
         splitViewController.appendBuildOutput("Building \(project.displayName)...\n\n")
         buildSystem.build()
+    }
+
+    @objc func runProject(_ sender: Any?) {
+        splitViewController.showBuildLog()
+        splitViewController.clearBuildLog()
+
+        let buildSystem = project.buildSystem
+        buildSystem.onOutput = { [weak self] text in
+            self?.splitViewController.appendBuildOutput(text)
+        }
+        buildSystem.onComplete = { [weak self] success in
+            let msg = success ? "Run completed.\n" : "Run failed.\n"
+            self?.splitViewController.appendBuildOutput(msg)
+        }
+
+        splitViewController.appendBuildOutput("Building and running \(project.displayName)...\n\n")
+        buildSystem.buildAndRun()
     }
 
     @objc func stopBuild(_ sender: Any?) {

@@ -71,6 +71,10 @@ class MainSplitViewController: NSSplitViewController {
         editorContainerVC.refreshEditor()
     }
 
+    func syncDocumentContent() {
+        editorContainerVC.syncDocumentContent()
+    }
+
     func scrollToLine(_ line: Int, column: Int) {
         editorContainerVC.scrollToLine(line, column: column)
     }

@@ -60,6 +60,58 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
     override func viewDidLoad() {
         super.viewDidLoad()
         loadFileTree()
+
+        // Refresh when app becomes active (catches external file changes)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: NSApplication.didBecomeActiveNotification,
+            object: nil
+        )
+    }
+
+    @objc private func appDidBecomeActive() {
+        reloadFileTree()
+    }
+
+    /// Reload the file tree while preserving expanded state
+    func reloadFileTree() {
+        guard let root = rootNode else { return }
+
+        // Collect currently expanded items
+        var expandedURLs = Set<URL>()
+        collectExpandedURLs(root, into: &expandedURLs)
+
+        // Reload
+        let newRoot = FileNode(url: project.rootURL, isDirectory: true)
+        newRoot.loadChildren()
+        rootNode = newRoot
+
+        outlineView.reloadData()
+        outlineView.expandItem(rootNode)
+
+        // Re-expand previously expanded items
+        isAutoExpanding = true
+        restoreExpandedState(newRoot, expandedURLs: expandedURLs)
+        isAutoExpanding = false
+    }
+
+    private func collectExpandedURLs(_ node: FileNode, into urls: inout Set<URL>) {
+        if outlineView.isItemExpanded(node) {
+            urls.insert(node.url)
+            for child in node.children where child.isDirectory {
+                collectExpandedURLs(child, into: &urls)
+            }
+        }
+    }
+
+    private func restoreExpandedState(_ node: FileNode, expandedURLs: Set<URL>) {
+        for child in node.children where child.isDirectory && expandedURLs.contains(child.url) {
+            child.loadChildren()
+            outlineView.reloadItem(child, reloadChildren: true)
+            outlineView.expandItem(child)
+            restoreExpandedState(child, expandedURLs: expandedURLs)
+        }
     }
 
     private var isAutoExpanding = false

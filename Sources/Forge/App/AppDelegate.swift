@@ -143,6 +143,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let productMenu = NSMenu(title: "Product")
 
         productMenu.addItem(withTitle: "Build", action: #selector(MainWindowController.buildProject(_:)), keyEquivalent: "b")
+        productMenu.addItem(withTitle: "Run", action: #selector(MainWindowController.runProject(_:)), keyEquivalent: "r")
 
         let stopItem = NSMenuItem(title: "Stop", action: #selector(MainWindowController.stopBuild(_:)), keyEquivalent: ".")
         productMenu.addItem(stopItem)

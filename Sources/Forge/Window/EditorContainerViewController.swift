@@ -159,4 +159,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     func scrollToLine(_ line: Int, column: Int) {
         editor.scrollToLine(line, column: column)
     }
+
+    // MARK: - Save support
+
+    func syncDocumentContent() {
+        editor.syncDocumentContent()
+    }
 }
