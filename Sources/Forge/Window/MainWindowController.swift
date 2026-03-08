@@ -45,6 +45,7 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
     func openFile(_ url: URL) {
         let doc = project.document(for: url)
         project.tabManager.openOrFocus(document: doc)
+        project.navigationHistory.push(url: url)
         splitViewController.editorAreaDidUpdate()
     }
 
@@ -73,6 +74,22 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
 
     @objc func reopenLastTab(_ sender: Any?) {
         project.tabManager.reopenLast()
+        splitViewController.editorAreaDidUpdate()
+    }
+
+    // MARK: - Navigation History
+
+    @objc func goBack(_ sender: Any?) {
+        guard let entry = project.navigationHistory.goBack() else { return }
+        let doc = project.document(for: entry.url)
+        project.tabManager.openOrFocus(document: doc)
+        splitViewController.editorAreaDidUpdate()
+    }
+
+    @objc func goForward(_ sender: Any?) {
+        guard let entry = project.navigationHistory.goForward() else { return }
+        let doc = project.document(for: entry.url)
+        project.tabManager.openOrFocus(document: doc)
         splitViewController.editorAreaDidUpdate()
     }
 

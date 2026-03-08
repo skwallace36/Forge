@@ -70,6 +70,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let findItem = editMenu.addItem(withTitle: "Find…", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "f")
         findItem.tag = Int(NSTextFinder.Action.showFindInterface.rawValue)
 
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "Toggle Comment", action: #selector(ForgeTextView.toggleComment(_:)), keyEquivalent: "/")
+
         editMenuItem.submenu = editMenu
         mainMenu.addItem(editMenuItem)
 
@@ -102,6 +105,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let reopenTab = NSMenuItem(title: "Reopen Closed Tab", action: #selector(MainWindowController.reopenLastTab(_:)), keyEquivalent: "T")
         reopenTab.keyEquivalentModifierMask = [.command, .shift]
         navMenu.addItem(reopenTab)
+
+        navMenu.addItem(.separator())
+
+        let goBack = NSMenuItem(title: "Go Back", action: #selector(MainWindowController.goBack(_:)), keyEquivalent: String(Character(UnicodeScalar(NSLeftArrowFunctionKey)!)))
+        goBack.keyEquivalentModifierMask = [.command, .control]
+        navMenu.addItem(goBack)
+
+        let goForward = NSMenuItem(title: "Go Forward", action: #selector(MainWindowController.goForward(_:)), keyEquivalent: String(Character(UnicodeScalar(NSRightArrowFunctionKey)!)))
+        goForward.keyEquivalentModifierMask = [.command, .control]
+        navMenu.addItem(goForward)
 
         navMenuItem.submenu = navMenu
         mainMenu.addItem(navMenuItem)

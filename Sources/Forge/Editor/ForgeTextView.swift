@@ -75,6 +75,77 @@ class ForgeTextView: NSTextView {
         insertText("\n" + indent, replacementRange: selectedRange())
     }
 
+    // MARK: - Toggle Comment (⌘/)
+
+    @objc func toggleComment(_ sender: Any?) {
+        guard let ts = textStorage else { return }
+        let text = ts.string as NSString
+        let sel = selectedRange()
+
+        // Get the range of all affected lines
+        let lineRange = text.lineRange(for: sel)
+        let linesText = text.substring(with: lineRange)
+        let lines = linesText.components(separatedBy: "\n")
+
+        // Determine if we should comment or uncomment
+        let nonEmptyLines = lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        let allCommented = nonEmptyLines.allSatisfy { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            return trimmed.hasPrefix("//")
+        }
+
+        var newLines: [String] = []
+        for line in lines {
+            if allCommented {
+                // Uncomment: remove first occurrence of "// " or "//"
+                if let range = line.range(of: "// ") {
+                    var newLine = line
+                    newLine.removeSubrange(range)
+                    newLines.append(newLine)
+                } else if let range = line.range(of: "//") {
+                    var newLine = line
+                    newLine.removeSubrange(range)
+                    newLines.append(newLine)
+                } else {
+                    newLines.append(line)
+                }
+            } else {
+                // Comment: add "// " at the beginning of each line (after leading whitespace)
+                if line.trimmingCharacters(in: .whitespaces).isEmpty {
+                    newLines.append(line)
+                } else {
+                    // Find indent level
+                    let indent = line.prefix(while: { $0 == " " || $0 == "\t" })
+                    let rest = line.dropFirst(indent.count)
+                    newLines.append(String(indent) + "// " + rest)
+                }
+            }
+        }
+
+        let newText = newLines.joined(separator: "\n")
+        if shouldChangeText(in: lineRange, replacementString: newText) {
+            ts.replaceCharacters(in: lineRange, with: newText)
+            didChangeText()
+
+            // Restore selection approximately
+            let newRange = NSRange(location: lineRange.location, length: (newText as NSString).length)
+            setSelectedRange(newRange)
+        }
+    }
+
+    override func keyDown(with event: NSEvent) {
+        // ⌘/ for toggle comment
+        if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "/" {
+            toggleComment(nil)
+            return
+        }
+
+        // ⌘⌥[ for fold (placeholder)
+        // ⌘⌥] for unfold (placeholder)
+
+        super.keyDown(with: event)
+    }
+
     // MARK: - Current Line Highlight
 
     override func drawBackground(in rect: NSRect) {

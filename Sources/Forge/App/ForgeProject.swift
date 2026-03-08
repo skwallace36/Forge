@@ -6,6 +6,7 @@ class ForgeProject {
     var openDocuments: [URL: ForgeDocument] = [:]
     let tabManager = TabManager()
     let lspClient: LSPClient
+    let navigationHistory = NavigationHistory()
 
     init(rootURL: URL) {
         self.rootURL = rootURL
