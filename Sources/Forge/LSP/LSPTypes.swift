@@ -160,6 +160,7 @@ struct LSPCompletionItem: Codable {
     let kind: Int?
     let detail: String?
     let insertText: String?
+    let documentation: String?
 }
 
 struct LSPHover: Codable {

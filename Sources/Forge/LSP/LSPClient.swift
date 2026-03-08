@@ -498,11 +498,14 @@ class LSPClient {
 
         return items.compactMap { item in
             guard let label = item["label"] as? String else { return nil }
+            let doc = item["documentation"] as? String
+                ?? (item["documentation"] as? [String: Any])?["value"] as? String
             return LSPCompletionItem(
                 label: label,
                 kind: item["kind"] as? Int,
                 detail: item["detail"] as? String,
-                insertText: item["insertText"] as? String
+                insertText: item["insertText"] as? String,
+                documentation: doc
             )
         }
     }

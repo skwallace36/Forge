@@ -12,6 +12,9 @@ class CompletionWindow: NSPanel, NSTableViewDataSource, NSTableViewDelegate {
     private let maxVisibleRows = 8
     private let rowHeight: CGFloat = 22
     private let windowWidth: CGFloat = 320
+    private var docPanel: NSPanel?
+    private let docLabel = NSTextField(wrappingLabelWithString: "")
+    private let docWidth: CGFloat = 280
 
     init() {
         super.init(
@@ -94,6 +97,7 @@ class CompletionWindow: NSPanel, NSTableViewDataSource, NSTableViewDelegate {
     }
 
     func dismiss() {
+        hideDocPanel()
         parent?.removeChildWindow(self)
         orderOut(nil)
         allItems = []
@@ -210,6 +214,89 @@ class CompletionWindow: NSPanel, NSTableViewDataSource, NSTableViewDelegate {
 
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
         rowHeight
+    }
+
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        let row = tableView.selectedRow
+        guard row >= 0 && row < items.count else {
+            hideDocPanel()
+            return
+        }
+        let item = items[row]
+        let docText = item.documentation ?? item.detail
+        if let doc = docText, !doc.isEmpty {
+            showDocPanel(text: doc)
+        } else {
+            hideDocPanel()
+        }
+    }
+
+    // MARK: - Documentation Panel
+
+    private func showDocPanel(text: String) {
+        if docPanel == nil {
+            let panel = NSPanel(
+                contentRect: NSRect(x: 0, y: 0, width: docWidth, height: 100),
+                styleMask: [.borderless, .nonactivatingPanel],
+                backing: .buffered,
+                defer: true
+            )
+            panel.isFloatingPanel = true
+            panel.level = .popUpMenu
+            panel.hasShadow = true
+            panel.isOpaque = false
+            panel.backgroundColor = NSColor(red: 0.16, green: 0.17, blue: 0.20, alpha: 0.98)
+
+            docLabel.translatesAutoresizingMaskIntoConstraints = false
+            docLabel.font = NSFont.systemFont(ofSize: 11)
+            docLabel.textColor = NSColor(white: 0.75, alpha: 1.0)
+            docLabel.isSelectable = false
+            docLabel.maximumNumberOfLines = 12
+            docLabel.lineBreakMode = .byWordWrapping
+            docLabel.preferredMaxLayoutWidth = docWidth - 16
+
+            let contentView = NSView(frame: NSRect(x: 0, y: 0, width: docWidth, height: 100))
+            contentView.wantsLayer = true
+            contentView.layer?.cornerRadius = 5
+            contentView.addSubview(docLabel)
+            panel.contentView = contentView
+
+            NSLayoutConstraint.activate([
+                docLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
+                docLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
+                docLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
+                docLabel.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -8),
+            ])
+
+            docPanel = panel
+        }
+
+        guard let panel = docPanel else { return }
+
+        docLabel.stringValue = text
+        docLabel.preferredMaxLayoutWidth = docWidth - 16
+
+        // Calculate needed height
+        let textHeight = docLabel.intrinsicContentSize.height
+        let panelHeight = min(textHeight + 16, 200)
+
+        // Position to the right of the completion window
+        var docOrigin = self.frame.origin
+        docOrigin.x = self.frame.maxX + 2
+        docOrigin.y = self.frame.maxY - panelHeight
+
+        panel.setFrame(NSRect(x: docOrigin.x, y: docOrigin.y, width: docWidth, height: panelHeight), display: true)
+
+        if panel.parent == nil, let parentWindow = self.parent {
+            parentWindow.addChildWindow(panel, ordered: .above)
+        }
+        panel.orderFront(nil)
+    }
+
+    private func hideDocPanel() {
+        guard let panel = docPanel else { return }
+        panel.parent?.removeChildWindow(panel)
+        panel.orderOut(nil)
     }
 }
 
