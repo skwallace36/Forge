@@ -80,6 +80,18 @@ class MainSplitViewController: NSSplitViewController {
             guard let self = self else { return }
             self.bottomPanelVC.sourceControlView.refresh(gitStatus: self.project.gitStatus)
         }
+
+        // Wire up problems view
+        bottomPanelVC.problemsView.setProjectRoot(project.rootURL)
+        bottomPanelVC.problemsView.delegate = self
+
+        // Feed LSP diagnostics into the problems panel
+        project.lspClient.onDiagnostics = { [weak self] url, diagnostics in
+            guard let self = self else { return }
+            self.bottomPanelVC.problemsView.updateDiagnostics(url: url, diagnostics: diagnostics)
+            // Also forward to editor for inline rendering
+            self.editorContainerVC.handleDiagnostics(url: url, diagnostics: diagnostics)
+        }
     }
 
     func editorAreaDidUpdate() {
@@ -198,5 +210,11 @@ extension MainSplitViewController: BuildLogViewDelegate {
 extension MainSplitViewController: SourceControlViewDelegate {
     func sourceControlView(_ view: SourceControlView, didSelectFile url: URL) {
         windowController?.openFile(url)
+    }
+}
+
+extension MainSplitViewController: ProblemsViewDelegate {
+    func problemsView(_ view: ProblemsView, didSelectProblem url: URL, line: Int, column: Int) {
+        windowController?.openFile(url, atLine: line, column: column)
     }
 }

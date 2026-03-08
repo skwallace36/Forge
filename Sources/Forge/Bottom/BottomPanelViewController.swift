@@ -9,6 +9,7 @@ class BottomPanelViewController: NSViewController {
     private(set) var terminalView = TerminalPanelView()
     private(set) var claudeView = TerminalPanelView()
     private(set) var sourceControlView = SourceControlView()
+    private(set) var problemsView = ProblemsView()
     private var currentPanelIndex = 0
 
     override func loadView() {
@@ -17,7 +18,7 @@ class BottomPanelViewController: NSViewController {
         container.layer?.backgroundColor = NSColor(red: 0.11, green: 0.12, blue: 0.14, alpha: 1.0).cgColor
 
         // Tab selector at top
-        segmented = NSSegmentedControl(labels: ["Build Log", "Terminal", "Claude", "Search", "Source Control"], trackingMode: .selectOne, target: self, action: #selector(segmentChanged(_:)))
+        segmented = NSSegmentedControl(labels: ["Build Log", "Problems", "Terminal", "Claude", "Search", "Source Control"], trackingMode: .selectOne, target: self, action: #selector(segmentChanged(_:)))
         segmented.translatesAutoresizingMaskIntoConstraints = false
         segmented.selectedSegment = 0
         segmented.segmentStyle = .texturedSquare
@@ -30,7 +31,7 @@ class BottomPanelViewController: NSViewController {
         divider.layer?.backgroundColor = NSColor(white: 0.25, alpha: 1.0).cgColor
         container.addSubview(divider)
 
-        let panels: [NSView] = [buildLogView, terminalView, claudeView, searchResultsView, sourceControlView]
+        let panels: [NSView] = [buildLogView, problemsView, terminalView, claudeView, searchResultsView, sourceControlView]
         for (i, panel) in panels.enumerated() {
             panel.translatesAutoresizingMaskIntoConstraints = false
             panel.isHidden = i != 0
@@ -67,19 +68,20 @@ class BottomPanelViewController: NSViewController {
     private func showPanel(at index: Int) {
         currentPanelIndex = index
         buildLogView.isHidden = index != 0
-        terminalView.isHidden = index != 1
-        claudeView.isHidden = index != 2
-        searchResultsView.isHidden = index != 3
-        sourceControlView.isHidden = index != 4
+        problemsView.isHidden = index != 1
+        terminalView.isHidden = index != 2
+        claudeView.isHidden = index != 3
+        searchResultsView.isHidden = index != 4
+        sourceControlView.isHidden = index != 5
 
         // Launch terminals lazily on first show
-        if index == 1 {
+        if index == 2 {
             terminalView.launchShell()
             terminalView.focus()
-        } else if index == 2 {
+        } else if index == 3 {
             claudeView.launchClaude()
             claudeView.focus()
-        } else if index == 4 {
+        } else if index == 5 {
             onSourceControlShown?()
         }
     }
@@ -91,8 +93,8 @@ class BottomPanelViewController: NSViewController {
     }
 
     func showSearch() {
-        segmented.selectedSegment = 3
-        showPanel(at: 3)
+        segmented.selectedSegment = 4
+        showPanel(at: 4)
         searchResultsView.focusSearchField()
     }
 
@@ -101,9 +103,14 @@ class BottomPanelViewController: NSViewController {
         showPanel(at: 0)
     }
 
+    func showProblems() {
+        segmented.selectedSegment = 1
+        showPanel(at: 1)
+    }
+
     func showSourceControl() {
-        segmented.selectedSegment = 4
-        showPanel(at: 4)
+        segmented.selectedSegment = 5
+        showPanel(at: 5)
     }
 
     func appendBuildOutput(_ text: String) {

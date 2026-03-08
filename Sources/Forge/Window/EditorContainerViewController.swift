@@ -122,14 +122,8 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // Wire up LSP diagnostics
+        // Wire up LSP (diagnostics routing is handled by MainSplitViewController)
         editor.lspClient = project.lspClient
-        project.lspClient.onDiagnostics = { [weak self] url, diagnostics in
-            guard let self = self,
-                  let currentDoc = self.project.tabManager.currentDocument,
-                  currentDoc.url == url else { return }
-            self.editor.updateDiagnostics(diagnostics)
-        }
 
         // Wire up cursor position to status bar
         editor.onCursorChange = { [weak self] line, column, totalLines, selectionLength in
@@ -346,6 +340,14 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         guard let lineNumber = Int(textField.stringValue.trimmingCharacters(in: .whitespaces)),
               lineNumber > 0 else { return }
         editor.scrollToLine(lineNumber - 1, column: 0) // convert to 0-based
+    }
+
+    // MARK: - Diagnostics
+
+    func handleDiagnostics(url: URL, diagnostics: [LSPDiagnostic]) {
+        guard let currentDoc = project.tabManager.currentDocument,
+              currentDoc.url == url else { return }
+        editor.updateDiagnostics(diagnostics)
     }
 
     // MARK: - Navigation
