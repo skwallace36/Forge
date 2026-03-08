@@ -22,7 +22,12 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     }
 
     override func loadView() {
-        let container = NSView()
+        let container = DropTargetView()
+        container.onFileDrop = { [weak self] urls in
+            for url in urls {
+                self?.windowController?.openFile(url)
+            }
+        }
 
         // Jump bar (breadcrumb path)
         jumpBar.translatesAutoresizingMaskIntoConstraints = false
@@ -340,5 +345,44 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
     func syncDocumentContent() {
         editor.syncDocumentContent()
+    }
+}
+
+// MARK: - Drop Target View
+
+/// NSView subclass that accepts file drops from Finder
+private class DropTargetView: NSView {
+
+    var onFileDrop: (([URL]) -> Void)?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        registerForDraggedTypes([.fileURL])
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        registerForDraggedTypes([.fileURL])
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard sender.draggingPasteboard.canReadObject(forClasses: [NSURL.self], options: nil) else {
+            return []
+        }
+        return .copy
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [
+            .urlReadingFileURLsOnly: true,
+        ]) as? [URL] else {
+            return false
+        }
+
+        let fileURLs = urls.filter { !$0.hasDirectoryPath }
+        guard !fileURLs.isEmpty else { return false }
+
+        onFileDrop?(fileURLs)
+        return true
     }
 }
