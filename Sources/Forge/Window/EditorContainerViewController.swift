@@ -208,6 +208,13 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             self?.windowController?.openFile(url, atLine: line, column: column)
         }
 
+        // Wire up git diff hunk provider for gutter diff popover
+        editor.diffHunkProvider = { [weak self] in
+            guard let self = self,
+                  let doc = self.project.tabManager.currentDocument else { return [] }
+            return self.project.gitStatus.diffHunks(for: doc.url)
+        }
+
         // Wire up multi-file edits (from LSP rename)
         editor.onApplyEdits = { [weak self] url, edits in
             guard let self = self else { return }

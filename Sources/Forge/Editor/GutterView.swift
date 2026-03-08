@@ -24,6 +24,9 @@ class GutterView: NSView {
     /// Callback when a fold marker is clicked: (lineNumber: 0-indexed)
     var onFoldToggle: ((Int) -> Void)?
 
+    /// Callback when a git change marker is clicked: (lineNumber: 0-indexed, rect in gutter coordinates)
+    var onChangeMarkerClick: ((Int, NSRect) -> Void)?
+
     /// Cached first visible line number, set by ForgeEditorManager before draw
     var firstVisibleLine: Int = 0
 
@@ -112,33 +115,40 @@ class GutterView: NSView {
         let visibleRect = textView.enclosingScrollView?.contentView.bounds ?? .zero
         let localPoint = convert(event.locationInWindow, from: nil)
 
+        // Compute the clicked line for subsequent checks
+        let textViewY = localPoint.y + visibleRect.origin.y
+        let adjustedPoint = NSPoint(x: 0, y: textViewY - textView.textContainerInset.height)
+        let glyphIdx = layoutManager.glyphIndex(for: adjustedPoint, in: textContainer)
+        let charIdx = layoutManager.characterIndexForGlyph(at: glyphIdx)
+        let clickedLine = charIdx < text.length ? Self.countNewlines(in: text, upTo: charIdx) : -1
+
+        // Check if click is on a git change marker (leftmost 6px)
+        if localPoint.x < 6, clickedLine >= 0, changedLines[clickedLine] != nil {
+            // Calculate the rect for popover positioning
+            let glyphRange = layoutManager.glyphRange(
+                forCharacterRange: text.lineRange(for: NSRange(location: charIdx, length: 0)),
+                actualCharacterRange: nil,
+            )
+            var lineRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
+            lineRect.origin.y += textView.textContainerInset.height
+            lineRect.origin.y -= (textView.enclosingScrollView?.contentView.bounds.origin.y ?? 0)
+            let markerRect = NSRect(x: 0, y: lineRect.origin.y, width: 3, height: lineRect.height)
+            onChangeMarkerClick?(clickedLine, markerRect)
+            return
+        }
+
         // Check if click is in the fold marker area (left side of gutter)
-        if localPoint.x < 14 {
-            let textViewY = localPoint.y + visibleRect.origin.y
-            let adjustedPoint = NSPoint(x: 0, y: textViewY - textView.textContainerInset.height)
-            let glyphIndex = layoutManager.glyphIndex(for: adjustedPoint, in: textContainer)
-            let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
-
-            if charIndex < text.length {
-                // Find the line number
-                let lineNum = Self.countNewlines(in: text, upTo: charIndex)
-
-                if foldableLines.contains(lineNum) {
-                    onFoldToggle?(lineNum)
-                    return
-                }
+        if localPoint.x < 14, clickedLine >= 0 {
+            if foldableLines.contains(clickedLine) {
+                onFoldToggle?(clickedLine)
+                return
             }
         }
 
         // Default: select the line and set anchor for drag
-        let textViewY = localPoint.y + visibleRect.origin.y
-        let adjustedPoint = NSPoint(x: 0, y: textViewY - textView.textContainerInset.height)
-        let glyphIndex = layoutManager.glyphIndex(for: adjustedPoint, in: textContainer)
-        let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
+        guard charIdx < text.length else { return }
 
-        guard charIndex < text.length else { return }
-
-        let lineRange = text.lineRange(for: NSRange(location: charIndex, length: 0))
+        let lineRange = text.lineRange(for: NSRange(location: charIdx, length: 0))
         textView.setSelectedRange(lineRange)
         dragAnchorLineRange = lineRange
         window?.makeFirstResponder(textView)

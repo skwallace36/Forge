@@ -50,6 +50,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Called to show the find/replace bar: (withReplace, initialText)
     var onShowFindBar: ((Bool, String?) -> Void)?
 
+    /// Provides diff hunks for the current document (set by container)
+    var diffHunkProvider: (() -> [GitStatusTracker.DiffHunk])?
+
     /// Called when text changes while find bar is active (to refresh highlights)
     var onFindBarRefresh: (() -> Void)?
 
@@ -360,6 +363,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         gutterView.textView = textView
         gutterView.onFoldToggle = { [weak self] line in
             self?.toggleFold(at: line)
+        }
+        gutterView.onChangeMarkerClick = { [weak self] line, rect in
+            self?.showDiffPopover(forLine: line, relativeToRect: rect)
         }
         updateFoldableLines()
         gutterView.needsDisplay = true
@@ -1819,6 +1825,94 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         popover.show(relativeTo: showRect, of: scrollView.contentView, preferredEdge: .maxY)
         hoverPopover = popover
+    }
+
+    // MARK: - Git Diff Popover
+
+    private var diffPopover: NSPopover?
+
+    private func showDiffPopover(forLine line: Int, relativeToRect rect: NSRect) {
+        diffPopover?.close()
+
+        guard let hunks = diffHunkProvider?(), !hunks.isEmpty else { return }
+
+        // Find the hunk that contains this line
+        guard let hunk = hunks.first(where: { h in
+            line >= h.newStart && line < h.newStart + max(h.newCount, 1)
+        }) else { return }
+
+        // Build the diff display text
+        var displayLines: [NSAttributedString] = []
+        let monoFont = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+
+        if hunk.removedLines.isEmpty && !hunk.addedLines.isEmpty {
+            // Pure addition — show "N lines added"
+            let header = NSAttributedString(string: "\(hunk.addedLines.count) line(s) added", attributes: [
+                .font: monoFont,
+                .foregroundColor: NSColor(red: 0.40, green: 0.80, blue: 0.40, alpha: 1.0),
+            ])
+            displayLines.append(header)
+        } else {
+            // Show removed lines (the original content)
+            for removed in hunk.removedLines {
+                let line = NSAttributedString(string: "- \(removed)", attributes: [
+                    .font: monoFont,
+                    .foregroundColor: NSColor(red: 0.95, green: 0.45, blue: 0.45, alpha: 1.0),
+                    .backgroundColor: NSColor(red: 0.35, green: 0.15, blue: 0.15, alpha: 0.5),
+                ])
+                displayLines.append(line)
+            }
+            if !hunk.addedLines.isEmpty {
+                // Separator
+                displayLines.append(NSAttributedString(string: "", attributes: [.font: monoFont]))
+                for added in hunk.addedLines {
+                    let line = NSAttributedString(string: "+ \(added)", attributes: [
+                        .font: monoFont,
+                        .foregroundColor: NSColor(red: 0.40, green: 0.80, blue: 0.40, alpha: 1.0),
+                        .backgroundColor: NSColor(red: 0.15, green: 0.30, blue: 0.15, alpha: 0.5),
+                    ])
+                    displayLines.append(line)
+                }
+            }
+        }
+
+        guard !displayLines.isEmpty else { return }
+
+        // Join into a single attributed string
+        let result = NSMutableAttributedString()
+        for (i, line) in displayLines.enumerated() {
+            result.append(line)
+            if i < displayLines.count - 1 {
+                result.append(NSAttributedString(string: "\n"))
+            }
+        }
+
+        // Build the popover UI
+        let textField = NSTextField(labelWithAttributedString: result)
+        textField.maximumNumberOfLines = 30
+        textField.preferredMaxLayoutWidth = 600
+        textField.lineBreakMode = .byTruncatingTail
+        textField.translatesAutoresizingMaskIntoConstraints = false
+
+        let container = NSView()
+        container.addSubview(textField)
+        NSLayoutConstraint.activate([
+            textField.topAnchor.constraint(equalTo: container.topAnchor, constant: 8),
+            textField.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -8),
+            textField.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 10),
+            textField.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -10),
+        ])
+
+        let vc = NSViewController()
+        vc.view = container
+
+        let popover = NSPopover()
+        popover.contentViewController = vc
+        popover.behavior = .transient
+        popover.animates = true
+
+        popover.show(relativeTo: rect, of: gutterView, preferredEdge: .maxX)
+        diffPopover = popover
     }
 
     // MARK: - Auto-hover (mouse hover with delay)

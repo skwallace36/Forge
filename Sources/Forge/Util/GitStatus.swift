@@ -171,6 +171,90 @@ class GitStatusTracker {
         return result
     }
 
+    /// A parsed diff hunk for a file
+    struct DiffHunk {
+        let newStart: Int   // 0-based line in new (working copy)
+        let newCount: Int
+        let oldStart: Int   // 1-based line in old (HEAD)
+        let oldCount: Int
+        /// The removed lines (prefixed with `-`)
+        let removedLines: [String]
+        /// The added lines (prefixed with `+`)
+        let addedLines: [String]
+    }
+
+    /// Returns diff hunks for a specific file, with line content
+    func diffHunks(for url: URL) -> [DiffHunk] {
+        let task = Process()
+        let pipe = Pipe()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        task.arguments = ["diff", "--unified=3", "--no-color", "--", url.path]
+        task.currentDirectoryURL = rootURL
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+
+        do {
+            try task.run()
+        } catch {
+            return []
+        }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+
+        guard let output = String(data: data, encoding: .utf8) else { return [] }
+
+        var hunks: [DiffHunk] = []
+        let hunkHeader = try! NSRegularExpression(pattern: #"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@"#)
+        let lines = output.components(separatedBy: "\n")
+
+        var i = 0
+        while i < lines.count {
+            let line = lines[i]
+            let nsLine = line as NSString
+            let matches = hunkHeader.matches(in: line, range: NSRange(location: 0, length: nsLine.length))
+
+            if let match = matches.first {
+                let oldStart = Int(nsLine.substring(with: match.range(at: 1))) ?? 0
+                let oldCount = match.range(at: 2).location != NSNotFound
+                    ? (Int(nsLine.substring(with: match.range(at: 2))) ?? 1) : 1
+                let newStart = Int(nsLine.substring(with: match.range(at: 3))) ?? 0
+                let newCount = match.range(at: 4).location != NSNotFound
+                    ? (Int(nsLine.substring(with: match.range(at: 4))) ?? 1) : 1
+
+                var removed: [String] = []
+                var added: [String] = []
+
+                i += 1
+                while i < lines.count {
+                    let dl = lines[i]
+                    if dl.hasPrefix("-") {
+                        removed.append(String(dl.dropFirst()))
+                    } else if dl.hasPrefix("+") {
+                        added.append(String(dl.dropFirst()))
+                    } else if dl.hasPrefix("@@") || (!dl.hasPrefix(" ") && !dl.hasPrefix("\\") && !dl.isEmpty) {
+                        break
+                    }
+                    i += 1
+                }
+
+                hunks.append(DiffHunk(
+                    newStart: newStart - 1,
+                    newCount: newCount,
+                    oldStart: oldStart,
+                    oldCount: oldCount,
+                    removedLines: removed,
+                    addedLines: added,
+                ))
+            } else {
+                i += 1
+            }
+        }
+
+        return hunks
+    }
+
+
     /// Blame info for a single line
     struct BlameInfo {
         let author: String
