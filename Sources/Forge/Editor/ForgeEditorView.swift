@@ -2366,8 +2366,7 @@ class ForgeTextView: NSTextView {
                 // Strip the common indent
                 var stripped = line
                 var removed = 0
-                while removed < minIndent && !stripped.isEmpty {
-                    let first = stripped.first!
+                while removed < minIndent, let first = stripped.first {
                     if first == " " {
                         stripped.removeFirst()
                         removed += 1
