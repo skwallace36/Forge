@@ -36,9 +36,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
     var onShowReferences: (([LSPLocation]) -> Void)?
 
     let theme: Theme = .xcodeDefaultDark
-    private(set) var fontSize: CGFloat = 13
+    private(set) var fontSize: CGFloat = Preferences.shared.fontSize
     let gutterWidth: CGFloat = 44
-    let tabWidth: Int = 4
+    var tabWidth: Int { Preferences.shared.tabWidth }
     private var forgeLayoutManager: ForgeLayoutManager?
 
     /// Tracks the previously highlighted line range so we can clear it
@@ -540,16 +540,19 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
 
     func increaseFontSize() {
         fontSize = min(fontSize + 1, 32)
+        Preferences.shared.fontSize = fontSize
         applyFontSize()
     }
 
     func decreaseFontSize() {
         fontSize = max(fontSize - 1, 8)
+        Preferences.shared.fontSize = fontSize
         applyFontSize()
     }
 
     func resetFontSize() {
         fontSize = 13
+        Preferences.shared.fontSize = fontSize
         applyFontSize()
     }
 

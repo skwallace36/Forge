@@ -70,20 +70,23 @@ class ForgeDocument {
 
     func save() throws {
         var text = textStorage.string
+        let prefs = Preferences.shared
 
         // Trim trailing whitespace from each line
-        let lines = text.components(separatedBy: "\n")
-        let trimmed = lines.map { line in
-            var s = line
-            while s.hasSuffix(" ") || s.hasSuffix("\t") {
-                s.removeLast()
+        if prefs.trimTrailingWhitespace {
+            let lines = text.components(separatedBy: "\n")
+            let trimmed = lines.map { line in
+                var s = line
+                while s.hasSuffix(" ") || s.hasSuffix("\t") {
+                    s.removeLast()
+                }
+                return s
             }
-            return s
+            text = trimmed.joined(separator: "\n")
         }
-        text = trimmed.joined(separator: "\n")
 
         // Ensure file ends with a single newline
-        if !text.isEmpty && !text.hasSuffix("\n") {
+        if prefs.ensureTrailingNewline && !text.isEmpty && !text.hasSuffix("\n") {
             text.append("\n")
         }
 

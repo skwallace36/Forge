@@ -155,7 +155,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             } else {
                 editor.scrollView.isHidden = false
                 editor.gutterView.isHidden = false
-                minimap.isHidden = false
+                minimap.isHidden = !Preferences.shared.showMinimap
                 placeholderLabel.isHidden = true
                 binaryLabel.isHidden = true
                 minimap.textView = editor.textView
@@ -227,11 +227,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
     // MARK: - Minimap Toggle
 
-    private var minimapVisible = true
-
     @objc func toggleMinimap(_ sender: Any?) {
-        minimapVisible = !minimapVisible
-        minimap.isHidden = !minimapVisible
+        let prefs = Preferences.shared
+        prefs.showMinimap = !prefs.showMinimap
+        minimap.isHidden = !prefs.showMinimap
     }
 
     // MARK: - Toggle Comment (forwarded to editor manager)

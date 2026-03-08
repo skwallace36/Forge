@@ -8,7 +8,9 @@ class ForgeLayoutManager: NSLayoutManager {
 
     override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
-        drawIndentGuides(forGlyphRange: glyphsToShow, at: origin)
+        if Preferences.shared.showIndentGuides {
+            drawIndentGuides(forGlyphRange: glyphsToShow, at: origin)
+        }
     }
 
     private func drawIndentGuides(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {

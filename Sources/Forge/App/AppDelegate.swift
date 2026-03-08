@@ -3,6 +3,7 @@ import AppKit
 class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var windowController: MainWindowController?
+    private var preferencesWindow: PreferencesWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Prevent multiple instances — activate existing one if found
@@ -43,6 +44,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: "About Forge", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "Settings…", action: #selector(showPreferences(_:)), keyEquivalent: ",")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit Forge", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
@@ -236,5 +239,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func saveAllDocuments(_ sender: Any?) {
         windowController?.saveAllDocuments()
+    }
+
+    @objc private func showPreferences(_ sender: Any?) {
+        if preferencesWindow == nil {
+            preferencesWindow = PreferencesWindowController()
+        }
+        preferencesWindow?.showWindow(nil)
+        preferencesWindow?.window?.makeKeyAndOrderFront(nil)
     }
 }
