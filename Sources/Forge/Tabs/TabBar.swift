@@ -4,6 +4,7 @@ protocol TabBarDelegate: AnyObject {
     func tabBar(_ tabBar: TabBar, didSelectTabAt index: Int)
     func tabBar(_ tabBar: TabBar, didCloseTabAt index: Int)
     func tabBar(_ tabBar: TabBar, didMoveTabFrom sourceIndex: Int, to destIndex: Int)
+    func tabBar(_ tabBar: TabBar, didTogglePinAt index: Int)
     func tabBarDidRequestCloseOthers(_ tabBar: TabBar, keepingIndex index: Int)
     func tabBarDidRequestCloseAll(_ tabBar: TabBar)
     func tabBarDidRequestCloseToRight(_ tabBar: TabBar, fromIndex index: Int)
@@ -84,6 +85,7 @@ class TabBar: NSView {
             button.isSelected = (index == selectedIndex)
             button.isModified = tab.isModified
             button.isPreview = tab.isPreview
+            button.isPinned = tab.isPinned
             button.index = index
             button.target = self
             button.selectAction = #selector(tabClicked(_:))
@@ -200,6 +202,15 @@ class TabBar: NSView {
         let menu = NSMenu()
         let index = button.index
 
+        let isPinned = button.isPinned
+        let pinTitle = isPinned ? "Unpin Tab" : "Pin Tab"
+        let pinItem = NSMenuItem(title: pinTitle, action: #selector(contextTogglePin(_:)), keyEquivalent: "")
+        pinItem.target = self
+        pinItem.tag = index
+        menu.addItem(pinItem)
+
+        menu.addItem(.separator())
+
         let closeItem = NSMenuItem(title: "Close", action: #selector(contextClose(_:)), keyEquivalent: "")
         closeItem.target = self
         closeItem.tag = index
@@ -239,6 +250,10 @@ class TabBar: NSView {
         menu.addItem(revealItem)
 
         NSMenu.popUpContextMenu(menu, with: event, for: button)
+    }
+
+    @objc private func contextTogglePin(_ sender: NSMenuItem) {
+        delegate?.tabBar(self, didTogglePinAt: sender.tag)
     }
 
     @objc private func contextClose(_ sender: NSMenuItem) {
@@ -309,6 +324,7 @@ class TabButton: NSView {
     var isSelected: Bool = false { didSet { needsDisplay = true } }
     var isModified: Bool = false { didSet { needsDisplay = true } }
     var isPreview: Bool = false { didSet { needsDisplay = true } }
+    var isPinned: Bool = false { didSet { needsDisplay = true } }
     var index: Int = 0
     var fileURL: URL?
 
@@ -450,8 +466,23 @@ class TabButton: NSView {
         )
         titleStr.draw(with: drawRect, options: [.truncatesLastVisibleLine, .usesLineFragmentOrigin], attributes: titleAttrs)
 
-        // Close/modified indicator
-        if isHovered || isSelected {
+        // Close/modified/pin indicator
+        if isPinned {
+            // Show pin icon for pinned tabs
+            let pinAttrs: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 10, weight: .medium),
+                .foregroundColor: NSColor(white: 0.50, alpha: 1.0),
+            ]
+            let pinStr = "📌" as NSString
+            let pinSize = pinStr.size(withAttributes: pinAttrs)
+            pinStr.draw(
+                at: NSPoint(
+                    x: bounds.width - pinSize.width - 6,
+                    y: (bounds.height - pinSize.height) / 2
+                ),
+                withAttributes: pinAttrs
+            )
+        } else if isHovered || isSelected {
             if isModified {
                 // Show modified dot that's also clickable to close
                 let dotSize: CGFloat = 7

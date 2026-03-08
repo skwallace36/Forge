@@ -368,6 +368,11 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         project.tabManager.moveTab(from: sourceIndex, to: destIndex)
     }
 
+    func tabBar(_ tabBar: TabBar, didTogglePinAt index: Int) {
+        project.tabManager.togglePin(at: index)
+        refreshEditor()
+    }
+
     func tabBar(_ tabBar: TabBar, didCloseTabAt index: Int) {
         guard index >= 0 && index < project.tabManager.tabs.count else { return }
         let doc = project.tabManager.tabs[index].document
@@ -482,6 +487,13 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
     @objc func toggleBracketColorization(_ sender: Any?) {
         Preferences.shared.bracketPairColorization = !Preferences.shared.bracketPairColorization
+    }
+
+    @objc func togglePinCurrentTab(_ sender: Any?) {
+        let index = project.tabManager.selectedIndex
+        guard index >= 0 else { return }
+        project.tabManager.togglePin(at: index)
+        refreshEditor()
     }
 
     // MARK: - Toggle Comment (forwarded to editor manager)

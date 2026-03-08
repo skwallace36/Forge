@@ -104,8 +104,46 @@ class TabManager {
         tabs[selectedIndex].isPreview = false
     }
 
+    /// Toggle pinned state for a tab. Pinned tabs stay at the left and can't be closed with ⌘W.
+    func togglePin(at index: Int) {
+        guard index >= 0 && index < tabs.count else { return }
+        tabs[index].isPinned.toggle()
+
+        if tabs[index].isPinned {
+            // Move pinned tab to end of pinned section
+            let pinnedCount = tabs.prefix(index).filter(\.isPinned).count
+            if index != pinnedCount {
+                let tab = tabs.remove(at: index)
+                tabs.insert(tab, at: pinnedCount)
+                if selectedIndex == index {
+                    selectedIndex = pinnedCount
+                } else if index > selectedIndex && pinnedCount <= selectedIndex {
+                    selectedIndex += 1
+                } else if index < selectedIndex && pinnedCount >= selectedIndex {
+                    selectedIndex -= 1
+                }
+            }
+        } else {
+            // Move unpinned tab to just after the last pinned tab
+            let pinnedCount = tabs.filter(\.isPinned).count
+            if index != pinnedCount {
+                let tab = tabs.remove(at: index)
+                tabs.insert(tab, at: pinnedCount)
+                if selectedIndex == index {
+                    selectedIndex = pinnedCount
+                } else if index < selectedIndex && pinnedCount >= selectedIndex {
+                    selectedIndex -= 1
+                } else if index > selectedIndex && pinnedCount <= selectedIndex {
+                    selectedIndex += 1
+                }
+            }
+        }
+    }
+
     func closeCurrent() {
         guard selectedIndex >= 0 && selectedIndex < tabs.count else { return }
+        // Don't close pinned tabs with ⌘W
+        if tabs[selectedIndex].isPinned { return }
         let closed = tabs.remove(at: selectedIndex)
         recentlyClosedURLs.append(closed.url)
         onTabClosed?(closed.url)
@@ -119,6 +157,7 @@ class TabManager {
 
     func close(at index: Int) {
         guard index >= 0 && index < tabs.count else { return }
+        // Force-close (from context menu) — skip pinned check
         let closed = tabs.remove(at: index)
         recentlyClosedURLs.append(closed.url)
         onTabClosed?(closed.url)
