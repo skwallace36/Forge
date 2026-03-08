@@ -99,6 +99,13 @@ class PreferencesViewController: NSViewController {
         guidesCheck.state = prefs.showIndentGuides ? .on : .off
         guidesCheck.frame = NSRect(x: 20, y: y, width: 200, height: 20)
         container.addSubview(guidesCheck)
+        y -= 28
+
+        // Word wrap
+        let wrapCheck = NSButton(checkboxWithTitle: "Word Wrap", target: self, action: #selector(wordWrapToggled(_:)))
+        wrapCheck.state = prefs.wordWrap ? .on : .off
+        wrapCheck.frame = NSRect(x: 20, y: y, width: 200, height: 20)
+        container.addSubview(wrapCheck)
         y -= 30
 
         // Column ruler
@@ -166,6 +173,10 @@ class PreferencesViewController: NSViewController {
 
     @objc private func indentGuidesToggled(_ sender: NSButton) {
         prefs.showIndentGuides = sender.state == .on
+    }
+
+    @objc private func wordWrapToggled(_ sender: NSButton) {
+        prefs.wordWrap = sender.state == .on
     }
 
     @objc private func rulerChanged(_ sender: NSPopUpButton) {
