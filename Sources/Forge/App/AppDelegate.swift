@@ -80,6 +80,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         findItem.tag = Int(NSTextFinder.Action.showFindInterface.rawValue)
 
         editMenu.addItem(.separator())
+
+        let findInProject = NSMenuItem(title: "Find in Project…", action: #selector(MainSplitViewController.findInProject(_:)), keyEquivalent: "F")
+        findInProject.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(findInProject)
+
+        editMenu.addItem(.separator())
         editMenu.addItem(withTitle: "Toggle Comment", action: #selector(EditorContainerViewController.toggleComment(_:)), keyEquivalent: "/")
 
         editMenuItem.submenu = editMenu

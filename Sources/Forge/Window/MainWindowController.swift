@@ -92,7 +92,7 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
     // MARK: - Build
 
     @objc func buildProject(_ sender: Any?) {
-        splitViewController.showBottomPanel()
+        splitViewController.showBuildLog()
         splitViewController.clearBuildLog()
 
         let buildSystem = project.buildSystem

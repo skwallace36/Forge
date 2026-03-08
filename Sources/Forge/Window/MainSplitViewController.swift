@@ -117,11 +117,32 @@ class MainSplitViewController: NSSplitViewController {
         }
     }
 
+    func showBuildLog() {
+        showBottomPanel()
+        bottomPanelVC.showBuildLog()
+    }
+
     func appendBuildOutput(_ text: String) {
         bottomPanelVC.appendBuildOutput(text)
     }
 
     func clearBuildLog() {
         bottomPanelVC.clearBuildLog()
+    }
+
+    // MARK: - Find in Project (⌘⇧F)
+
+    @objc func findInProject(_ sender: Any?) {
+        showBottomPanel()
+        bottomPanelVC.searchResultsView.setProjectRoot(project.rootURL)
+        bottomPanelVC.searchResultsView.delegate = self
+        bottomPanelVC.showSearch()
+    }
+}
+
+extension MainSplitViewController: SearchResultsViewDelegate {
+    func searchResultsView(_ view: SearchResultsView, didSelectResult result: SearchResult) {
+        // Navigate to the search result
+        windowController?.openFile(result.url, atLine: result.line - 1, column: result.column - 1)
     }
 }
