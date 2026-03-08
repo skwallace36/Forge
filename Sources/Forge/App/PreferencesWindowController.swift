@@ -159,6 +159,13 @@ class PreferencesViewController: NSViewController {
         inlineDiagCheck.state = prefs.inlineDiagnostics ? .on : .off
         inlineDiagCheck.frame = NSRect(x: 20, y: y, width: 250, height: 20)
         container.addSubview(inlineDiagCheck)
+        y -= 28
+
+        // Hover tooltips
+        let hoverCheck = NSButton(checkboxWithTitle: "Hover Tooltips (LSP)", target: self, action: #selector(hoverTooltipsToggled(_:)))
+        hoverCheck.state = prefs.hoverTooltips ? .on : .off
+        hoverCheck.frame = NSRect(x: 20, y: y, width: 250, height: 20)
+        container.addSubview(hoverCheck)
         y -= 30
 
         // Column ruler
@@ -254,6 +261,10 @@ class PreferencesViewController: NSViewController {
 
     @objc private func inlineDiagnosticsToggled(_ sender: NSButton) {
         prefs.inlineDiagnostics = sender.state == .on
+    }
+
+    @objc private func hoverTooltipsToggled(_ sender: NSButton) {
+        prefs.hoverTooltips = sender.state == .on
     }
 
     @objc private func rulerChanged(_ sender: NSPopUpButton) {

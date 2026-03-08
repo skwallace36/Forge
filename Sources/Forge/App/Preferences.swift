@@ -23,6 +23,7 @@ class Preferences {
         static let bracketPairColorization = "ForgeBracketPairColorization"
         static let stickyScroll = "ForgeStickyScroll"
         static let inlineDiagnostics = "ForgeInlineDiagnostics"
+        static let hoverTooltips = "ForgeHoverTooltips"
     }
 
     // MARK: - Font
@@ -147,6 +148,17 @@ class Preferences {
         }
         set {
             defaults.set(newValue, forKey: Key.inlineDiagnostics)
+            NotificationCenter.default.post(name: .preferencesDidChange, object: nil)
+        }
+    }
+
+    var hoverTooltips: Bool {
+        get {
+            if defaults.object(forKey: Key.hoverTooltips) == nil { return true }
+            return defaults.bool(forKey: Key.hoverTooltips)
+        }
+        set {
+            defaults.set(newValue, forKey: Key.hoverTooltips)
             NotificationCenter.default.post(name: .preferencesDidChange, object: nil)
         }
     }

@@ -1934,6 +1934,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     private var autoHoverCharIndex: Int = -1
 
     private func handleAutoHover(charIndex: Int) {
+        // Check if hover tooltips are enabled
+        guard Preferences.shared.hoverTooltips else { return }
         // Don't re-trigger if already showing hover for this position
         guard charIndex != autoHoverCharIndex else { return }
         guard let doc = document, let lsp = lspClient else { return }
