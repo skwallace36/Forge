@@ -6,8 +6,10 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
     private weak var windowController: MainWindowController?
     private var outlineView: NSOutlineView!
     private var scrollView: NSScrollView!
+    private let filterField = NSSearchField()
     private var rootNode: FileNode?
     private var fileWatcher: FileSystemWatcher?
+    private var filterText: String = ""
 
     init(project: ForgeProject, windowController: MainWindowController?) {
         self.project = project
@@ -23,6 +25,17 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         let container = NSView()
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor(red: 0.13, green: 0.14, blue: 0.16, alpha: 1.0).cgColor
+
+        // Filter field at top
+        filterField.translatesAutoresizingMaskIntoConstraints = false
+        filterField.placeholderString = "Filter"
+        filterField.font = NSFont.systemFont(ofSize: 12)
+        filterField.focusRingType = .none
+        filterField.target = self
+        filterField.action = #selector(filterChanged(_:))
+        filterField.sendsSearchStringImmediately = true
+        filterField.sendsWholeSearchString = false
+        container.addSubview(filterField)
 
         scrollView = NSScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -49,7 +62,12 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         container.addSubview(scrollView)
 
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: container.topAnchor),
+            filterField.topAnchor.constraint(equalTo: container.topAnchor, constant: 4),
+            filterField.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 6),
+            filterField.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -6),
+            filterField.heightAnchor.constraint(equalToConstant: 22),
+
+            scrollView.topAnchor.constraint(equalTo: filterField.bottomAnchor, constant: 4),
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
@@ -213,27 +231,65 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         }
     }
 
+    // MARK: - Filter
+
+    @objc private func filterChanged(_ sender: NSSearchField) {
+        filterText = sender.stringValue.lowercased()
+        outlineView.reloadData()
+
+        if !filterText.isEmpty {
+            // Auto-expand all visible directories when filtering
+            expandAllVisible(rootNode)
+        }
+    }
+
+    private func expandAllVisible(_ node: FileNode?) {
+        guard let node = node else { return }
+        for child in filteredChildren(of: node) where child.isDirectory {
+            outlineView.expandItem(child)
+            expandAllVisible(child)
+        }
+    }
+
+    private func filteredChildren(of node: FileNode) -> [FileNode] {
+        guard !filterText.isEmpty else { return node.children }
+        return node.children.filter { nodeMatchesFilter($0) }
+    }
+
+    private func nodeMatchesFilter(_ node: FileNode) -> Bool {
+        // File matches if its name contains the filter text
+        if node.name.lowercased().contains(filterText) {
+            return true
+        }
+        // Directory matches if any descendant matches
+        if node.isDirectory {
+            return node.children.contains { nodeMatchesFilter($0) }
+        }
+        return false
+    }
+
     // MARK: - NSOutlineViewDataSource
 
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
         if item == nil {
-            return rootNode?.children.count ?? 0
+            guard let root = rootNode else { return 0 }
+            return filteredChildren(of: root).count
         }
         guard let node = item as? FileNode else { return 0 }
-        return node.children.count
+        return filteredChildren(of: node).count
     }
 
     func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
         if item == nil {
-            return rootNode!.children[index]
+            return filteredChildren(of: rootNode!)[index]
         }
         let node = item as! FileNode
-        return node.children[index]
+        return filteredChildren(of: node)[index]
     }
 
     func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
         guard let node = item as? FileNode else { return false }
-        return node.isDirectory
+        return node.isDirectory && !filteredChildren(of: node).isEmpty
     }
 
     // MARK: - NSOutlineViewDelegate
