@@ -2,6 +2,13 @@ import AppKit
 
 protocol OpenQuicklyDelegate: AnyObject {
     func openQuickly(_ controller: OpenQuicklyWindowController, didSelectURL url: URL)
+    func openQuickly(_ controller: OpenQuicklyWindowController, didSelectURL url: URL, atLine line: Int, column: Int)
+}
+
+extension OpenQuicklyDelegate {
+    func openQuickly(_ controller: OpenQuicklyWindowController, didSelectURL url: URL, atLine line: Int, column: Int) {
+        openQuickly(controller, didSelectURL: url)
+    }
 }
 
 /// Modal overlay for ⇧⌘O — fuzzy file search.
@@ -15,9 +22,13 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
 
     private var allFiles: [URL] = []
     private var filteredResults: [(url: URL, match: FuzzyMatch.Result)] = []
+    private var symbolResults: [LSPSymbolInformation] = []
+    private var isSymbolMode = false
     private var indexingTask: Task<Void, Never>?
+    private var symbolSearchTask: Task<Void, Never>?
 
     private let projectRoot: URL
+    weak var lspClient: LSPClient?
 
     init(projectRoot: URL) {
         self.projectRoot = projectRoot
@@ -51,7 +62,7 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
 
         // Search field
         searchField.translatesAutoresizingMaskIntoConstraints = false
-        searchField.placeholderString = "Open Quickly — type a filename"
+        searchField.placeholderString = "Open Quickly — filename or #symbol"
         searchField.font = NSFont.systemFont(ofSize: 18, weight: .light)
         searchField.isBordered = false
         searchField.focusRingType = .none
@@ -176,6 +187,24 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
     private func updateSearch() {
         let query = searchField.stringValue
 
+        // Symbol mode: query starts with #
+        if query.hasPrefix("#") {
+            isSymbolMode = true
+            filteredResults = []
+            let symbolQuery = String(query.dropFirst()).trimmingCharacters(in: .whitespaces)
+            if symbolQuery.isEmpty {
+                symbolResults = []
+                tableView.reloadData()
+                return
+            }
+            searchSymbols(symbolQuery)
+            return
+        }
+
+        isSymbolMode = false
+        symbolResults = []
+        symbolSearchTask?.cancel()
+
         if query.isEmpty {
             filteredResults = []
         } else {
@@ -214,6 +243,25 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
         }
     }
 
+    private func searchSymbols(_ query: String) {
+        symbolSearchTask?.cancel()
+        guard let lsp = lspClient else { return }
+
+        symbolSearchTask = Task { @MainActor in
+            do {
+                let symbols = try await lsp.workspaceSymbol(query: query)
+                guard !Task.isCancelled else { return }
+                self.symbolResults = Array(symbols.prefix(50))
+                self.tableView.reloadData()
+                if !self.symbolResults.isEmpty {
+                    self.tableView.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+                }
+            } catch {
+                // Silently fail
+            }
+        }
+    }
+
     // MARK: - NSTextFieldDelegate
 
     func controlTextDidChange(_ obj: Notification) {
@@ -247,15 +295,12 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
     // MARK: - NSTableViewDataSource
 
     func numberOfRows(in tableView: NSTableView) -> Int {
-        filteredResults.count
+        isSymbolMode ? symbolResults.count : filteredResults.count
     }
 
     // MARK: - NSTableViewDelegate
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        guard row < filteredResults.count else { return nil }
-
-        let result = filteredResults[row]
         let cellID = NSUserInterfaceItemIdentifier("OpenQuicklyCell")
         let pathTag = 100
 
@@ -301,34 +346,59 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
             ])
         }
 
-        let url = result.url
-        cell.imageView?.image = NSWorkspace.shared.icon(forFile: url.path)
+        if isSymbolMode {
+            guard row < symbolResults.count else { return nil }
+            let sym = symbolResults[row]
 
-        // Build attributed string with highlighted match characters
-        let fileName = url.lastPathComponent
-        let attrStr = NSMutableAttributedString(string: fileName, attributes: [
-            .foregroundColor: NSColor(white: 0.85, alpha: 1.0),
-            .font: NSFont.systemFont(ofSize: 14),
-        ])
-        for idx in result.match.matchedIndices {
-            if idx < fileName.count {
-                attrStr.addAttributes([
-                    .foregroundColor: NSColor(red: 0.40, green: 0.72, blue: 0.99, alpha: 1.0),
-                    .font: NSFont.boldSystemFont(ofSize: 14),
-                ], range: NSRange(location: idx, length: 1))
+            cell.imageView?.image = nil
+            cell.textField?.stringValue = "\(sym.kindIcon) \(sym.name)"
+            cell.textField?.textColor = NSColor(white: 0.85, alpha: 1.0)
+
+            if let pathLabel = cell.viewWithTag(pathTag) as? NSTextField {
+                let rootPath = projectRoot.standardizedFileURL.path
+                if let fileURL = URL(string: sym.location.uri) {
+                    let filePath = fileURL.path
+                    let relative = filePath.hasPrefix(rootPath)
+                        ? String(filePath.dropFirst(rootPath.count + 1))
+                        : fileURL.lastPathComponent
+                    let container = sym.containerName.map { " — \($0)" } ?? ""
+                    pathLabel.stringValue = "\(relative):\(sym.location.range.start.line + 1)\(container)"
+                } else {
+                    pathLabel.stringValue = sym.containerName ?? ""
+                }
             }
-        }
-        cell.textField?.attributedStringValue = attrStr
+        } else {
+            guard row < filteredResults.count else { return nil }
+            let result = filteredResults[row]
+            let url = result.url
+            cell.imageView?.image = NSWorkspace.shared.icon(forFile: url.path)
 
-        // Show relative path
-        if let pathLabel = cell.viewWithTag(pathTag) as? NSTextField {
-            let rootPath = projectRoot.standardizedFileURL.path
-            let filePath = url.deletingLastPathComponent().standardizedFileURL.path
-            if filePath.hasPrefix(rootPath) {
-                let relative = String(filePath.dropFirst(rootPath.count))
-                pathLabel.stringValue = relative.hasPrefix("/") ? String(relative.dropFirst()) : relative
-            } else {
-                pathLabel.stringValue = filePath
+            // Build attributed string with highlighted match characters
+            let fileName = url.lastPathComponent
+            let attrStr = NSMutableAttributedString(string: fileName, attributes: [
+                .foregroundColor: NSColor(white: 0.85, alpha: 1.0),
+                .font: NSFont.systemFont(ofSize: 14),
+            ])
+            for idx in result.match.matchedIndices {
+                if idx < fileName.count {
+                    attrStr.addAttributes([
+                        .foregroundColor: NSColor(red: 0.40, green: 0.72, blue: 0.99, alpha: 1.0),
+                        .font: NSFont.boldSystemFont(ofSize: 14),
+                    ], range: NSRange(location: idx, length: 1))
+                }
+            }
+            cell.textField?.attributedStringValue = attrStr
+
+            // Show relative path
+            if let pathLabel = cell.viewWithTag(pathTag) as? NSTextField {
+                let rootPath = projectRoot.standardizedFileURL.path
+                let filePath = url.deletingLastPathComponent().standardizedFileURL.path
+                if filePath.hasPrefix(rootPath) {
+                    let relative = String(filePath.dropFirst(rootPath.count))
+                    pathLabel.stringValue = relative.hasPrefix("/") ? String(relative.dropFirst()) : relative
+                } else {
+                    pathLabel.stringValue = filePath
+                }
             }
         }
 
@@ -343,14 +413,24 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
 
     private func confirmSelection() {
         let row = tableView.selectedRow
-        guard row >= 0 && row < filteredResults.count else { return }
+        guard row >= 0 else { return }
 
-        let url = filteredResults[row].url
-        dismiss()
-        delegate?.openQuickly(self, didSelectURL: url)
+        if isSymbolMode {
+            guard row < symbolResults.count else { return }
+            let sym = symbolResults[row]
+            guard let url = URL(string: sym.location.uri) else { return }
+            dismiss()
+            delegate?.openQuickly(self, didSelectURL: url, atLine: sym.location.range.start.line, column: sym.location.range.start.character)
+        } else {
+            guard row < filteredResults.count else { return }
+            let url = filteredResults[row].url
+            dismiss()
+            delegate?.openQuickly(self, didSelectURL: url)
+        }
     }
 
     deinit {
         indexingTask?.cancel()
+        symbolSearchTask?.cancel()
     }
 }

@@ -422,12 +422,17 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         if openQuicklyController == nil {
             openQuicklyController = OpenQuicklyWindowController(projectRoot: project.rootURL)
             openQuicklyController?.delegate = self
+            openQuicklyController?.lspClient = project.lspClient
         }
         openQuicklyController?.showInWindow(win)
     }
 
     func openQuickly(_ controller: OpenQuicklyWindowController, didSelectURL url: URL) {
         openFile(url)
+    }
+
+    func openQuickly(_ controller: OpenQuicklyWindowController, didSelectURL url: URL, atLine line: Int, column: Int) {
+        openFile(url, atLine: line, column: column)
     }
 
     // MARK: - Tab State Persistence

@@ -191,3 +191,30 @@ struct LSPCodeAction {
         return LSPCodeAction(title: title, kind: kind, edit: edit, diagnostics: nil)
     }
 }
+
+struct LSPSymbolInformation {
+    let name: String
+    let kind: Int
+    let containerName: String?
+    let location: LSPLocation
+
+    var kindIcon: String {
+        switch kind {
+        case 1: return "F"   // File
+        case 2: return "M"   // Module
+        case 3: return "N"   // Namespace
+        case 5: return "C"   // Class
+        case 6: return "M"   // Method
+        case 7: return "P"   // Property
+        case 8: return "F"   // Field
+        case 9: return "C"   // Constructor
+        case 10: return "E"  // Enum
+        case 11: return "I"  // Interface
+        case 12: return "F"  // Function
+        case 13: return "V"  // Variable
+        case 23: return "S"  // Struct
+        case 26: return "T"  // TypeParameter
+        default: return "·"
+        }
+    }
+}

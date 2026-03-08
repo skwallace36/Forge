@@ -296,6 +296,49 @@ class LSPClient {
         return parseDocumentSymbols(from: response)
     }
 
+    // MARK: - Workspace Symbol Search
+
+    func workspaceSymbol(query: String) async throws -> [LSPSymbolInformation] {
+        guard initialized, let conn = connection else { return [] }
+
+        let params: [String: Any] = [
+            "query": query,
+        ]
+
+        let response = try await conn.sendRequest(method: "workspace/symbol", params: params)
+        return parseSymbolInformation(from: response)
+    }
+
+    private func parseSymbolInformation(from response: JSONRPCResponse) -> [LSPSymbolInformation] {
+        guard let result = response.result?.value as? [[String: Any]] else { return [] }
+        return result.compactMap { dict in
+            guard let name = dict["name"] as? String,
+                  let kind = dict["kind"] as? Int,
+                  let locationDict = dict["location"] as? [String: Any],
+                  let uri = locationDict["uri"] as? String,
+                  let rangeDict = locationDict["range"] as? [String: Any],
+                  let startDict = rangeDict["start"] as? [String: Any],
+                  let endDict = rangeDict["end"] as? [String: Any],
+                  let sl = startDict["line"] as? Int, let sc = startDict["character"] as? Int,
+                  let el = endDict["line"] as? Int, let ec = endDict["character"] as? Int else {
+                return nil
+            }
+            let containerName = dict["containerName"] as? String
+            return LSPSymbolInformation(
+                name: name,
+                kind: kind,
+                containerName: containerName,
+                location: LSPLocation(
+                    uri: uri,
+                    range: LSPRange(
+                        start: LSPPosition(line: sl, character: sc),
+                        end: LSPPosition(line: el, character: ec)
+                    )
+                )
+            )
+        }
+    }
+
     // MARK: - Server Notifications
 
     private func handleNotification(method: String, params: [String: Any]) {
