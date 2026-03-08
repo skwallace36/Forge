@@ -2,8 +2,16 @@ import AppKit
 
 class AppDelegate: NSObject, NSApplicationDelegate {
 
-    private var windowController: MainWindowController?
+    private var windowControllers: [MainWindowController] = []
     private var preferencesWindow: PreferencesWindowController?
+
+    /// The frontmost window controller, for menu actions
+    private var windowController: MainWindowController? {
+        if let keyWindow = NSApp.keyWindow {
+            return windowControllers.first { $0.window === keyWindow }
+        }
+        return windowControllers.first
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Prevent multiple instances — activate existing one if found
@@ -27,8 +35,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let project = ForgeProject(rootURL: projectURL)
-        windowController = MainWindowController(project: project)
-        windowController?.showWindow(nil)
+        let wc = MainWindowController(project: project)
+        windowControllers.append(wc)
+        wc.showWindow(nil)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -37,12 +46,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidResignActive(_ notification: Notification) {
         // Auto-save all modified documents when switching away from the app
-        windowController?.autoSaveAll()
+        for wc in windowControllers {
+            wc.autoSaveAll()
+        }
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
         // Check for external file changes when returning to the app
-        windowController?.checkForExternalChanges()
+        for wc in windowControllers {
+            wc.checkForExternalChanges()
+        }
     }
 
     // MARK: - Main Menu
@@ -279,6 +292,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if url.hasDirectoryPath {
             let project = ForgeProject(rootURL: url)
             let wc = MainWindowController(project: project)
+            windowControllers.append(wc)
             wc.showWindow(nil)
         } else {
             windowController?.openFile(url)
