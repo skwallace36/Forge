@@ -1355,41 +1355,41 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         let mods = event.modifierFlags.intersection([.command, .option, .shift, .control])
         if mods == [.command, .option] {
             if event.keyCode == 33 { // [ key
-                moveLineUp()
+                moveLineUp(nil)
                 return true
             } else if event.keyCode == 30 { // ] key
-                moveLineDown()
+                moveLineDown(nil)
                 return true
             }
         }
 
-        // ⌘D → duplicate line
-        if mods == [.command] && event.keyCode == 2 { // D key
-            duplicateLine()
+        // ⌘⇧D → duplicate line
+        if mods == [.command, .shift] && event.keyCode == 2 { // D key
+            duplicateLine(nil)
             return true
         }
 
         // ⌃⇧K → delete line
         if mods == [.control, .shift] && event.keyCode == 40 { // K key
-            deleteLine()
+            deleteLine(nil)
             return true
         }
 
         // ⌘⇧↩ → insert line above
         if mods == [.command, .shift] && event.keyCode == 36 { // Return
-            insertLineAbove()
+            insertLineAbove(nil)
             return true
         }
 
         // ⌘↩ → insert line below
         if mods == [.command] && event.keyCode == 36 { // Return
-            insertLineBelow()
+            insertLineBelow(nil)
             return true
         }
 
         // ⌃J → join lines
         if mods == [.control] && event.keyCode == 38 { // J key
-            joinLines()
+            joinLines(nil)
             return true
         }
 
@@ -1422,7 +1422,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
     // MARK: - Move Line Up/Down
 
-    private func moveLineUp() {
+    @objc func moveLineUp(_ sender: Any? = nil) {
         guard let ts = textView.textStorage else { return }
         let text = ts.string as NSString
         let sel = textView.selectedRange()
@@ -1447,7 +1447,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
     }
 
-    private func moveLineDown() {
+    @objc func moveLineDown(_ sender: Any? = nil) {
         guard let ts = textView.textStorage else { return }
         let text = ts.string as NSString
         let sel = textView.selectedRange()
@@ -1475,7 +1475,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
     // MARK: - Duplicate Line
 
-    private func duplicateLine() {
+    @objc func duplicateLine(_ sender: Any? = nil) {
         guard let ts = textView.textStorage else { return }
         let text = ts.string as NSString
         let sel = textView.selectedRange()
@@ -1501,7 +1501,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
     // MARK: - Join Lines (⌃J)
 
-    private func joinLines() {
+    @objc func joinLines(_ sender: Any? = nil) {
         guard let ts = textView.textStorage else { return }
         let text = ts.string as NSString
         let sel = textView.selectedRange()
@@ -1675,7 +1675,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
     // MARK: - Delete Line (⌃⇧K)
 
-    private func deleteLine() {
+    @objc func deleteLine(_ sender: Any? = nil) {
         guard let ts = textView.textStorage else { return }
         let text = ts.string as NSString
         let sel = textView.selectedRange()
@@ -1690,7 +1690,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
     // MARK: - Insert Line Above/Below
 
-    private func insertLineAbove() {
+    @objc func insertLineAbove(_ sender: Any? = nil) {
         guard let ts = textView.textStorage else { return }
         let text = ts.string as NSString
         let sel = textView.selectedRange()
@@ -1718,7 +1718,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
     }
 
-    private func insertLineBelow() {
+    @objc func insertLineBelow(_ sender: Any? = nil) {
         guard let ts = textView.textStorage else { return }
         let text = ts.string as NSString
         let sel = textView.selectedRange()

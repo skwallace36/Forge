@@ -162,6 +162,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         editMenu.addItem(.separator())
 
+        let moveLineUpItem = NSMenuItem(title: "Move Line Up", action: #selector(EditorContainerViewController.moveLineUp(_:)), keyEquivalent: "[")
+        moveLineUpItem.keyEquivalentModifierMask = [.command, .option]
+        editMenu.addItem(moveLineUpItem)
+
+        let moveLineDownItem = NSMenuItem(title: "Move Line Down", action: #selector(EditorContainerViewController.moveLineDown(_:)), keyEquivalent: "]")
+        moveLineDownItem.keyEquivalentModifierMask = [.command, .option]
+        editMenu.addItem(moveLineDownItem)
+
+        let duplicateLineItem = NSMenuItem(title: "Duplicate Line", action: #selector(EditorContainerViewController.duplicateLine(_:)), keyEquivalent: "D")
+        duplicateLineItem.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(duplicateLineItem)
+
+        let deleteLineItem = NSMenuItem(title: "Delete Line", action: #selector(EditorContainerViewController.deleteLine(_:)), keyEquivalent: "K")
+        deleteLineItem.keyEquivalentModifierMask = [.control, .shift]
+        editMenu.addItem(deleteLineItem)
+
+        let joinLinesItem = NSMenuItem(title: "Join Lines", action: #selector(EditorContainerViewController.joinLines(_:)), keyEquivalent: "j")
+        joinLinesItem.keyEquivalentModifierMask = [.control]
+        editMenu.addItem(joinLinesItem)
+
+        editMenu.addItem(.separator())
+
         let selectNextItem = NSMenuItem(title: "Select Next Occurrence", action: #selector(EditorContainerViewController.selectNextOccurrence(_:)), keyEquivalent: "d")
         editMenu.addItem(selectNextItem)
 
@@ -390,19 +412,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
           ⌘F   Find              ⌘⌥F  Find & Replace
           ⌘⇧F  Find in Project   ⌘L   Go to Line
           ⌘/   Toggle Comment    ⌃I   Re-Indent
-          ⌃⇧K  Delete Line       ⌘⇧L  Select All Occurrences
+          ⌘D   Select Next       ⌘⇧L  Select All Occurrences
+          ⌘⇧D  Duplicate Line    ⌃⇧K  Delete Line
+          ⌘⌥[  Move Line Up      ⌘⌥]  Move Line Down
+          ⌃J   Join Lines        ⌃⇧I  Format Document
 
         Navigation
           ⇧⌘O  Open Quickly      ⌘1-9 Select Tab
           ⌘⇧[  Previous Tab      ⌘⇧]  Next Tab
           ⌘⇧T  Reopen Tab        ⌘⇧J  Reveal in Navigator
           ⌃⌘←  Go Back           ⌃⌘→  Go Forward
-          Esc   Focus Editor
+          ⌃6   Document Symbols  Esc   Focus Editor
 
         View
           ⌘0   Toggle Navigator   ⌘⇧Y  Toggle Bottom Panel
           ⌃⌘M  Toggle Minimap     ⌘⌥L  Toggle Word Wrap
           ⌘+   Zoom In            ⌘-   Zoom Out
+          ⌘⌥←  Fold               ⌘⌥→  Unfold
 
         Build
           ⌘B   Build              ⌘R   Run

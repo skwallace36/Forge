@@ -405,6 +405,34 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         }
     }
 
+    @objc func moveLineUp(_ sender: Any?) {
+        editor.moveLineUp(sender)
+    }
+
+    @objc func moveLineDown(_ sender: Any?) {
+        editor.moveLineDown(sender)
+    }
+
+    @objc func duplicateLine(_ sender: Any?) {
+        editor.duplicateLine(sender)
+    }
+
+    @objc func deleteLine(_ sender: Any?) {
+        editor.deleteLine(sender)
+    }
+
+    @objc func joinLines(_ sender: Any?) {
+        editor.joinLines(sender)
+    }
+
+    @objc func insertLineAbove(_ sender: Any?) {
+        editor.insertLineAbove(sender)
+    }
+
+    @objc func insertLineBelow(_ sender: Any?) {
+        editor.insertLineBelow(sender)
+    }
+
     @objc func foldAtCursor(_ sender: Any?) {
         editor.foldAtCursor(sender)
     }
