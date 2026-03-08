@@ -65,6 +65,14 @@ struct AnyCodable: Codable {
             try container.encode(bool)
         case let int as Int:
             try container.encode(int)
+        case let int32 as Int32:
+            try container.encode(Int(int32))
+        case let int64 as Int64:
+            try container.encode(int64)
+        case let uint as UInt:
+            try container.encode(uint)
+        case let float as Float:
+            try container.encode(float)
         case let double as Double:
             try container.encode(double)
         case let string as String:
@@ -74,7 +82,12 @@ struct AnyCodable: Codable {
         case let dict as [String: Any]:
             try container.encode(dict.mapValues { AnyCodable($0) })
         default:
-            throw EncodingError.invalidValue(value, .init(codingPath: [], debugDescription: "Unsupported type"))
+            // Last resort: try NSNumber for remaining numeric types
+            if let number = value as? NSNumber {
+                try container.encode(number.doubleValue)
+            } else {
+                throw EncodingError.invalidValue(value, .init(codingPath: [], debugDescription: "Unsupported type: \(type(of: value))"))
+            }
         }
     }
 }
