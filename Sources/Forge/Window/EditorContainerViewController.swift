@@ -175,7 +175,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
     func refreshEditor() {
         let tabManager = project.tabManager
-        tabBar.update(tabs: tabManager.tabs, selectedIndex: tabManager.selectedIndex)
+        tabBar.update(tabs: tabManager.tabs, selectedIndex: tabManager.selectedIndex, tabManager: tabManager)
 
         if let doc = tabManager.currentDocument {
             if doc.isBinary {

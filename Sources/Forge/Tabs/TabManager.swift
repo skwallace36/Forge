@@ -11,6 +11,21 @@ class TabManager {
         var url: URL { document.url }
     }
 
+    /// Returns display title for a tab, adding parent directory if another tab has the same filename
+    func displayTitle(for index: Int) -> String {
+        guard index >= 0 && index < tabs.count else { return "" }
+        let tab = tabs[index]
+        let name = tab.title
+        let hasDuplicate = tabs.enumerated().contains { i, other in
+            i != index && other.title == name
+        }
+        if hasDuplicate {
+            let parent = tab.url.deletingLastPathComponent().lastPathComponent
+            return "\(name) — \(parent)"
+        }
+        return name
+    }
+
     private(set) var tabs: [Tab] = []
     private(set) var selectedIndex: Int = -1
     private var recentlyClosed: [ForgeDocument] = []

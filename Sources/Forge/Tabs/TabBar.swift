@@ -42,7 +42,7 @@ class TabBar: NSView {
         return min(maxTabWidth, max(minTabWidth, idealWidth))
     }
 
-    func update(tabs: [TabManager.Tab], selectedIndex: Int) {
+    func update(tabs: [TabManager.Tab], selectedIndex: Int, tabManager: TabManager? = nil) {
         self.selectedIndex = selectedIndex
 
         // Remove old buttons
@@ -51,7 +51,7 @@ class TabBar: NSView {
 
         for (index, tab) in tabs.enumerated() {
             let button = TabButton(frame: .zero)
-            button.title = tab.title
+            button.title = tabManager?.displayTitle(for: index) ?? tab.title
             button.fileExtension = tab.document.fileExtension
             button.fileURL = tab.url
             button.isSelected = (index == selectedIndex)
