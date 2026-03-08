@@ -54,7 +54,7 @@ class LSPClient {
 
         // Send initialize
         let initParams: [String: Any] = [
-            "processId": ProcessInfo.processInfo.processIdentifier,
+            "processId": Int(ProcessInfo.processInfo.processIdentifier),
             "rootUri": rootURL.absoluteString,
             "capabilities": [
                 "textDocument": [
