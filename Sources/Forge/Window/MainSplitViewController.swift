@@ -23,8 +23,6 @@ class MainSplitViewController: NSSplitViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        view.wantsLayer = true
-
         // We use a vertical split: top area (which itself is a horizontal split) + bottom panel
         // But NSSplitView can only split one axis. So we nest:
         // Outer: vertical (top, bottom)
@@ -46,7 +44,7 @@ class MainSplitViewController: NSSplitViewController {
         navItem.holdingPriority = .defaultLow + 1
         horizontalSplit.addSplitViewItem(navItem)
 
-        let editorItem = NSSplitViewItem(contentListWithViewController: editorContainerVC)
+        let editorItem = NSSplitViewItem(viewController: editorContainerVC)
         editorItem.minimumThickness = 300
         horizontalSplit.addSplitViewItem(editorItem)
 

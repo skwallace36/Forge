@@ -17,7 +17,6 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
         )
 
         window.title = "Forge — \(project.displayName)"
-        window.setFrameAutosaveName("ForgeMainWindow")
         window.minSize = NSSize(width: 600, height: 400)
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
@@ -30,9 +29,16 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
 
         splitViewController = MainSplitViewController(project: project, windowController: self)
         window.contentViewController = splitViewController
-        window.center()
 
-        // Open first Swift file if project has one
+        let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1800, height: 1100)
+        let windowWidth = max(1440, screenFrame.width * 0.80)
+        let windowHeight = max(900, screenFrame.height * 0.80)
+        let origin = NSPoint(
+            x: screenFrame.origin.x + (screenFrame.width - windowWidth) / 2,
+            y: screenFrame.origin.y + (screenFrame.height - windowHeight) / 2,
+        )
+        window.setFrame(NSRect(x: origin.x, y: origin.y, width: windowWidth, height: windowHeight), display: true)
+
         openInitialFile()
     }
 
@@ -111,7 +117,7 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
     // MARK: - Initial file
 
     private func openInitialFile() {
-        // Find the first .swift file in the project root
+        // Find a good initial .swift file — prefer files under Sources/ over Package.swift
         let fm = FileManager.default
         guard let enumerator = fm.enumerator(
             at: project.rootURL,
@@ -119,11 +125,20 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
         ) else { return }
 
+        var fallback: URL?
         for case let url as URL in enumerator {
             if url.pathExtension == "swift" && !url.lastPathComponent.hasPrefix(".") {
-                openFile(url)
-                return
+                // Prefer source files over Package.swift
+                if url.lastPathComponent == "Package.swift" {
+                    fallback = fallback ?? url
+                } else {
+                    openFile(url)
+                    return
+                }
             }
+        }
+        if let url = fallback {
+            openFile(url)
         }
     }
 }

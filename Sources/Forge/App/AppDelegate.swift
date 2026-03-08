@@ -5,6 +5,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowController: MainWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Prevent multiple instances — activate existing one if found
+        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
+        let others = runningApps.filter { $0 != NSRunningApplication.current }
+        if let existing = others.first {
+            existing.activate()
+            NSApp.terminate(nil)
+            return
+        }
+
         setupMainMenu()
 
         // Determine project root from command line args or default

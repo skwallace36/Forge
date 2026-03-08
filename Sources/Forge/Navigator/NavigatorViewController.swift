@@ -62,12 +62,55 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         loadFileTree()
     }
 
+    private var isAutoExpanding = false
+
     private func loadFileTree() {
         rootNode = FileNode(url: project.rootURL, isDirectory: true)
         rootNode?.loadChildren()
+
+        // Pre-load children of key directories before telling the outline view
+        preloadKeyDirectories(rootNode)
+
         outlineView.reloadData()
-        // Expand root
         outlineView.expandItem(rootNode)
+
+        // Auto-expand key directories
+        isAutoExpanding = true
+        autoExpandKeyDirectories()
+        isAutoExpanding = false
+    }
+
+    /// Pre-load children of Sources/, src/ etc. so data is ready before expand
+    private func preloadKeyDirectories(_ node: FileNode?) {
+        guard let node = node else { return }
+        let expandNames: Set<String> = ["Sources", "src", "Source"]
+        for child in node.children where child.isDirectory && expandNames.contains(child.name) {
+            preloadSingleChildChain(child)
+        }
+    }
+
+    private func preloadSingleChildChain(_ node: FileNode) {
+        node.loadChildren()
+        let dirChildren = node.children.filter(\.isDirectory)
+        if dirChildren.count == 1 {
+            preloadSingleChildChain(dirChildren[0])
+        }
+    }
+
+    private func autoExpandKeyDirectories() {
+        guard let root = rootNode else { return }
+        let expandNames: Set<String> = ["Sources", "src", "Source"]
+        for child in root.children where child.isDirectory && expandNames.contains(child.name) {
+            expandSingleChildChain(child)
+        }
+    }
+
+    private func expandSingleChildChain(_ node: FileNode) {
+        outlineView.expandItem(node)
+        let dirChildren = node.children.filter(\.isDirectory)
+        if dirChildren.count == 1 {
+            expandSingleChildChain(dirChildren[0])
+        }
     }
 
     // MARK: - NSOutlineViewDataSource
@@ -146,7 +189,8 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
     }
 
     func outlineViewItemDidExpand(_ notification: Notification) {
-        guard let node = notification.userInfo?["NSObject"] as? FileNode else { return }
+        guard !isAutoExpanding,
+              let node = notification.userInfo?["NSObject"] as? FileNode else { return }
         node.loadChildren()
         outlineView.reloadItem(node, reloadChildren: true)
     }

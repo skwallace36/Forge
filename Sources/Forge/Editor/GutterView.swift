@@ -17,6 +17,10 @@ class GutterView: NSView {
         bgColor.setFill()
         dirtyRect.fill()
 
+        // Right edge divider line
+        NSColor(white: 0.25, alpha: 1.0).setFill()
+        NSRect(x: bounds.width - 1, y: 0, width: 1, height: bounds.height).fill()
+
         guard let textView = textView,
               let layoutManager = textView.layoutManager,
               let textContainer = textView.textContainer else {

@@ -1,10 +1,11 @@
 import AppKit
 
-/// The main editor area: gutter + text view in a scroll view.
-class ForgeEditorView: NSView {
+/// Manages the editor text view, gutter, syntax highlighting, and LSP integration.
+/// This is NOT a view subclass — it manages views that are added to a parent container.
+class ForgeEditorManager {
 
-    let scrollView = NSScrollView()
-    let textView: ForgeTextView
+    let scrollView: NSScrollView
+    let textView: NSTextView
     let gutterView = GutterView()
 
     private(set) var document: ForgeDocument?
@@ -18,35 +19,35 @@ class ForgeEditorView: NSView {
     /// Current diagnostics for this document
     private(set) var diagnostics: [LSPDiagnostic] = []
 
+    /// Called when cursor position changes: (line, column, totalLines)
+    var onCursorChange: ((Int, Int, Int) -> Void)?
+
     let theme: Theme = .xcodeDefaultDark
     let fontSize: CGFloat = 13
+    let gutterWidth: CGFloat = 44
 
-    override init(frame frameRect: NSRect) {
-        textView = ForgeTextView(frame: .zero)
-        super.init(frame: frameRect)
-        setupViews()
+    init() {
+        let sv = NSTextView.scrollableTextView()
+        let tv = sv.documentView as! NSTextView
+
+        self.scrollView = sv
+        self.textView = tv
+
+        configureTextView()
+        configureGutter()
+        registerObservers()
     }
 
-    required init?(coder: NSCoder) {
-        textView = ForgeTextView(frame: .zero)
-        super.init(coder: coder)
-        setupViews()
-    }
-
-    private func setupViews() {
-        // Configure scroll view
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
+    private func configureTextView() {
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = true
         scrollView.autohidesScrollers = true
-        scrollView.drawsBackground = false
-        addSubview(scrollView)
+        scrollView.drawsBackground = true
+        scrollView.backgroundColor = theme.background
 
-        // Configure text view
         textView.isEditable = true
         textView.isSelectable = true
         textView.allowsUndo = true
-        textView.isRichText = false
         textView.usesFindBar = true
         textView.isIncrementalSearchingEnabled = true
         textView.isAutomaticTextCompletionEnabled = false
@@ -56,6 +57,12 @@ class ForgeEditorView: NSView {
         textView.isAutomaticTextReplacementEnabled = false
         textView.smartInsertDeleteEnabled = false
 
+        // Disable line wrapping — scroll horizontally
+        textView.isHorizontallyResizable = true
+        textView.textContainer?.widthTracksTextView = false
+        textView.textContainer?.size = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+
         // Editor font & colors from theme
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textView.textColor = theme.foreground
@@ -63,39 +70,15 @@ class ForgeEditorView: NSView {
         textView.insertionPointColor = theme.cursor
         textView.selectedTextAttributes = [.backgroundColor: theme.selection]
 
-        // Text container sizing
-        textView.minSize = NSSize(width: 0, height: 0)
-        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = true
-        textView.autoresizingMask = [.width]
+        // Small left padding for text (gutter is beside the scroll view, not overlaying)
+        textView.textContainerInset = NSSize(width: 4, height: 0)
+    }
 
-        if let textContainer = textView.textContainer {
-            textContainer.widthTracksTextView = true
-            textContainer.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        }
-
-        scrollView.documentView = textView
-
-        // Gutter
-        gutterView.translatesAutoresizingMaskIntoConstraints = false
+    private func configureGutter() {
         gutterView.theme = theme
-        addSubview(gutterView)
+    }
 
-        // Layout
-        NSLayoutConstraint.activate([
-            gutterView.topAnchor.constraint(equalTo: topAnchor),
-            gutterView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            gutterView.bottomAnchor.constraint(equalTo: bottomAnchor),
-            gutterView.widthAnchor.constraint(equalToConstant: 44),
-
-            scrollView.topAnchor.constraint(equalTo: topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: gutterView.trailingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
-        ])
-
-        // Observe text changes for gutter updates and re-highlighting
+    private func registerObservers() {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(textDidChange(_:)),
@@ -103,7 +86,6 @@ class ForgeEditorView: NSView {
             object: textView
         )
 
-        // Observe scroll for gutter sync
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(
             self,
@@ -112,7 +94,6 @@ class ForgeEditorView: NSView {
             object: scrollView.contentView
         )
 
-        // Observe selection changes for current line highlight
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(selectionDidChange(_:)),
@@ -125,17 +106,26 @@ class ForgeEditorView: NSView {
         self.document = doc
 
         // Set text content
-        textView.isRichText = true
-        textView.textStorage?.setAttributedString(doc.textStorage)
+        textView.string = doc.textStorage.string
 
-        // Re-apply base font/color
+        // Apply font and foreground color
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textView.textColor = theme.foreground
+
+        if let ts = textView.textStorage, ts.length > 0 {
+            let fullRange = NSRange(location: 0, length: ts.length)
+            ts.beginEditing()
+            ts.addAttributes([
+                .foregroundColor: theme.foreground,
+                .font: NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular),
+            ], range: fullRange)
+            ts.endEditing()
+        }
 
         // Syntax highlighting
         if doc.fileExtension == "swift" {
             highlighter = SyntaxHighlighter(theme: theme, fontSize: fontSize)
-            highlighter?.parse(doc.textStorage.string)
+            highlighter?.parse(textView.string)
             if let ts = textView.textStorage {
                 highlighter?.highlight(ts)
             }
@@ -143,13 +133,16 @@ class ForgeEditorView: NSView {
             highlighter = nil
         }
 
-        textView.isRichText = true
-
         // Apply any existing diagnostics
         applyDiagnosticUnderlines()
 
+        textView.scrollRangeToVisible(NSRange(location: 0, length: 0))
+
         gutterView.textView = textView
         gutterView.needsDisplay = true
+
+        // Fire initial cursor position
+        notifyCursorPosition()
     }
 
     // MARK: - Diagnostics
@@ -165,7 +158,6 @@ class ForgeEditorView: NSView {
         guard let ts = textView.textStorage else { return }
         let text = ts.string as NSString
 
-        // Remove existing underlines first
         ts.beginEditing()
         ts.removeAttribute(.underlineStyle, range: NSRange(location: 0, length: ts.length))
         ts.removeAttribute(.underlineColor, range: NSRange(location: 0, length: ts.length))
@@ -176,9 +168,9 @@ class ForgeEditorView: NSView {
 
             let color: NSColor
             switch diagnostic.severity {
-            case 1: color = NSColor(red: 0.99, green: 0.30, blue: 0.30, alpha: 1.0) // error - red
-            case 2: color = NSColor(red: 0.99, green: 0.80, blue: 0.28, alpha: 1.0) // warning - yellow
-            default: color = NSColor(red: 0.40, green: 0.72, blue: 0.99, alpha: 1.0) // info - blue
+            case 1: color = NSColor(red: 0.99, green: 0.30, blue: 0.30, alpha: 1.0)
+            case 2: color = NSColor(red: 0.99, green: 0.80, blue: 0.28, alpha: 1.0)
+            default: color = NSColor(red: 0.40, green: 0.72, blue: 0.99, alpha: 1.0)
             }
 
             ts.addAttributes([
@@ -205,7 +197,6 @@ class ForgeEditorView: NSView {
         var lineStart = 0
         var currentLine = 0
 
-        // Find start position
         while currentLine < lspRange.start.line && lineStart < text.length {
             let lineRange = text.lineRange(for: NSRange(location: lineStart, length: 0))
             lineStart = NSMaxRange(lineRange)
@@ -213,7 +204,6 @@ class ForgeEditorView: NSView {
         }
         let startOffset = min(lineStart + lspRange.start.character, text.length)
 
-        // Find end position
         var endLineStart = lineStart
         while currentLine < lspRange.end.line && endLineStart < text.length {
             let lineRange = text.lineRange(for: NSRange(location: endLineStart, length: 0))
@@ -232,7 +222,6 @@ class ForgeEditorView: NSView {
         document?.isModified = true
         gutterView.needsDisplay = true
 
-        // Debounced re-highlight (50ms)
         rehighlightWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             self?.rehighlight()
@@ -240,7 +229,6 @@ class ForgeEditorView: NSView {
         rehighlightWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: workItem)
 
-        // Debounced LSP didChange (100ms)
         lspChangeWorkItem?.cancel()
         let lspWork = DispatchWorkItem { [weak self] in
             self?.notifyLSPChange()
@@ -255,6 +243,26 @@ class ForgeEditorView: NSView {
 
     @objc private func selectionDidChange(_ notification: Notification) {
         gutterView.needsDisplay = true
+        notifyCursorPosition()
+    }
+
+    private func notifyCursorPosition() {
+        let text = textView.string as NSString
+        let loc = min(textView.selectedRange().location, text.length)
+
+        // Count line and column
+        var line = 1
+        var lastLineStart = 0
+        for i in 0..<loc {
+            if text.character(at: i) == 0x0A { // \n
+                line += 1
+                lastLineStart = i + 1
+            }
+        }
+        let column = loc - lastLineStart + 1
+        let totalLines = text.components(separatedBy: "\n").count
+
+        onCursorChange?(line, column, totalLines)
     }
 
     private func rehighlight() {
@@ -262,13 +270,9 @@ class ForgeEditorView: NSView {
         let text = ts.string
         highlighter.parse(text)
 
-        // Preserve selection
         let selectedRange = textView.selectedRange()
         highlighter.highlight(ts)
-
-        // Re-apply diagnostics on top of highlighting
         applyDiagnosticUnderlines()
-
         textView.setSelectedRange(selectedRange)
     }
 

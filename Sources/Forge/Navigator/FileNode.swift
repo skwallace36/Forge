@@ -22,9 +22,41 @@ class FileNode {
 
     var icon: NSImage? {
         if isDirectory {
-            return NSImage(systemSymbolName: "folder.fill", accessibilityDescription: "folder")
+            return NSImage(systemSymbolName: "folder.fill", accessibilityDescription: "folder")?
+                .withSymbolConfiguration(.init(paletteColors: [.init(red: 0.40, green: 0.60, blue: 0.90, alpha: 1.0)]))
         }
-        return NSWorkspace.shared.icon(forFile: url.path)
+        return fileIcon(for: url.pathExtension)
+    }
+
+    private func fileIcon(for ext: String) -> NSImage? {
+        let (symbolName, color) = FileNode.iconInfo(for: ext)
+        return NSImage(systemSymbolName: symbolName, accessibilityDescription: ext)?
+            .withSymbolConfiguration(.init(paletteColors: [color]))
+    }
+
+    private static func iconInfo(for ext: String) -> (String, NSColor) {
+        switch ext.lowercased() {
+        case "swift":
+            return ("swift", NSColor(red: 0.99, green: 0.55, blue: 0.25, alpha: 1.0))
+        case "json":
+            return ("curlybraces", NSColor(red: 0.90, green: 0.80, blue: 0.30, alpha: 1.0))
+        case "md", "markdown":
+            return ("doc.text", NSColor(red: 0.55, green: 0.75, blue: 0.95, alpha: 1.0))
+        case "py":
+            return ("chevron.left.forwardslash.chevron.right", NSColor(red: 0.30, green: 0.70, blue: 0.90, alpha: 1.0))
+        case "js", "ts", "jsx", "tsx":
+            return ("chevron.left.forwardslash.chevron.right", NSColor(red: 0.95, green: 0.85, blue: 0.30, alpha: 1.0))
+        case "yml", "yaml":
+            return ("doc.text", NSColor(red: 0.70, green: 0.70, blue: 0.70, alpha: 1.0))
+        case "resolved":
+            return ("lock.fill", NSColor(red: 0.60, green: 0.60, blue: 0.60, alpha: 1.0))
+        case "h":
+            return ("h.square", NSColor(red: 0.60, green: 0.80, blue: 0.40, alpha: 1.0))
+        case "c", "m", "mm", "cpp":
+            return ("c.square", NSColor(red: 0.50, green: 0.70, blue: 0.95, alpha: 1.0))
+        default:
+            return ("doc", NSColor(red: 0.60, green: 0.60, blue: 0.65, alpha: 1.0))
+        }
     }
 
     func loadChildren() {
@@ -58,3 +90,4 @@ class FileNode {
             }
     }
 }
+

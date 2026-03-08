@@ -158,31 +158,30 @@ class SyntaxHighlighter {
         return try? Query(language: language, data: SyntaxHighlighter.minimalSwiftQuery.data(using: .utf8)!)
     }
 
-    /// Minimal fallback highlight query for Swift
+    /// Highlight query for Swift — uses node types from tree-sitter-swift 0.7.x
     private static let minimalSwiftQuery = """
     ; Keywords
     ["func" "var" "let" "class" "struct" "enum" "protocol" "extension"
      "import" "return" "if" "else" "guard" "switch" "case" "default"
      "for" "while" "repeat" "break" "continue" "in" "where" "do" "try"
-     "catch" "throw" "throws" "async" "await" "nil" "true" "false"
-     "self" "Self" "super" "init" "deinit" "typealias" "associatedtype"
+     "catch" "throw" "throws" "nil" "true" "false"
+     "self" "Self" "super" "init" "deinit" "typealias"
      "static" "private" "fileprivate" "internal" "public" "open"
-     "override" "mutating" "nonmutating" "weak" "unowned" "lazy"
-     "final" "required" "convenience" "optional" "some" "any"
-     "as" "is" "inout" "get" "set" "willSet" "didSet"
+     "override" "mutating" "weak" "lazy"
+     "final" "required" "convenience"
+     "as" "is" "get" "set" "willSet" "didSet"
     ] @keyword
 
     ; Strings
     (line_string_literal) @string
-    (multi_line_string_literal) @string
 
     ; Comments
     (comment) @comment
-    (multiline_comment) @comment
 
     ; Numbers
     (integer_literal) @number
     (real_literal) @number
+    (boolean_literal) @number
 
     ; Types
     (type_identifier) @type
@@ -191,10 +190,7 @@ class SyntaxHighlighter {
     (function_declaration name: (simple_identifier) @function)
     (call_expression (simple_identifier) @function.call)
 
-    ; Properties
+    ; Attributes
     (attribute) @attribute
-
-    ; Operators
-    (custom_operator) @operator
     """
 }
