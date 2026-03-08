@@ -65,6 +65,9 @@ class MainSplitViewController: NSSplitViewController {
         addSplitViewItem(bottomItem)
 
         splitView.dividerStyle = .thin
+
+        // Wire up build log click-to-navigate
+        bottomPanelVC.buildLogDelegate = self
     }
 
     func editorAreaDidUpdate() {
@@ -146,7 +149,12 @@ class MainSplitViewController: NSSplitViewController {
 
 extension MainSplitViewController: SearchResultsViewDelegate {
     func searchResultsView(_ view: SearchResultsView, didSelectResult result: SearchResult) {
-        // Navigate to the search result
         windowController?.openFile(result.url, atLine: result.line - 1, column: result.column - 1)
+    }
+}
+
+extension MainSplitViewController: BuildLogViewDelegate {
+    func buildLogView(_ view: BuildLogView, didClickFileReference url: URL, line: Int, column: Int) {
+        windowController?.openFile(url, atLine: line, column: column)
     }
 }
