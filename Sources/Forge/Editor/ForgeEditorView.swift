@@ -1619,10 +1619,11 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         }
 
         let charOffset = min(offset + column, text.length)
-        let range = NSRange(location: charOffset, length: 0)
-        textView.setSelectedRange(range)
-        textView.scrollRangeToVisible(range)
-        textView.showFindIndicator(for: NSRange(location: charOffset, length: 0))
+        let lineRange = text.lineRange(for: NSRange(location: charOffset, length: 0))
+        textView.setSelectedRange(NSRange(location: charOffset, length: 0))
+        textView.scrollRangeToVisible(lineRange)
+        // Flash the line briefly to draw attention
+        textView.showFindIndicator(for: lineRange)
     }
 
     // MARK: - Position Conversion
