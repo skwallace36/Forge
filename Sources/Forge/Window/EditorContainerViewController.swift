@@ -8,6 +8,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     private let tabBar = TabBar()
     private let editor = ForgeEditorManager()
     private let minimap = MinimapView()
+    private let stickyScroll = StickyScrollView()
     private let statusBar = StatusBar()
     private let placeholderLabel = NSTextField(labelWithString: "Open a file to start editing\n\n⇧⌘O  Open Quickly\n⌘O    Open File\n⌘N    New File")
     private let binaryLabel = NSTextField(labelWithString: "")
@@ -60,6 +61,11 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         // Minimap
         minimap.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(minimap)
+
+        // Sticky scroll (overlays top of editor, hidden when not needed)
+        stickyScroll.translatesAutoresizingMaskIntoConstraints = false
+        stickyScroll.isHidden = true
+        container.addSubview(stickyScroll)
 
         // Welcome placeholder
         placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -121,6 +127,11 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             minimap.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             minimap.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
             minimap.widthAnchor.constraint(equalToConstant: 80),
+
+            // Sticky scroll: overlays top of editor scroll view
+            stickyScroll.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
+            stickyScroll.leadingAnchor.constraint(equalTo: editor.gutterView.trailingAnchor),
+            stickyScroll.trailingAnchor.constraint(equalTo: minimap.leadingAnchor),
 
             placeholderLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
             placeholderLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
@@ -242,6 +253,16 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             self?.windowController?.openFile(url)
         }
 
+        // Wire up sticky scroll
+        editor.onScroll = { [weak self] in
+            self?.stickyScroll.updateStickyLines()
+        }
+        stickyScroll.onLineClicked = { [weak self] charOffset in
+            guard let self = self else { return }
+            self.editor.textView.setSelectedRange(NSRange(location: charOffset, length: 0))
+            self.editor.textView.scrollRangeToVisible(NSRange(location: charOffset, length: 0))
+        }
+
         refreshEditor()
 
         // Initial git branch display
@@ -286,6 +307,8 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
                 minimap.textView = editor.textView
                 minimap.scrollView = editor.scrollView
                 editor.minimapView = minimap
+                stickyScroll.textView = editor.textView
+                stickyScroll.scrollView = editor.scrollView
             }
             editor.displayDocument(doc)
             jumpBar.update(fileURL: doc.url, projectRoot: project.rootURL)

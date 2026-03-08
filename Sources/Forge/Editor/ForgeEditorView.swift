@@ -44,6 +44,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Called when text content changes (for promoting preview tabs, etc.)
     var onTextDidChange: (() -> Void)?
 
+    /// Called on scroll (for sticky scroll headers)
+    var onScroll: (() -> Void)?
+
     let theme: Theme = .xcodeDefaultDark
     private(set) var fontSize: CGFloat = Preferences.shared.fontSize
     var editorFont: NSFont { Preferences.shared.editorFont(size: fontSize) }
@@ -551,6 +554,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         updateGutterFirstVisibleLine()
         gutterView.needsDisplay = true
         minimapView?.needsDisplay = true
+        onScroll?()
 
         // For large files, rehighlight visible range on scroll (debounced)
         if let ts = textView.textStorage, ts.length > Self.largeFileThreshold {
