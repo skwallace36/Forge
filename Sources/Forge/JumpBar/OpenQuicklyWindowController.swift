@@ -120,40 +120,44 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
 
     private func indexFiles(at root: URL) {
         indexingTask = Task { [weak self] in
-            var files: [URL] = []
-            let fm = FileManager.default
-            guard let enumerator = fm.enumerator(
-                at: root,
-                includingPropertiesForKeys: [.isRegularFileKey],
-                options: [.skipsHiddenFiles, .skipsPackageDescendants]
-            ) else { return }
+            let files = await Task.detached {
+                Self.collectFiles(at: root)
+            }.value
 
-            let skipDirs: Set<String> = [".git", ".build", ".swiftpm", "DerivedData", "node_modules", "Pods"]
-
-            for case let url as URL in enumerator {
-                if Task.isCancelled { return }
-
-                let name = url.lastPathComponent
-                if skipDirs.contains(name) {
-                    enumerator.skipDescendants()
-                    continue
-                }
-
-                let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-                if isDir && skipDirs.contains(name) {
-                    enumerator.skipDescendants()
-                    continue
-                }
-
-                if !isDir {
-                    files.append(url)
-                }
-            }
+            if Task.isCancelled { return }
 
             await MainActor.run {
                 self?.allFiles = files
             }
         }
+    }
+
+    nonisolated private static func collectFiles(at root: URL) -> [URL] {
+        var files: [URL] = []
+        let fm = FileManager.default
+        guard let enumerator = fm.enumerator(
+            at: root,
+            includingPropertiesForKeys: [.isRegularFileKey, .isDirectoryKey],
+            options: [.skipsHiddenFiles, .skipsPackageDescendants]
+        ) else { return files }
+
+        let skipDirs: Set<String> = [".git", ".build", ".swiftpm", "DerivedData", "node_modules", "Pods"]
+
+        for case let url as URL in enumerator {
+            let name = url.lastPathComponent
+            let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+
+            if isDir && skipDirs.contains(name) {
+                enumerator.skipDescendants()
+                continue
+            }
+
+            if !isDir {
+                files.append(url)
+            }
+        }
+
+        return files
     }
 
     // MARK: - Show/Dismiss

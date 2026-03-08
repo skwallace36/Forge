@@ -167,12 +167,11 @@ class ForgeDocument {
         // Trim trailing whitespace from each line
         if prefs.trimTrailingWhitespace {
             let lines = text.components(separatedBy: "\n")
-            let trimmed = lines.map { line in
-                var s = line
-                while s.hasSuffix(" ") || s.hasSuffix("\t") {
-                    s.removeLast()
+            let trimmed = lines.map { line -> String in
+                guard let lastNonWS = line.lastIndex(where: { $0 != " " && $0 != "\t" }) else {
+                    return ""
                 }
-                return s
+                return String(line[...lastNonWS])
             }
             text = trimmed.joined(separator: "\n")
         }
