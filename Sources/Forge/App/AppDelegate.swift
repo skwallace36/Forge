@@ -40,6 +40,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         windowController?.autoSaveAll()
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        // Check for external file changes when returning to the app
+        windowController?.checkForExternalChanges()
+    }
+
     // MARK: - Main Menu
 
     private func setupMainMenu() {

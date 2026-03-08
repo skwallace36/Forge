@@ -238,6 +238,44 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         // Don't refresh editor — just save silently
     }
 
+    // MARK: - External file change detection
+
+    func checkForExternalChanges() {
+        var reloadedCurrent = false
+
+        for tab in project.tabManager.tabs {
+            let doc = tab.document
+            guard doc.hasChangedOnDisk() else { continue }
+
+            if doc.isModified {
+                // Document has local edits AND disk changes — prompt
+                let alert = NSAlert()
+                alert.messageText = "\(doc.fileName) has been modified externally."
+                alert.informativeText = "Do you want to reload from disk? Your unsaved changes will be lost."
+                alert.addButton(withTitle: "Reload")
+                alert.addButton(withTitle: "Keep Mine")
+                alert.alertStyle = .warning
+
+                if alert.runModal() == .alertFirstButtonReturn {
+                    doc.loadFromDisk()
+                    if doc === project.tabManager.currentDocument {
+                        reloadedCurrent = true
+                    }
+                }
+            } else {
+                // No local edits — silently reload
+                doc.loadFromDisk()
+                if doc === project.tabManager.currentDocument {
+                    reloadedCurrent = true
+                }
+            }
+        }
+
+        if reloadedCurrent {
+            splitViewController.editorAreaDidUpdate()
+        }
+    }
+
     // MARK: - Tab actions
 
     @objc func closeCurrentTab(_ sender: Any?) {
