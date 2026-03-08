@@ -5,9 +5,20 @@ class ForgeProject {
     let rootURL: URL
     var openDocuments: [URL: ForgeDocument] = [:]
     let tabManager = TabManager()
+    let lspClient: LSPClient
 
     init(rootURL: URL) {
         self.rootURL = rootURL
+        self.lspClient = LSPClient(rootURL: rootURL)
+
+        // Start LSP in background
+        Task {
+            do {
+                try await lspClient.start()
+            } catch {
+                print("LSP failed to start: \(error)")
+            }
+        }
     }
 
     /// Open or return existing document for a URL
@@ -17,12 +28,19 @@ class ForgeProject {
         }
         let doc = ForgeDocument(url: url)
         openDocuments[url] = doc
+
+        // Notify LSP
+        if url.pathExtension == "swift" {
+            lspClient.didOpen(url: url, text: doc.textStorage.string)
+        }
+
         return doc
     }
 
     /// Close a document
     func closeDocument(for url: URL) {
         openDocuments.removeValue(forKey: url)
+        lspClient.didClose(url: url)
     }
 
     var displayName: String {
