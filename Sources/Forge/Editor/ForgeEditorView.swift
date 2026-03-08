@@ -2786,4 +2786,53 @@ class ForgeTextView: NSTextView {
 
         insertText(result, replacementRange: selectedRange())
     }
+
+    // MARK: - Smart Home (⌘← / Home)
+
+    /// Move to first non-whitespace character on the line, or to column 0 if already there.
+    override func moveToBeginningOfLine(_ sender: Any?) {
+        smartHome(extendSelection: false)
+    }
+
+    /// Extend selection to first non-whitespace character / column 0.
+    override func moveToBeginningOfLineAndModifySelection(_ sender: Any?) {
+        smartHome(extendSelection: true)
+    }
+
+    private func smartHome(extendSelection: Bool) {
+        let text = string as NSString
+        guard text.length > 0 else { return }
+
+        let sel = selectedRange()
+        let lineRange = text.lineRange(for: NSRange(location: sel.location, length: 0))
+
+        // Find first non-whitespace character position
+        var firstNonWS = lineRange.location
+        let lineEnd = min(NSMaxRange(lineRange), text.length)
+        while firstNonWS < lineEnd {
+            let ch = text.character(at: firstNonWS)
+            if ch != 0x20 && ch != 0x09 { break } // space, tab
+            firstNonWS += 1
+        }
+        // If the line is all whitespace, treat first non-WS as end of line content
+        if firstNonWS >= lineEnd {
+            firstNonWS = lineRange.location
+        }
+
+        // If cursor is already at firstNonWS, go to column 0; otherwise go to firstNonWS
+        let target = (sel.location == firstNonWS) ? lineRange.location : firstNonWS
+
+        if extendSelection {
+            // Extend selection from current anchor to target
+            let anchor = NSMaxRange(sel) // For forward selections
+            if target < sel.location {
+                setSelectedRange(NSRange(location: target, length: NSMaxRange(sel) - target))
+            } else {
+                setSelectedRange(NSRange(location: sel.location, length: target - sel.location))
+            }
+            _ = anchor // suppress unused warning
+        } else {
+            setSelectedRange(NSRange(location: target, length: 0))
+        }
+    }
 }
