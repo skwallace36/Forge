@@ -185,6 +185,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             }
         }
 
+        jumpBar.documentTextProvider = { [weak self] in
+            self?.editor.textView.string
+        }
+
         jumpBar.onFileSelected = { [weak self] url in
             self?.windowController?.openFile(url)
         }
