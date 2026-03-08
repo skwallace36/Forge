@@ -72,6 +72,10 @@ class MainSplitViewController: NSSplitViewController {
         // Set project root for terminals
         bottomPanelVC.terminalView.setProjectRoot(project.rootURL)
         bottomPanelVC.claudeView.setProjectRoot(project.rootURL)
+
+        // Wire up source control view
+        bottomPanelVC.sourceControlView.setProjectRoot(project.rootURL)
+        bottomPanelVC.sourceControlView.delegate = self
     }
 
     func editorAreaDidUpdate() {
@@ -161,6 +165,14 @@ class MainSplitViewController: NSSplitViewController {
         bottomPanelVC.searchResultsView.delegate = self
         bottomPanelVC.showSearch()
     }
+
+    // MARK: - Source Control
+
+    func showSourceControl() {
+        showBottomPanel()
+        bottomPanelVC.sourceControlView.refresh(gitStatus: project.gitStatus)
+        bottomPanelVC.showSourceControl()
+    }
 }
 
 extension MainSplitViewController: SearchResultsViewDelegate {
@@ -172,5 +184,11 @@ extension MainSplitViewController: SearchResultsViewDelegate {
 extension MainSplitViewController: BuildLogViewDelegate {
     func buildLogView(_ view: BuildLogView, didClickFileReference url: URL, line: Int, column: Int) {
         windowController?.openFile(url, atLine: line, column: column)
+    }
+}
+
+extension MainSplitViewController: SourceControlViewDelegate {
+    func sourceControlView(_ view: SourceControlView, didSelectFile url: URL) {
+        windowController?.openFile(url)
     }
 }

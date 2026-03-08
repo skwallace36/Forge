@@ -8,6 +8,7 @@ class BottomPanelViewController: NSViewController {
     private(set) var searchResultsView = SearchResultsView()
     private(set) var terminalView = TerminalPanelView()
     private(set) var claudeView = TerminalPanelView()
+    private(set) var sourceControlView = SourceControlView()
     private var currentPanelIndex = 0
 
     override func loadView() {
@@ -16,7 +17,7 @@ class BottomPanelViewController: NSViewController {
         container.layer?.backgroundColor = NSColor(red: 0.11, green: 0.12, blue: 0.14, alpha: 1.0).cgColor
 
         // Tab selector at top
-        segmented = NSSegmentedControl(labels: ["Build Log", "Terminal", "Claude", "Search"], trackingMode: .selectOne, target: self, action: #selector(segmentChanged(_:)))
+        segmented = NSSegmentedControl(labels: ["Build Log", "Terminal", "Claude", "Search", "Source Control"], trackingMode: .selectOne, target: self, action: #selector(segmentChanged(_:)))
         segmented.translatesAutoresizingMaskIntoConstraints = false
         segmented.selectedSegment = 0
         segmented.segmentStyle = .texturedSquare
@@ -29,7 +30,7 @@ class BottomPanelViewController: NSViewController {
         divider.layer?.backgroundColor = NSColor(white: 0.25, alpha: 1.0).cgColor
         container.addSubview(divider)
 
-        let panels: [NSView] = [buildLogView, terminalView, claudeView, searchResultsView]
+        let panels: [NSView] = [buildLogView, terminalView, claudeView, searchResultsView, sourceControlView]
         for (i, panel) in panels.enumerated() {
             panel.translatesAutoresizingMaskIntoConstraints = false
             panel.isHidden = i != 0
@@ -66,6 +67,7 @@ class BottomPanelViewController: NSViewController {
         terminalView.isHidden = index != 1
         claudeView.isHidden = index != 2
         searchResultsView.isHidden = index != 3
+        sourceControlView.isHidden = index != 4
 
         // Launch terminals lazily on first show
         if index == 1 {
@@ -92,6 +94,11 @@ class BottomPanelViewController: NSViewController {
     func showBuildLog() {
         segmented.selectedSegment = 0
         showPanel(at: 0)
+    }
+
+    func showSourceControl() {
+        segmented.selectedSegment = 4
+        showPanel(at: 4)
     }
 
     func appendBuildOutput(_ text: String) {
