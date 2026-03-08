@@ -232,7 +232,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             editor.displayDocument(doc)
             jumpBar.update(fileURL: doc.url, projectRoot: project.rootURL)
             statusBar.update(line: 1, column: 1, totalLines: 1, fileExtension: doc.fileExtension)
-            statusBar.updateLineEnding(doc.textStorage.string)
+            statusBar.setLineEnding(doc.lineEnding)
 
             // Fetch git diff change markers for gutter
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in

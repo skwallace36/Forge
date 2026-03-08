@@ -28,13 +28,22 @@ class StatusBar: NSView {
         wantsLayer = true
         layer?.backgroundColor = bgColor.cgColor
 
-        let labels = [lineColLabel, fileTypeLabel, encodingLabel, lineEndingLabel, indentLabel, branchLabel]
-        for label in labels {
-            label.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+        // Monospaced digits for numeric labels, regular system font for text labels
+        let monoFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+        let textFont = NSFont.systemFont(ofSize: 11, weight: .regular)
+
+        let allLabels = [lineColLabel, fileTypeLabel, encodingLabel, lineEndingLabel, indentLabel, branchLabel]
+        for label in allLabels {
             label.textColor = textColor
             label.translatesAutoresizingMaskIntoConstraints = false
             addSubview(label)
         }
+        lineColLabel.font = monoFont
+        indentLabel.font = monoFont
+        encodingLabel.font = textFont
+        lineEndingLabel.font = textFont
+        fileTypeLabel.font = textFont
+        branchLabel.font = textFont
 
         NSLayoutConstraint.activate([
             lineColLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
@@ -71,10 +80,10 @@ class StatusBar: NSView {
             indentLabel.stringValue = "Spaces: \(width)"
         }
 
-        if let ext = fileExtension {
+        if let ext = fileExtension, !ext.isEmpty {
             fileTypeLabel.stringValue = languageName(for: ext)
         } else {
-            fileTypeLabel.stringValue = ""
+            fileTypeLabel.stringValue = "Plain Text"
         }
     }
 
@@ -84,6 +93,10 @@ class StatusBar: NSView {
         } else {
             lineEndingLabel.stringValue = "LF"
         }
+    }
+
+    func setLineEnding(_ ending: String) {
+        lineEndingLabel.stringValue = ending
     }
 
     func updateBranch(_ branchName: String?) {

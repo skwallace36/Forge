@@ -20,6 +20,8 @@ class ForgeDocument {
     private(set) var detectedTabWidth: Int?
     /// Whether this file uses tabs (nil = use global preference)
     private(set) var detectedUseTabs: Bool?
+    /// Detected line ending style
+    private(set) var lineEnding: String = "LF"
     /// Project root for .editorconfig lookup
     var projectRoot: URL?
 
@@ -54,6 +56,10 @@ class ForgeDocument {
         }
 
         isBinary = false
+        // Detect line endings from the first 8KB
+        let checkStr = String(text.prefix(8192))
+        lineEnding = checkStr.contains("\r\n") ? "CRLF" : "LF"
+
         textStorage.beginEditing()
         textStorage.replaceCharacters(in: NSRange(location: 0, length: textStorage.length), with: text)
         textStorage.endEditing()
