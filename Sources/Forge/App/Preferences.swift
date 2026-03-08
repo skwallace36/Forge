@@ -17,6 +17,7 @@ class Preferences {
         static let trimTrailingWhitespace = "ForgeTrimTrailingWhitespace"
         static let ensureTrailingNewline = "ForgeEnsureTrailingNewline"
         static let columnRuler = "ForgeColumnRuler"
+        static let wordWrap = "ForgeWordWrap"
     }
 
     // MARK: - Font
@@ -74,6 +75,14 @@ class Preferences {
         get { defaults.integer(forKey: Key.columnRuler) }
         set {
             defaults.set(newValue, forKey: Key.columnRuler)
+            NotificationCenter.default.post(name: .preferencesDidChange, object: nil)
+        }
+    }
+
+    var wordWrap: Bool {
+        get { defaults.bool(forKey: Key.wordWrap) }
+        set {
+            defaults.set(newValue, forKey: Key.wordWrap)
             NotificationCenter.default.post(name: .preferencesDidChange, object: nil)
         }
     }

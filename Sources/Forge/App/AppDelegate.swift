@@ -144,6 +144,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         toggleMinimap.keyEquivalentModifierMask = [.command, .control]
         viewMenu.addItem(toggleMinimap)
 
+        let toggleWordWrap = NSMenuItem(title: "Toggle Word Wrap", action: #selector(EditorContainerViewController.toggleWordWrap(_:)), keyEquivalent: "L")
+        toggleWordWrap.keyEquivalentModifierMask = [.command, .option]
+        viewMenu.addItem(toggleWordWrap)
+
         viewMenu.addItem(.separator())
 
         let zoomIn = NSMenuItem(title: "Zoom In", action: #selector(EditorContainerViewController.increaseFontSize(_:)), keyEquivalent: "+")

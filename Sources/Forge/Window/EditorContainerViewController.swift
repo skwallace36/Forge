@@ -268,6 +268,13 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         minimap.isHidden = !prefs.showMinimap
     }
 
+    // MARK: - Word Wrap Toggle
+
+    @objc func toggleWordWrap(_ sender: Any?) {
+        let prefs = Preferences.shared
+        prefs.wordWrap = !prefs.wordWrap
+    }
+
     // MARK: - Toggle Comment (forwarded to editor manager)
 
     @objc func toggleComment(_ sender: Any?) {

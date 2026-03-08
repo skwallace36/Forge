@@ -123,9 +123,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         textView.isAutomaticTextReplacementEnabled = false
         textView.smartInsertDeleteEnabled = false
 
-        // Disable line wrapping — scroll horizontally
-        textView.isHorizontallyResizable = true
-        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        // Apply word wrap setting
+        applyWordWrap(Preferences.shared.wordWrap)
 
         // Editor font & colors from theme
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
@@ -140,6 +139,22 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         // Configure indent guides and column ruler
         forgeLayoutManager?.tabSpaces = tabWidth
         forgeLayoutManager?.rulerColumn = Preferences.shared.columnRuler
+    }
+
+    func applyWordWrap(_ wrap: Bool) {
+        if wrap {
+            textView.isHorizontallyResizable = false
+            textView.textContainer?.widthTracksTextView = true
+            textView.textContainer?.size = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
+            textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+            scrollView.hasHorizontalScroller = false
+        } else {
+            textView.isHorizontallyResizable = true
+            textView.textContainer?.widthTracksTextView = false
+            textView.textContainer?.size = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+            textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+            scrollView.hasHorizontalScroller = true
+        }
     }
 
     private func configureGutter() {
@@ -159,6 +174,14 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             object: scrollView.contentView
         )
 
+        // Respond to preferences changes
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(preferencesDidChange(_:)),
+            name: .preferencesDidChange,
+            object: nil
+        )
+
         // Monitor key events for ⌃Space and completion navigation
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self,
@@ -170,6 +193,14 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             }
             return event
         }
+    }
+
+    @objc private func preferencesDidChange(_ notification: Notification) {
+        let prefs = Preferences.shared
+        applyWordWrap(prefs.wordWrap)
+        forgeLayoutManager?.tabSpaces = prefs.tabWidth
+        forgeLayoutManager?.rulerColumn = prefs.columnRuler
+        textView.needsDisplay = true
     }
 
     func displayDocument(_ doc: ForgeDocument) {
