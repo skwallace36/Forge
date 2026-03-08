@@ -124,6 +124,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         findReplaceItem.tag = Int(NSTextFinder.Action.showReplaceInterface.rawValue)
         editMenu.addItem(findReplaceItem)
 
+        let findNextItem = NSMenuItem(title: "Find Next", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "g")
+        findNextItem.tag = Int(NSTextFinder.Action.nextMatch.rawValue)
+        editMenu.addItem(findNextItem)
+
+        let findPrevItem = NSMenuItem(title: "Find Previous", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "G")
+        findPrevItem.keyEquivalentModifierMask = [.command, .shift]
+        findPrevItem.tag = Int(NSTextFinder.Action.previousMatch.rawValue)
+        editMenu.addItem(findPrevItem)
+
+        let useSelectionItem = NSMenuItem(title: "Use Selection for Find", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "e")
+        useSelectionItem.tag = Int(NSTextFinder.Action.setSearchString.rawValue)
+        editMenu.addItem(useSelectionItem)
+
         editMenu.addItem(.separator())
 
         let findInProject = NSMenuItem(title: "Find in Project…", action: #selector(MainSplitViewController.findInProject(_:)), keyEquivalent: "F")
