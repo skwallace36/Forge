@@ -99,6 +99,9 @@ See PLAN.md for full phase breakdown. Short version:
 - Styled welcome screen with shortcuts when no files are open
 - Smart Home key (first non-whitespace, then column 0)
 - Minimap occurrence markers (orange bars for highlighted word)
+- Git blame annotation on gutter hover (author, date, commit summary)
+- Inline diagnostic messages (error/warning banners after line content, toggleable)
+- Sticky scroll headers (enclosing scope pinned at top while scrolling, toggleable)
 
 ## Autonomous Development Mode
 
