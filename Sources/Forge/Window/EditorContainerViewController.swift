@@ -158,6 +158,12 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         }
 
         refreshEditor()
+
+        // Initial git branch display
+        statusBar.updateBranch(project.gitStatus.currentBranch)
+        project.gitStatus.refresh { [weak self] in
+            self?.statusBar.updateBranch(self?.project.gitStatus.currentBranch)
+        }
     }
 
     func refreshEditor() {

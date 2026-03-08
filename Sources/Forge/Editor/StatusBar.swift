@@ -7,6 +7,7 @@ class StatusBar: NSView {
     private let fileTypeLabel = NSTextField(labelWithString: "")
     private let encodingLabel = NSTextField(labelWithString: "UTF-8")
     private let indentLabel = NSTextField(labelWithString: "Spaces: 4")
+    private let branchLabel = NSTextField(labelWithString: "")
 
     private let bgColor = NSColor(red: 0.13, green: 0.14, blue: 0.16, alpha: 1.0)
     private let textColor = NSColor(white: 0.55, alpha: 1.0)
@@ -26,7 +27,7 @@ class StatusBar: NSView {
         wantsLayer = true
         layer?.backgroundColor = bgColor.cgColor
 
-        let labels = [lineColLabel, fileTypeLabel, encodingLabel, indentLabel]
+        let labels = [lineColLabel, fileTypeLabel, encodingLabel, indentLabel, branchLabel]
         for label in labels {
             label.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
             label.textColor = textColor
@@ -43,6 +44,9 @@ class StatusBar: NSView {
 
             encodingLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
             encodingLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+            branchLabel.trailingAnchor.constraint(equalTo: fileTypeLabel.leadingAnchor, constant: -20),
+            branchLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
 
             fileTypeLabel.trailingAnchor.constraint(equalTo: encodingLabel.leadingAnchor, constant: -20),
             fileTypeLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -61,6 +65,14 @@ class StatusBar: NSView {
             fileTypeLabel.stringValue = languageName(for: ext)
         } else {
             fileTypeLabel.stringValue = ""
+        }
+    }
+
+    func updateBranch(_ branchName: String?) {
+        if let branch = branchName, !branch.isEmpty {
+            branchLabel.stringValue = "\u{2387} \(branch)"
+        } else {
+            branchLabel.stringValue = ""
         }
     }
 

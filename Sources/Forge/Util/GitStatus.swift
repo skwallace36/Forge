@@ -16,6 +16,8 @@ class GitStatusTracker {
     private var statusMap: [String: FileStatus] = [:]
     private var refreshWorkItem: DispatchWorkItem?
 
+    private(set) var currentBranch: String?
+
     init(rootURL: URL) {
         self.rootURL = rootURL
     }
@@ -48,8 +50,10 @@ class GitStatusTracker {
         let work = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
             let newMap = self.fetchGitStatus()
+            let branch = self.fetchCurrentBranch()
             DispatchQueue.main.async {
                 self.statusMap = newMap
+                self.currentBranch = branch
                 completion?()
             }
         }
@@ -61,7 +65,7 @@ class GitStatusTracker {
         let task = Process()
         let pipe = Pipe()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        task.arguments = ["status", "--porcelain", "-uall"]
+        task.arguments = ["status", "--porcelain"]
         task.currentDirectoryURL = rootURL
         task.standardOutput = pipe
         task.standardError = FileHandle.nullDevice
@@ -117,5 +121,31 @@ class GitStatusTracker {
         }
 
         return map
+    }
+
+    private func fetchCurrentBranch() -> String? {
+        let task = Process()
+        let pipe = Pipe()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        task.arguments = ["rev-parse", "--abbrev-ref", "HEAD"]
+        task.currentDirectoryURL = rootURL
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+
+        do {
+            try task.run()
+        } catch {
+            return nil
+        }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+
+        guard task.terminationStatus == 0,
+              let output = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+
+        return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
