@@ -483,12 +483,49 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         guard let parentURL = sender.representedObject as? URL else { return }
         promptForName(title: "New File", message: "Enter the file name:") { name in
             let fileURL = parentURL.appendingPathComponent(name)
-            if !FileManager.default.createFile(atPath: fileURL.path, contents: nil) {
+            let template = Self.templateContent(for: fileURL.pathExtension, fileName: name)
+            if !FileManager.default.createFile(atPath: fileURL.path, contents: template.data(using: .utf8)) {
                 self.showFileError("Could not create file \"\(name)\".")
                 return
             }
             self.reloadFileTree()
             self.windowController?.openFile(fileURL)
+        }
+    }
+
+    /// Returns template content for a new file based on its extension
+    private static func templateContent(for ext: String, fileName: String) -> String {
+        let baseName = (fileName as NSString).deletingPathExtension
+        switch ext.lowercased() {
+        case "swift":
+            return "import Foundation\n\n"
+        case "h":
+            let guard_ = baseName.uppercased() + "_H"
+            return "#ifndef \(guard_)\n#define \(guard_)\n\n\n\n#endif /* \(guard_) */\n"
+        case "c", "m":
+            return "#include \"\(baseName).h\"\n\n"
+        case "py":
+            return "#!/usr/bin/env python3\n\n"
+        case "sh", "bash":
+            return "#!/bin/bash\n\n"
+        case "zsh":
+            return "#!/bin/zsh\n\n"
+        case "html", "htm":
+            return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>\(baseName)</title>\n</head>\n<body>\n    \n</body>\n</html>\n"
+        case "json":
+            return "{\n    \n}\n"
+        case "yaml", "yml":
+            return "---\n"
+        case "xml":
+            return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        case "rb":
+            return "# frozen_string_literal: true\n\n"
+        case "rs":
+            return "fn main() {\n    \n}\n"
+        case "go":
+            return "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello\")\n}\n"
+        default:
+            return ""
         }
     }
 
