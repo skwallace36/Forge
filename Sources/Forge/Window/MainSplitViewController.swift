@@ -8,6 +8,7 @@ class MainSplitViewController: NSSplitViewController {
     // Child view controllers
     private var navigatorVC: NavigatorViewController!
     private var editorContainerVC: EditorContainerViewController!
+    private var inspectorVC: InspectorViewController!
     private var bottomPanelVC: BottomPanelViewController!
 
     init(project: ForgeProject, windowController: MainWindowController) {
@@ -32,11 +33,18 @@ class MainSplitViewController: NSSplitViewController {
         navigatorVC = NavigatorViewController(project: project, windowController: windowController)
         editorContainerVC = EditorContainerViewController(project: project)
         editorContainerVC.windowController = windowController
+        inspectorVC = InspectorViewController()
+        inspectorVC.lspClient = project.lspClient
         bottomPanelVC = BottomPanelViewController()
 
         // Wire up send to Claude
         editorContainerVC.onSendToClaude = { [weak self] code, fileName, line in
             self?.bottomPanelVC.sendCodeToClaude(code, fileName: fileName, line: line)
+        }
+
+        // Wire up cursor changes → inspector Quick Help
+        editorContainerVC.onCursorPositionChange = { [weak self] url, line, column in
+            self?.inspectorVC.updateQuickHelp(url: url, line: line, character: column)
         }
 
         // Inner horizontal split for navigator + editor
@@ -53,6 +61,14 @@ class MainSplitViewController: NSSplitViewController {
         let editorItem = NSSplitViewItem(viewController: editorContainerVC)
         editorItem.minimumThickness = 300
         horizontalSplit.addSplitViewItem(editorItem)
+
+        let inspectorItem = NSSplitViewItem(viewController: inspectorVC)
+        inspectorItem.minimumThickness = 200
+        inspectorItem.maximumThickness = 350
+        inspectorItem.canCollapse = true
+        inspectorItem.isCollapsed = true
+        inspectorItem.holdingPriority = .defaultLow + 1
+        horizontalSplit.addSplitViewItem(inspectorItem)
 
         // Outer vertical split: horizontal area + bottom panel
         splitView.isVertical = false
@@ -101,6 +117,7 @@ class MainSplitViewController: NSSplitViewController {
 
     func editorAreaDidUpdate() {
         editorContainerVC.refreshEditor()
+        inspectorVC.updateFileInfo(document: project.tabManager.currentDocument)
     }
 
     func syncDocumentContent() {
@@ -147,6 +164,13 @@ class MainSplitViewController: NSSplitViewController {
             let navItem = horizontalSplit.splitViewItems[0]
             navItem.animator().isCollapsed = !navItem.isCollapsed
         }
+    }
+
+    @objc override func toggleInspector(_ sender: Any?) {
+        guard let horizontalSplit = splitViewItems.first?.viewController as? NSSplitViewController,
+              horizontalSplit.splitViewItems.count > 2 else { return }
+        let inspectorItem = horizontalSplit.splitViewItems[2]
+        inspectorItem.animator().isCollapsed = !inspectorItem.isCollapsed
     }
 
     @objc func toggleBottomPanel(_ sender: Any?) {

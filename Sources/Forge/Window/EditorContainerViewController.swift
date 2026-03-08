@@ -122,6 +122,9 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     /// Callback to send code to Claude panel: (code, fileName, line)
     var onSendToClaude: ((String, String?, Int?) -> Void)?
 
+    /// Callback when cursor changes: (url, line, column) — for inspector Quick Help
+    var onCursorPositionChange: ((URL, Int, Int) -> Void)?
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -129,7 +132,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.lspClient = project.lspClient
         editor.projectRootURL = project.rootURL
 
-        // Wire up cursor position to status bar
+        // Wire up cursor position to status bar and inspector
         editor.onCursorChange = { [weak self] line, column, totalLines, selectionLength in
             guard let self = self else { return }
             let doc = self.project.tabManager.currentDocument
@@ -138,6 +141,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
                 fileExtension: doc?.fileExtension, selectionLength: selectionLength,
                 detectedTabWidth: doc?.detectedTabWidth, detectedUseTabs: doc?.detectedUseTabs
             )
+            // Forward cursor position for Quick Help in inspector
+            if let url = doc?.url {
+                self.onCursorPositionChange?(url, line - 1, column - 1)
+            }
         }
 
         // Wire up jump-to-definition

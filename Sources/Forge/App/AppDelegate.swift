@@ -274,6 +274,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let toggleNav = NSMenuItem(title: "Toggle Navigator", action: #selector(MainSplitViewController.toggleNavigator(_:)), keyEquivalent: "0")
         viewMenu.addItem(toggleNav)
 
+        let toggleInspector = NSMenuItem(title: "Toggle Inspector", action: #selector(MainSplitViewController.toggleInspector(_:)), keyEquivalent: "0")
+        toggleInspector.keyEquivalentModifierMask = [.command, .option]
+        viewMenu.addItem(toggleInspector)
+
         let toggleBottom = NSMenuItem(title: "Toggle Bottom Panel", action: #selector(MainSplitViewController.toggleBottomPanel(_:)), keyEquivalent: "Y")
         toggleBottom.keyEquivalentModifierMask = [.command, .shift]
         viewMenu.addItem(toggleBottom)
