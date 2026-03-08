@@ -1,11 +1,13 @@
 import AppKit
 
-/// Bottom panel — build log, terminal, search results.
+/// Bottom panel — build log, terminal, Claude, search results.
 class BottomPanelViewController: NSViewController {
 
     private var segmented: NSSegmentedControl!
     private let buildLogView = BuildLogView()
     private(set) var searchResultsView = SearchResultsView()
+    private(set) var terminalView = TerminalPanelView()
+    private(set) var claudeView = TerminalPanelView()
     private var currentPanelIndex = 0
 
     override func loadView() {
@@ -14,7 +16,7 @@ class BottomPanelViewController: NSViewController {
         container.layer?.backgroundColor = NSColor(red: 0.11, green: 0.12, blue: 0.14, alpha: 1.0).cgColor
 
         // Tab selector at top
-        segmented = NSSegmentedControl(labels: ["Build Log", "Search"], trackingMode: .selectOne, target: self, action: #selector(segmentChanged(_:)))
+        segmented = NSSegmentedControl(labels: ["Build Log", "Terminal", "Claude", "Search"], trackingMode: .selectOne, target: self, action: #selector(segmentChanged(_:)))
         segmented.translatesAutoresizingMaskIntoConstraints = false
         segmented.selectedSegment = 0
         segmented.segmentStyle = .texturedSquare
@@ -27,14 +29,19 @@ class BottomPanelViewController: NSViewController {
         divider.layer?.backgroundColor = NSColor(white: 0.25, alpha: 1.0).cgColor
         container.addSubview(divider)
 
-        // Build log
-        buildLogView.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(buildLogView)
+        let panels: [NSView] = [buildLogView, terminalView, claudeView, searchResultsView]
+        for (i, panel) in panels.enumerated() {
+            panel.translatesAutoresizingMaskIntoConstraints = false
+            panel.isHidden = i != 0
+            container.addSubview(panel)
 
-        // Search results
-        searchResultsView.translatesAutoresizingMaskIntoConstraints = false
-        searchResultsView.isHidden = true
-        container.addSubview(searchResultsView)
+            NSLayoutConstraint.activate([
+                panel.topAnchor.constraint(equalTo: segmented.bottomAnchor, constant: 4),
+                panel.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                panel.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                panel.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            ])
+        }
 
         NSLayoutConstraint.activate([
             divider.topAnchor.constraint(equalTo: container.topAnchor),
@@ -44,16 +51,6 @@ class BottomPanelViewController: NSViewController {
 
             segmented.topAnchor.constraint(equalTo: divider.bottomAnchor, constant: 4),
             segmented.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 8),
-
-            buildLogView.topAnchor.constraint(equalTo: segmented.bottomAnchor, constant: 4),
-            buildLogView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            buildLogView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            buildLogView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-
-            searchResultsView.topAnchor.constraint(equalTo: segmented.bottomAnchor, constant: 4),
-            searchResultsView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            searchResultsView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            searchResultsView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
 
         self.view = container
@@ -66,7 +63,18 @@ class BottomPanelViewController: NSViewController {
     private func showPanel(at index: Int) {
         currentPanelIndex = index
         buildLogView.isHidden = index != 0
-        searchResultsView.isHidden = index != 1
+        terminalView.isHidden = index != 1
+        claudeView.isHidden = index != 2
+        searchResultsView.isHidden = index != 3
+
+        // Launch terminals lazily on first show
+        if index == 1 {
+            terminalView.launchShell()
+            terminalView.focus()
+        } else if index == 2 {
+            claudeView.launchClaude()
+            claudeView.focus()
+        }
     }
 
     /// Set delegate for build log click-to-navigate
@@ -76,8 +84,8 @@ class BottomPanelViewController: NSViewController {
     }
 
     func showSearch() {
-        segmented.selectedSegment = 1
-        showPanel(at: 1)
+        segmented.selectedSegment = 3
+        showPanel(at: 3)
         searchResultsView.focusSearchField()
     }
 

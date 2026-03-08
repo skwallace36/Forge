@@ -68,6 +68,10 @@ class MainSplitViewController: NSSplitViewController {
 
         // Wire up build log click-to-navigate
         bottomPanelVC.buildLogDelegate = self
+
+        // Set project root for terminals
+        bottomPanelVC.terminalView.setProjectRoot(project.rootURL)
+        bottomPanelVC.claudeView.setProjectRoot(project.rootURL)
     }
 
     func editorAreaDidUpdate() {
