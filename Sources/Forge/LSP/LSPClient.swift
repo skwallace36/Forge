@@ -121,6 +121,17 @@ class LSPClient {
         connection?.sendNotification(method: "textDocument/didChange", params: params)
     }
 
+    func didSave(url: URL, text: String? = nil) {
+        guard initialized else { return }
+        var params: [String: Any] = [
+            "textDocument": ["uri": url.absoluteString],
+        ]
+        if let text = text {
+            params["text"] = text
+        }
+        connection?.sendNotification(method: "textDocument/didSave", params: params)
+    }
+
     func didClose(url: URL) {
         guard initialized else { return }
         openDocumentVersions.removeValue(forKey: url)

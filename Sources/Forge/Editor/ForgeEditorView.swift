@@ -1605,7 +1605,6 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
     private func jumpToIssue(forward: Bool) {
         guard !diagnostics.isEmpty else { return }
-        let text = textView.string as NSString
         let cursorPos = textView.selectedRange().location
         let (currentLine, _) = characterIndexToLineColumn(cursorPos)
 

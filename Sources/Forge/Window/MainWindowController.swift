@@ -214,6 +214,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         // Sync editor text back to document before saving
         splitViewController.syncDocumentContent()
         try? doc.save()
+        project.lspClient.didSave(url: doc.url)
         splitViewController.editorAreaDidUpdate()
 
         // Update window title to remove "Edited" indicator
@@ -226,6 +227,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         splitViewController.syncDocumentContent()
         for tab in project.tabManager.tabs where tab.isModified {
             try? tab.document.save()
+            project.lspClient.didSave(url: tab.document.url)
         }
         splitViewController.editorAreaDidUpdate()
         if let doc = project.tabManager.currentDocument, let window = window {
