@@ -149,6 +149,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         textView.allowsUndo = true
         textView.usesFindBar = false
         textView.isIncrementalSearchingEnabled = false
+        (textView as? ForgeTextView)?.onCommandClick = { [weak self] in
+            self?.jumpToDefinitionAction(nil as Any?)
+        }
         textView.isAutomaticTextCompletionEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
         textView.isAutomaticQuoteSubstitutionEnabled = false
@@ -3203,6 +3206,25 @@ class ForgeTextView: NSTextView {
         }
 
         insertText(result, replacementRange: selectedRange())
+    }
+
+    // MARK: - ⌘-click Jump to Definition
+
+    /// Callback for ⌘-click jump to definition
+    var onCommandClick: (() -> Void)?
+
+    override func mouseDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.command) && event.clickCount == 1 {
+            // ⌘-click: position cursor at click location, then jump to definition
+            let point = convert(event.locationInWindow, from: nil)
+            let charIndex = characterIndexForInsertion(at: point)
+            if charIndex < string.count {
+                setSelectedRange(NSRange(location: charIndex, length: 0))
+                onCommandClick?()
+            }
+            return
+        }
+        super.mouseDown(with: event)
     }
 
     // MARK: - Smart Home (⌘← / Home)
