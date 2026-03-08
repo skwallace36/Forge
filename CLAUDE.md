@@ -33,21 +33,23 @@ AppKit window with NSSplitView. Four panel positions:
 
 Navigation: ⇧⌘O (Open Quickly), ⌘⇧J (reveal in navigator), ⌃⌘←/→ (back/forward)
 Tabs: ⌘⇧[ / ⌘⇧] (prev/next), ⌘W (close), ⌘⇧T (reopen)
-Panels: ⌘0 (navigator), ⌘⌥0 (inspector), ⌘⇧Y (bottom)
-Build: ⌘B (build), ⌘R (run), ⌘. (stop)
+Panels: ⌘0 (navigator), ⌘⇧Y (bottom)
+Edit: ⌘/ (toggle comment), ⌘⌥[/] (move line up/down), ⌃Space (completion)
+Build: ⌘B (build), ⌘R (run), ⌘⇧K (clean), ⌘. (stop)
+Search: ⌘F (find in file), ⌘⇧F (find in project)
 
 ## Implementation Phases
 
-Phases 0-1 are **COMPLETE**. Currently working on: **Phase 2+ polish and Phase 3**
+Phases 0-6 are **COMPLETE**. Currently working on: **Polish and Phase 7**
 
 See PLAN.md for full phase breakdown. Short version:
 0. ~~Window + text view + tabs (basic skeleton)~~ ✓
-1. ~~tree-sitter syntax highlighting~~ ✓ (SwiftTreeSitter + Xcode Dark theme + current line highlight)
-2. File navigator (basic version done — needs .gitignore, file watching)
-3. SourceKit-LSP integration
-4. Open Quickly (⇧⌘O)
-5. Build system (xcodebuild)
-6. Terminal / Claude panel
+1. ~~tree-sitter syntax highlighting~~ ✓ (Swift via tree-sitter, JSON/MD/YAML/Python via regex)
+2. ~~File navigator~~ ✓ (icons, auto-expand, reveal ⌘⇧J, auto-refresh on activate)
+3. ~~SourceKit-LSP integration~~ ✓ (diagnostics, completion ⌃Space, jump-to-def ⌘-click)
+4. ~~Open Quickly (⇧⌘O)~~ ✓
+5. ~~Build system~~ ✓ (⌘B build, ⌘R run, ⌘⇧K clean, ⌘. stop, clickable errors)
+6. ~~Terminal / Claude panel~~ ✓ (SwiftTerm, shell + claude tabs)
 7. Pepper / Hub integration
 
 ## Autonomous Development Mode
@@ -96,15 +98,15 @@ When Stuart says "keep going", "continue", "start phase N", or similar — work 
 
 ```
 Sources/Forge/
-├── App/           — AppDelegate, ForgeProject, Preferences
-├── Window/        — MainWindowController, MainSplitViewController
-├── Editor/        — ForgeTextView (NSTextView subclass), GutterView, ForgeDocument
+├── App/           — AppDelegate, ForgeProject
+├── Window/        — MainWindowController, MainSplitViewController, EditorContainerViewController
+├── Editor/        — ForgeEditorManager, GutterView, ForgeDocument, StatusBar, CompletionWindow
 ├── Tabs/          — TabBar, TabManager
-├── Navigator/     — FileNavigator (NSOutlineView), FileNode
-├── JumpBar/       — JumpBar, OpenQuickly
-├── LSP/           — LSPClient, JSONRPCConnection
-├── Syntax/        — TreeSitterClient, SyntaxHighlighter, Theme
-├── Build/         — BuildSystem, BuildOutputParser
-├── Bottom/        — BottomPanelController, ClaudePanel
-└── Util/          — KeyboardShortcuts, NavigationHistory, FuzzyMatch
+├── Navigator/     — NavigatorViewController (NSOutlineView), FileNode
+├── JumpBar/       — JumpBar, OpenQuicklyWindowController
+├── LSP/           — LSPClient, JSONRPCConnection, LSPTypes
+├── Syntax/        — SyntaxHighlighter (tree-sitter), SimpleHighlighter (regex), Theme
+├── Build/         — BuildSystem
+├── Bottom/        — BottomPanelViewController, TerminalPanelView, SearchResultsView
+└── Util/          — NavigationHistory, FuzzyMatch
 ```
