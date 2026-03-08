@@ -768,13 +768,31 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             return false
         }
 
-        // Skip over closing bracket if it matches what's being typed
+        // Closing bracket handling: skip-over or auto-deindent
         if replacement == ")" || replacement == "]" || replacement == "}" {
             let text = textView.string as NSString
+
+            // Skip over matching bracket if it's the next character
             if affectedCharRange.location < text.length {
                 let nextChar = text.character(at: affectedCharRange.location)
-                if String(Character(UnicodeScalar(nextChar)!)) == replacement {
+                if let scalar = UnicodeScalar(nextChar),
+                   String(Character(scalar)) == replacement {
                     textView.setSelectedRange(NSRange(location: affectedCharRange.location + 1, length: 0))
+                    return false
+                }
+            }
+
+            // Auto-deindent: if line prefix is only whitespace, reduce indent by one level
+            let lineRange = text.lineRange(for: NSRange(location: affectedCharRange.location, length: 0))
+            let lineStart = lineRange.location
+            let prefixLength = affectedCharRange.location - lineStart
+            if prefixLength > 0 {
+                let prefix = text.substring(with: NSRange(location: lineStart, length: prefixLength))
+                if prefix.allSatisfy({ $0 == " " || $0 == "\t" }) {
+                    let newIndent = max(0, prefix.count - tabWidth)
+                    let newPrefix = String(repeating: " ", count: newIndent)
+                    let replaceRange = NSRange(location: lineStart, length: prefixLength)
+                    textView.insertText(newPrefix + replacement, replacementRange: replaceRange)
                     return false
                 }
             }
@@ -835,7 +853,13 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
 
         // Check if cursor is between matching brackets: {|} or (|)
-        let afterCursor = cursorLocation < text.length ? String(Character(UnicodeScalar(text.character(at: cursorLocation))!)) : ""
+        let afterCursor: String
+        if cursorLocation < text.length,
+           let scalar = UnicodeScalar(text.character(at: cursorLocation)) {
+            afterCursor = String(Character(scalar))
+        } else {
+            afterCursor = ""
+        }
         if needsExtraIndent && (afterCursor == "}" || afterCursor == ")") {
             // Insert new line with extra indent, plus closing bracket on its own line
             let closingIndent = String(indent.dropLast(tabWidth))
