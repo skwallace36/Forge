@@ -19,6 +19,9 @@ class GutterView: NSView {
     /// Callback when a fold marker is clicked: (lineNumber: 0-indexed)
     var onFoldToggle: ((Int) -> Void)?
 
+    /// Cached first visible line number, set by ForgeEditorManager before draw
+    var firstVisibleLine: Int = 0
+
     /// Anchor line range for drag-to-select in gutter
     private var dragAnchorLineRange: NSRange?
 
@@ -200,8 +203,8 @@ class GutterView: NSView {
         let visibleGlyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: textContainer)
         let visibleCharRange = layoutManager.characterRange(forGlyphRange: visibleGlyphRange, actualGlyphRange: nil)
 
-        // Count lines before visible range (newline count + 1 = line number)
-        var lineNumber = Self.countNewlines(in: text, upTo: min(visibleCharRange.location, text.length)) + 1
+        // Use cached first visible line number (set by ForgeEditorManager before draw)
+        var lineNumber = firstVisibleLine + 1
 
         var charIndex = visibleCharRange.location
 

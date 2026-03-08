@@ -510,12 +510,25 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         checkSignatureHelp()
     }
 
+    /// Update the gutter's cached first visible line number using the line offset cache.
+    private func updateGutterFirstVisibleLine() {
+        guard let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else { return }
+        let visibleRect = scrollView.contentView.bounds
+        let visibleGlyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: textContainer)
+        let visibleCharRange = layoutManager.characterRange(forGlyphRange: visibleGlyphRange, actualGlyphRange: nil)
+        let (line, _) = characterIndexToLineColumn(visibleCharRange.location)
+        gutterView.firstVisibleLine = line
+    }
+
     @objc private func scrollViewDidScroll(_ notification: Notification) {
+        updateGutterFirstVisibleLine()
         gutterView.needsDisplay = true
         minimapView?.needsDisplay = true
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
+        updateGutterFirstVisibleLine()
         gutterView.needsDisplay = true
         notifyCursorPosition()
         updateCurrentLineHighlight()

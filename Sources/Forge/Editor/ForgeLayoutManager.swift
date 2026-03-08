@@ -9,6 +9,19 @@ class ForgeLayoutManager: NSLayoutManager {
     var tabSpaces: Int = 4
     var rulerColumn: Int = 0 // 0 = disabled
 
+    /// Cached space width for the current font — avoids creating an NSAttributedString per draw
+    private var cachedSpaceWidth: CGFloat = 0
+    private var cachedSpaceFont: NSFont?
+
+    private func spaceWidth(for font: NSFont) -> CGFloat {
+        if font === cachedSpaceFont || font == cachedSpaceFont {
+            return cachedSpaceWidth
+        }
+        cachedSpaceFont = font
+        cachedSpaceWidth = NSAttributedString(string: " ", attributes: [.font: font]).size().width
+        return cachedSpaceWidth
+    }
+
     override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
         if Preferences.shared.showIndentGuides {
@@ -26,14 +39,11 @@ class ForgeLayoutManager: NSLayoutManager {
         let text = textStorage.string as NSString
         guard text.length > 0 else { return }
 
-        // Calculate the width of one space in the current font
+        // Calculate the width of one space in the current font (cached)
         let font = textStorage.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
             ?? NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
-        let spaceWidth = NSAttributedString(
-            string: " ",
-            attributes: [.font: font]
-        ).size().width
-        let indentWidth = spaceWidth * CGFloat(tabSpaces)
+        let sw = spaceWidth(for: font)
+        let indentWidth = sw * CGFloat(tabSpaces)
 
         let charRange = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
 
@@ -93,12 +103,8 @@ class ForgeLayoutManager: NSLayoutManager {
             ? textStorage.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
                 ?? NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
             : NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
-        let spaceWidth = NSAttributedString(
-            string: " ",
-            attributes: [.font: font]
-        ).size().width
 
-        let x = origin.x + CGFloat(rulerColumn) * spaceWidth + tv.textContainerInset.width
+        let x = origin.x + CGFloat(rulerColumn) * spaceWidth(for: font) + tv.textContainerInset.width
         let visibleRect = tv.enclosingScrollView?.contentView.bounds ?? tv.bounds
 
         columnRulerColor.setStroke()
@@ -125,7 +131,7 @@ class ForgeLayoutManager: NSLayoutManager {
 
     private func drawInvisibles(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         guard let textStorage = textStorage,
-              let tc = textContainers.first else { return }
+              !textContainers.isEmpty else { return }
 
         let text = textStorage.string as NSString
         let charRange = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)

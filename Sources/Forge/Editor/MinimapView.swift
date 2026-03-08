@@ -176,7 +176,7 @@ class MinimapView: NSView {
                 )
 
                 markerColor.setFill()
-                NSRect(x: bounds.width - 4, y: lineY, width: 3, height: max(2, 1 / scaleFactor * scaleFactor)).fill()
+                NSRect(x: bounds.width - 4, y: lineY, width: 3, height: max(2, 3 / scaleFactor)).fill()
             }
         }
 
