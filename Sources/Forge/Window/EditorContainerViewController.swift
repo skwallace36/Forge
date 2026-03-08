@@ -636,6 +636,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.clearBookmarks(sender)
     }
 
+    @objc func pasteFromHistory(_ sender: Any?) {
+        editor.pasteFromHistory(sender)
+    }
+
     @objc func increaseFontSize(_ sender: Any?) {
         editor.increaseFontSize()
     }

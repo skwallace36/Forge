@@ -235,6 +235,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         editMenu.addItem(.separator())
 
+        let pasteHistoryItem = NSMenuItem(title: "Paste from History…", action: #selector(EditorContainerViewController.pasteFromHistory(_:)), keyEquivalent: "v")
+        pasteHistoryItem.keyEquivalentModifierMask = [.control, .shift]
+        editMenu.addItem(pasteHistoryItem)
+
+        editMenu.addItem(.separator())
+
         // Transform submenu
         let transformMenu = NSMenu(title: "Transform")
         let uppercaseItem = NSMenuItem(title: "Make Uppercase", action: #selector(EditorContainerViewController.transformToUppercase(_:)), keyEquivalent: "u")

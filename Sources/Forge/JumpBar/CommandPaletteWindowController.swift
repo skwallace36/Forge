@@ -141,6 +141,8 @@ class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate, N
                            action: #selector(EditorContainerViewController.previousBookmark(_:)), target: nil),
             PaletteCommand(title: "Clear All Bookmarks", shortcut: "", category: "Edit",
                            action: #selector(EditorContainerViewController.clearBookmarks(_:)), target: nil),
+            PaletteCommand(title: "Paste from History…", shortcut: "⌃⇧V", category: "Edit",
+                           action: #selector(EditorContainerViewController.pasteFromHistory(_:)), target: nil),
             PaletteCommand(title: "Sort Lines", shortcut: "", category: "Edit",
                            action: #selector(EditorContainerViewController.sortLines(_:)), target: nil),
             PaletteCommand(title: "Remove Duplicate Lines", shortcut: "", category: "Edit",

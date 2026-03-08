@@ -2864,12 +2864,48 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         gutterView.needsDisplay = true
         minimapView?.bookmarkedLines = []
     }
+
+    // MARK: - Clipboard History
+
+    /// Show clipboard history popup and paste selected entry
+    @objc func pasteFromHistory(_ sender: Any? = nil) {
+        // Get the cursor position in screen coordinates for the popup
+        guard let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else { return }
+        let sel = textView.selectedRange()
+        let glyphRange = layoutManager.glyphRange(forCharacterRange: NSRange(location: sel.location, length: 0), actualCharacterRange: nil)
+        let rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
+        let viewPoint = NSPoint(
+            x: rect.origin.x + textView.textContainerInset.width,
+            y: rect.origin.y + rect.height + textView.textContainerInset.height,
+        )
+
+        ClipboardHistory.shared.showPopup(in: textView, at: viewPoint) { [weak self] text in
+            guard let self = self else { return }
+            let range = self.textView.selectedRange()
+            if self.textView.shouldChangeText(in: range, replacementString: text) {
+                self.textView.textStorage?.replaceCharacters(in: range, with: text)
+                self.textView.didChangeText()
+                self.textView.setSelectedRange(NSRange(location: range.location + (text as NSString).length, length: 0))
+            }
+        }
+    }
 }
 
 // MARK: - ForgeTextView (smart paste)
 
 /// NSTextView subclass that provides smart paste with automatic indentation adjustment.
 class ForgeTextView: NSTextView {
+
+    override func copy(_ sender: Any?) {
+        super.copy(sender)
+        ClipboardHistory.shared.checkForNewContent()
+    }
+
+    override func cut(_ sender: Any?) {
+        super.cut(sender)
+        ClipboardHistory.shared.checkForNewContent()
+    }
 
     override func paste(_ sender: Any?) {
         guard let pb = NSPasteboard.general.string(forType: .string),
