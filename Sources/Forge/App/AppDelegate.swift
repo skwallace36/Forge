@@ -174,6 +174,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         editMenu.addItem(.separator())
 
+        // Transform submenu
+        let transformMenu = NSMenu(title: "Transform")
+        let uppercaseItem = NSMenuItem(title: "Make Uppercase", action: #selector(EditorContainerViewController.transformToUppercase(_:)), keyEquivalent: "u")
+        uppercaseItem.keyEquivalentModifierMask = [.control, .shift]
+        transformMenu.addItem(uppercaseItem)
+
+        let lowercaseItem = NSMenuItem(title: "Make Lowercase", action: #selector(EditorContainerViewController.transformToLowercase(_:)), keyEquivalent: "u")
+        lowercaseItem.keyEquivalentModifierMask = [.control]
+        transformMenu.addItem(lowercaseItem)
+
+        let titleCaseItem = NSMenuItem(title: "Title Case", action: #selector(EditorContainerViewController.transformToTitleCase(_:)), keyEquivalent: "")
+        transformMenu.addItem(titleCaseItem)
+
+        let transformItem = NSMenuItem(title: "Transform", action: nil, keyEquivalent: "")
+        transformItem.submenu = transformMenu
+        editMenu.addItem(transformItem)
+
+        editMenu.addItem(.separator())
+
         let formatItem = NSMenuItem(title: "Format Document", action: #selector(EditorContainerViewController.formatDocument(_:)), keyEquivalent: "i")
         formatItem.keyEquivalentModifierMask = [.control, .shift]
         editMenu.addItem(formatItem)

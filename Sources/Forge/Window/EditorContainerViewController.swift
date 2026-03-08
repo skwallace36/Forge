@@ -338,6 +338,18 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.removeDuplicateLines()
     }
 
+    @objc func transformToUppercase(_ sender: Any?) {
+        editor.transformToUppercase(sender)
+    }
+
+    @objc func transformToLowercase(_ sender: Any?) {
+        editor.transformToLowercase(sender)
+    }
+
+    @objc func transformToTitleCase(_ sender: Any?) {
+        editor.transformToTitleCase(sender)
+    }
+
     @objc func formatDocument(_ sender: Any?) {
         editor.formatDocument(sender)
     }

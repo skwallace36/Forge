@@ -1828,6 +1828,40 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
     }
 
+    // MARK: - Case Transform
+
+    @objc func transformToUppercase(_ sender: Any?) {
+        transformSelection { $0.uppercased() }
+    }
+
+    @objc func transformToLowercase(_ sender: Any?) {
+        transformSelection { $0.lowercased() }
+    }
+
+    @objc func transformToTitleCase(_ sender: Any?) {
+        transformSelection { text in
+            text.split(separator: " ").map { word in
+                word.prefix(1).uppercased() + word.dropFirst().lowercased()
+            }.joined(separator: " ")
+        }
+    }
+
+    private func transformSelection(_ transform: (String) -> String) {
+        guard let ts = textView.textStorage else { return }
+        let sel = textView.selectedRange()
+        guard sel.length > 0 else { return }
+
+        let text = (ts.string as NSString).substring(with: sel)
+        let transformed = transform(text)
+        guard transformed != text else { return }
+
+        if textView.shouldChangeText(in: sel, replacementString: transformed) {
+            ts.replaceCharacters(in: sel, with: transformed)
+            textView.didChangeText()
+            textView.setSelectedRange(NSRange(location: sel.location, length: (transformed as NSString).length))
+        }
+    }
+
     // MARK: - Signature Help
 
     private func checkSignatureHelp() {
