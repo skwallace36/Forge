@@ -239,9 +239,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
                 }
             }
 
-            // Update window title and native edited indicator
+            // Update window title, proxy icon, and native edited indicator
             if let window = view.window {
                 window.title = doc.fileName
+                window.representedURL = doc.url
                 window.isDocumentEdited = doc.isModified
             }
         } else {
@@ -251,6 +252,12 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             placeholderLabel.isHidden = false
             binaryLabel.isHidden = true
             jumpBar.update(fileURL: nil, projectRoot: nil)
+
+            if let window = view.window {
+                window.title = project.displayName
+                window.representedURL = nil
+                window.isDocumentEdited = false
+            }
         }
     }
 
