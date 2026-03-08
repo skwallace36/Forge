@@ -495,6 +495,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         autoSaveTimer?.invalidate()
         autoSaveTimer = nil
         saveOpenTabs()
+        project.lspClient.stop()
         (NSApp.delegate as? AppDelegate)?.windowControllerDidClose(self)
     }
 

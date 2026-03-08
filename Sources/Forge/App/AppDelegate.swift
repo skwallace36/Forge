@@ -76,6 +76,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         windowControllers.removeAll { $0 === wc }
     }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        // Save tabs and stop LSP for all windows
+        for wc in windowControllers {
+            wc.autoSaveAll()
+            wc.saveOpenTabs()
+            wc.project.lspClient.stop()
+        }
+    }
+
     func applicationDidResignActive(_ notification: Notification) {
         // Auto-save all modified documents when switching away from the app
         for wc in windowControllers {

@@ -534,18 +534,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
     /// Update cached total line count (call on text change)
     private func updateLineCount() {
-        let text = textView.string as NSString
-        guard text.length > 0 else { cachedTotalLines = 1; return }
-        var count = 1
-        var searchRange = NSRange(location: 0, length: text.length)
-        while searchRange.location < text.length {
-            let found = text.range(of: "\n", options: [], range: searchRange)
-            if found.location == NSNotFound { break }
-            count += 1
-            searchRange.location = found.location + 1
-            searchRange.length = text.length - searchRange.location
-        }
-        cachedTotalLines = count
+        cachedTotalLines = lineStartOffsets.count
     }
 
     private func notifyCursorPosition() {
