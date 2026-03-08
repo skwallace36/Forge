@@ -937,10 +937,28 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
     // MARK: - Toggle Comment (⌘/)
 
+    /// Returns the line comment prefix for the current file type
+    private var commentPrefix: String {
+        guard let ext = document?.fileExtension.lowercased() else { return "//" }
+        switch ext {
+        case "py", "python", "rb", "sh", "bash", "zsh", "yml", "yaml", "toml", "r":
+            return "#"
+        case "lua":
+            return "--"
+        case "sql":
+            return "--"
+        case "hs":
+            return "--"
+        default:
+            return "//"
+        }
+    }
+
     @objc func toggleComment(_ sender: Any?) {
         guard let ts = textView.textStorage else { return }
         let text = ts.string as NSString
         let sel = textView.selectedRange()
+        let prefix = commentPrefix
 
         let lineRange = text.lineRange(for: sel)
         let linesText = text.substring(with: lineRange)
@@ -948,17 +966,17 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         let nonEmptyLines = lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
         let allCommented = nonEmptyLines.allSatisfy {
-            $0.trimmingCharacters(in: .whitespaces).hasPrefix("//")
+            $0.trimmingCharacters(in: .whitespaces).hasPrefix(prefix)
         }
 
         var newLines: [String] = []
         for line in lines {
             if allCommented {
-                if let range = line.range(of: "// ") {
+                if let range = line.range(of: "\(prefix) ") {
                     var newLine = line
                     newLine.removeSubrange(range)
                     newLines.append(newLine)
-                } else if let range = line.range(of: "//") {
+                } else if let range = line.range(of: prefix) {
                     var newLine = line
                     newLine.removeSubrange(range)
                     newLines.append(newLine)
@@ -971,7 +989,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
                 } else {
                     let indent = line.prefix(while: { $0 == " " || $0 == "\t" })
                     let rest = line.dropFirst(indent.count)
-                    newLines.append(String(indent) + "// " + rest)
+                    newLines.append(String(indent) + "\(prefix) " + rest)
                 }
             }
         }
