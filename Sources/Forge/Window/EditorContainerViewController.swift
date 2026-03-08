@@ -794,6 +794,14 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.jumpToMatchingBracket(sender)
     }
 
+    @objc func jumpToPreviousMethod(_ sender: Any?) {
+        editor.jumpToPreviousMethod(sender)
+    }
+
+    @objc func jumpToNextMethod(_ sender: Any?) {
+        editor.jumpToNextMethod(sender)
+    }
+
     @objc func showQuickActions(_ sender: Any?) {
         editor.showQuickActions(sender)
     }

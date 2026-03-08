@@ -2939,6 +2939,56 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
     }
 
+    // MARK: - Navigate Methods (⌃↑/⌃↓)
+
+    /// Regex to detect top-level declarations
+    private static let methodBoundaryPattern = try! NSRegularExpression(
+        pattern: #"^\s*(?:(?:public|private|internal|fileprivate|open|static|override|final|class|@objc|@discardableResult|mutating|nonmutating)\s+)*(?:func|class|struct|enum|protocol|extension|init|deinit|subscript)\s"#,
+        options: .anchorsMatchLines
+    )
+
+    @objc func jumpToPreviousMethod(_ sender: Any?) {
+        let text = textView.string as NSString
+        guard text.length > 0 else { return }
+        let cursor = textView.selectedRange().location
+
+        // Find current line start
+        let lineRange = text.lineRange(for: NSRange(location: cursor, length: 0))
+        let searchEnd = lineRange.location
+
+        guard searchEnd > 0 else { return }
+
+        let searchRange = NSRange(location: 0, length: searchEnd)
+        let matches = Self.methodBoundaryPattern.matches(in: text as String, range: searchRange)
+
+        // Navigate to the last match before cursor
+        if let lastMatch = matches.last {
+            textView.setSelectedRange(NSRange(location: lastMatch.range.location, length: 0))
+            textView.scrollRangeToVisible(NSRange(location: lastMatch.range.location, length: 0))
+        }
+    }
+
+    @objc func jumpToNextMethod(_ sender: Any?) {
+        let text = textView.string as NSString
+        guard text.length > 0 else { return }
+        let cursor = textView.selectedRange().location
+
+        // Find end of current line
+        let lineRange = text.lineRange(for: NSRange(location: cursor, length: 0))
+        let searchStart = NSMaxRange(lineRange)
+
+        guard searchStart < text.length else { return }
+
+        let searchRange = NSRange(location: searchStart, length: text.length - searchStart)
+        let matches = Self.methodBoundaryPattern.matches(in: text as String, range: searchRange)
+
+        // Navigate to the first match after cursor
+        if let firstMatch = matches.first {
+            textView.setSelectedRange(NSRange(location: firstMatch.range.location, length: 0))
+            textView.scrollRangeToVisible(NSRange(location: firstMatch.range.location, length: 0))
+        }
+    }
+
     // MARK: - Scroll to Line
 
     /// Scrolls to a specific line and column (0-based, LSP convention) and places the cursor there.

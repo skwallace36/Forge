@@ -444,6 +444,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         matchBracket.keyEquivalentModifierMask = [.control, .shift]
         navMenu.addItem(matchBracket)
 
+        let prevMethod = NSMenuItem(title: "Previous Method", action: #selector(EditorContainerViewController.jumpToPreviousMethod(_:)), keyEquivalent: String(Character(UnicodeScalar(NSUpArrowFunctionKey)!)))
+        prevMethod.keyEquivalentModifierMask = [.control]
+        navMenu.addItem(prevMethod)
+
+        let nextMethod = NSMenuItem(title: "Next Method", action: #selector(EditorContainerViewController.jumpToNextMethod(_:)), keyEquivalent: String(Character(UnicodeScalar(NSDownArrowFunctionKey)!)))
+        nextMethod.keyEquivalentModifierMask = [.control]
+        navMenu.addItem(nextMethod)
+
         let findRefs = NSMenuItem(title: "Find All References", action: #selector(EditorContainerViewController.findReferences(_:)), keyEquivalent: "")
         navMenu.addItem(findRefs)
 
