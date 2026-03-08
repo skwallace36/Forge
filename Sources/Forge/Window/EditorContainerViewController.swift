@@ -127,6 +127,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
         // Wire up LSP (diagnostics routing is handled by MainSplitViewController)
         editor.lspClient = project.lspClient
+        editor.projectRootURL = project.rootURL
 
         // Wire up cursor position to status bar
         editor.onCursorChange = { [weak self] line, column, totalLines, selectionLength in

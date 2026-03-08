@@ -38,6 +38,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Called when user wants to send selected code to Claude: (code, fileName, line)
     var onSendToClaude: ((String, String?, Int?) -> Void)?
 
+    /// Project root URL for computing relative paths
+    var projectRootURL: URL?
+
     /// Called when text content changes (for promoting preview tabs, etc.)
     var onTextDidChange: (() -> Void)?
 
@@ -2140,6 +2143,12 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             copyPathItem.representedObject = doc.url
             menu.addItem(copyPathItem)
 
+            if let root = projectRootURL {
+                let copyRelItem = NSMenuItem(title: "Copy Relative Path", action: #selector(copyRelativePath(_:)), keyEquivalent: "")
+                copyRelItem.representedObject = (doc.url, root) as AnyObject
+                menu.addItem(copyRelItem)
+            }
+
             let revealItem = NSMenuItem(title: "Reveal in Finder", action: #selector(revealInFinder(_:)), keyEquivalent: "")
             revealItem.representedObject = doc.url
             menu.addItem(revealItem)
@@ -2150,6 +2159,17 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         guard let url = sender.representedObject as? URL else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(url.path, forType: .string)
+    }
+
+    @objc private func copyRelativePath(_ sender: NSMenuItem) {
+        guard let doc = document, let root = projectRootURL else { return }
+        let filePath = doc.url.path
+        let rootPath = root.path
+        let relative = filePath.hasPrefix(rootPath)
+            ? String(filePath.dropFirst(rootPath.count + 1))
+            : filePath
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(relative, forType: .string)
     }
 
     @objc private func revealInFinder(_ sender: NSMenuItem) {
