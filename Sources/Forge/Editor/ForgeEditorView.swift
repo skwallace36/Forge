@@ -430,12 +430,30 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         lspClient?.didChange(url: doc.url, text: ts.string)
     }
 
+    // MARK: - Undo Manager per Document
+
+    func undoManager(for view: NSTextView) -> UndoManager? {
+        return document?.undoManager
+    }
+
     // MARK: - NSTextViewDelegate (Tab-to-spaces, Auto-indent)
 
     func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         if commandSelector == #selector(NSResponder.insertTab(_:)) {
-            let spaces = String(repeating: " ", count: tabWidth)
-            textView.insertText(spaces, replacementRange: textView.selectedRange())
+            let sel = textView.selectedRange()
+            if sel.length > 0 {
+                // Block indent selection
+                indentSelection(textView, indent: true)
+            } else {
+                let spaces = String(repeating: " ", count: tabWidth)
+                textView.insertText(spaces, replacementRange: sel)
+            }
+            return true
+        }
+
+        if commandSelector == #selector(NSResponder.insertBacktab(_:)) {
+            // Shift-Tab: outdent selection or current line
+            indentSelection(textView, indent: false)
             return true
         }
 
@@ -450,6 +468,39 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         }
 
         return false
+    }
+
+    private func indentSelection(_ textView: NSTextView, indent: Bool) {
+        guard let ts = textView.textStorage else { return }
+        let text = ts.string as NSString
+        let sel = textView.selectedRange()
+        let lineRange = text.lineRange(for: sel)
+        let linesText = text.substring(with: lineRange)
+        let lines = linesText.components(separatedBy: "\n")
+        let spaces = String(repeating: " ", count: tabWidth)
+
+        var newLines: [String] = []
+        for line in lines {
+            if indent {
+                newLines.append(spaces + line)
+            } else {
+                // Remove up to tabWidth spaces from the beginning
+                var removed = 0
+                var startIndex = line.startIndex
+                while removed < tabWidth && startIndex < line.endIndex && line[startIndex] == " " {
+                    startIndex = line.index(after: startIndex)
+                    removed += 1
+                }
+                newLines.append(String(line[startIndex...]))
+            }
+        }
+
+        let newText = newLines.joined(separator: "\n")
+        if textView.shouldChangeText(in: lineRange, replacementString: newText) {
+            ts.replaceCharacters(in: lineRange, with: newText)
+            textView.didChangeText()
+            textView.setSelectedRange(NSRange(location: lineRange.location, length: (newText as NSString).length))
+        }
     }
 
     /// Intercept typed text for auto-closing brackets/quotes
