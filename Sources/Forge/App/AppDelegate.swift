@@ -79,6 +79,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let findItem = editMenu.addItem(withTitle: "Find…", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "f")
         findItem.tag = Int(NSTextFinder.Action.showFindInterface.rawValue)
 
+        let findReplaceItem = NSMenuItem(title: "Find and Replace…", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "f")
+        findReplaceItem.keyEquivalentModifierMask = [.command, .option]
+        findReplaceItem.tag = Int(NSTextFinder.Action.showReplaceInterface.rawValue)
+        editMenu.addItem(findReplaceItem)
+
         editMenu.addItem(.separator())
 
         let findInProject = NSMenuItem(title: "Find in Project…", action: #selector(MainSplitViewController.findInProject(_:)), keyEquivalent: "F")
@@ -87,6 +92,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         editMenu.addItem(.separator())
         editMenu.addItem(withTitle: "Toggle Comment", action: #selector(EditorContainerViewController.toggleComment(_:)), keyEquivalent: "/")
+
+        let reindentItem = NSMenuItem(title: "Re-Indent", action: #selector(EditorContainerViewController.reindentSelection(_:)), keyEquivalent: "i")
+        reindentItem.keyEquivalentModifierMask = [.control]
+        editMenu.addItem(reindentItem)
 
         editMenuItem.submenu = editMenu
         mainMenu.addItem(editMenuItem)

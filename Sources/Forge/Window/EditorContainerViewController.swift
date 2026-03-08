@@ -9,6 +9,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     private let editor = ForgeEditorManager()
     private let statusBar = StatusBar()
     private let placeholderLabel = NSTextField(labelWithString: "Open a file to start editing")
+    private let binaryLabel = NSTextField(labelWithString: "")
 
     init(project: ForgeProject) {
         self.project = project
@@ -52,6 +53,14 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         placeholderLabel.alignment = .center
         container.addSubview(placeholderLabel)
 
+        // Binary file placeholder
+        binaryLabel.translatesAutoresizingMaskIntoConstraints = false
+        binaryLabel.font = NSFont.systemFont(ofSize: 14, weight: .regular)
+        binaryLabel.textColor = NSColor(white: 0.45, alpha: 1.0)
+        binaryLabel.alignment = .center
+        binaryLabel.isHidden = true
+        container.addSubview(binaryLabel)
+
         NSLayoutConstraint.activate([
             jumpBar.topAnchor.constraint(equalTo: container.topAnchor),
             jumpBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
@@ -82,6 +91,9 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
             placeholderLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
             placeholderLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+
+            binaryLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            binaryLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
         ])
 
         self.view = container
@@ -122,9 +134,18 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         tabBar.update(tabs: tabManager.tabs, selectedIndex: tabManager.selectedIndex)
 
         if let doc = tabManager.currentDocument {
-            editor.scrollView.isHidden = false
-            editor.gutterView.isHidden = false
-            placeholderLabel.isHidden = true
+            if doc.isBinary {
+                editor.scrollView.isHidden = true
+                editor.gutterView.isHidden = true
+                placeholderLabel.isHidden = true
+                binaryLabel.stringValue = "\(doc.fileName) is a binary file and cannot be displayed."
+                binaryLabel.isHidden = false
+            } else {
+                editor.scrollView.isHidden = false
+                editor.gutterView.isHidden = false
+                placeholderLabel.isHidden = true
+                binaryLabel.isHidden = true
+            }
             editor.displayDocument(doc)
             jumpBar.update(fileURL: doc.url, projectRoot: project.rootURL)
             statusBar.update(line: 1, column: 1, totalLines: 1, fileExtension: doc.fileExtension)
@@ -132,6 +153,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             editor.scrollView.isHidden = true
             editor.gutterView.isHidden = true
             placeholderLabel.isHidden = false
+            binaryLabel.isHidden = true
             jumpBar.update(fileURL: nil, projectRoot: nil)
         }
     }
@@ -180,6 +202,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
     @objc func toggleComment(_ sender: Any?) {
         editor.toggleComment(sender)
+    }
+
+    @objc func reindentSelection(_ sender: Any?) {
+        editor.reindentSelection(sender)
     }
 
     // MARK: - Navigation

@@ -67,6 +67,13 @@ class FileNode {
         }
     }
 
+    /// Force reloads children from disk (used by file watcher)
+    func reloadChildren() {
+        childrenLoaded = false
+        children = []
+        loadChildren()
+    }
+
     func loadChildren() {
         guard isDirectory, !childrenLoaded else { return }
         childrenLoaded = true

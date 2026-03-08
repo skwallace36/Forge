@@ -144,6 +144,19 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
 
         self.document = doc
 
+        // Handle binary files
+        if doc.isBinary {
+            textView.string = ""
+            textView.isEditable = false
+            highlighter = nil
+            simpleHighlighter = nil
+            gutterView.textView = textView
+            gutterView.needsDisplay = true
+            return
+        }
+
+        textView.isEditable = true
+
         // Set text content
         textView.string = doc.textStorage.string
 
@@ -536,6 +549,59 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             textView.didChangeText()
             let newRange = NSRange(location: lineRange.location, length: (newText as NSString).length)
             textView.setSelectedRange(newRange)
+        }
+    }
+
+    // MARK: - Re-indent Selection (⌃I)
+
+    @objc func reindentSelection(_ sender: Any?) {
+        guard let ts = textView.textStorage else { return }
+        let text = ts.string as NSString
+        let sel = textView.selectedRange()
+        let lineRange = text.lineRange(for: sel)
+        let linesText = text.substring(with: lineRange)
+        let lines = linesText.components(separatedBy: "\n")
+
+        var result: [String] = []
+        var indentLevel = 0
+
+        // Determine starting indent level from context above
+        if lineRange.location > 0 {
+            let contextRange = NSRange(location: 0, length: lineRange.location)
+            let contextText = text.substring(with: contextRange)
+            for ch in contextText {
+                if ch == "{" || ch == "(" { indentLevel += 1 }
+                if ch == "}" || ch == ")" { indentLevel = max(0, indentLevel - 1) }
+            }
+        }
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
+                result.append("")
+                continue
+            }
+
+            // Decrease indent for closing braces at the start of the line
+            if trimmed.hasPrefix("}") || trimmed.hasPrefix(")") || trimmed.hasPrefix("]") {
+                indentLevel = max(0, indentLevel - 1)
+            }
+
+            let indent = String(repeating: " ", count: indentLevel * tabWidth)
+            result.append(indent + trimmed)
+
+            // Increase indent after opening braces
+            for ch in trimmed {
+                if ch == "{" || ch == "(" { indentLevel += 1 }
+                if ch == "}" || ch == ")" { indentLevel = max(0, indentLevel - 1) }
+            }
+        }
+
+        let newText = result.joined(separator: "\n")
+        if textView.shouldChangeText(in: lineRange, replacementString: newText) {
+            ts.replaceCharacters(in: lineRange, with: newText)
+            textView.didChangeText()
+            textView.setSelectedRange(NSRange(location: lineRange.location, length: (newText as NSString).length))
         }
     }
 

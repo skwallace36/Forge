@@ -7,6 +7,7 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
     private var outlineView: NSOutlineView!
     private var scrollView: NSScrollView!
     private var rootNode: FileNode?
+    private var fileWatcher: FileSystemWatcher?
 
     init(project: ForgeProject, windowController: MainWindowController?) {
         self.project = project
@@ -60,18 +61,14 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
     override func viewDidLoad() {
         super.viewDidLoad()
         loadFileTree()
-
-        // Refresh when app becomes active (catches external file changes)
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(appDidBecomeActive),
-            name: NSApplication.didBecomeActiveNotification,
-            object: nil
-        )
+        startFileWatcher()
     }
 
-    @objc private func appDidBecomeActive() {
-        reloadFileTree()
+    private func startFileWatcher() {
+        fileWatcher = FileSystemWatcher(path: project.rootURL.path, debounceInterval: 0.8) { [weak self] _ in
+            self?.reloadFileTree()
+        }
+        fileWatcher?.start()
     }
 
     /// Reload the file tree while preserving expanded state
@@ -82,7 +79,14 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         var expandedURLs = Set<URL>()
         collectExpandedURLs(root, into: &expandedURLs)
 
-        // Reload
+        // Remember selected item
+        let selectedRow = outlineView.selectedRow
+        var selectedURL: URL?
+        if selectedRow >= 0, let node = outlineView.item(atRow: selectedRow) as? FileNode {
+            selectedURL = node.url
+        }
+
+        // Reload from disk
         let newRoot = FileNode(url: project.rootURL, isDirectory: true)
         newRoot.loadChildren()
         rootNode = newRoot
@@ -94,6 +98,11 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         isAutoExpanding = true
         restoreExpandedState(newRoot, expandedURLs: expandedURLs)
         isAutoExpanding = false
+
+        // Re-select previously selected item
+        if let selectedURL = selectedURL {
+            reselectNode(url: selectedURL)
+        }
     }
 
     private func collectExpandedURLs(_ node: FileNode, into urls: inout Set<URL>) {
@@ -111,6 +120,15 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
             outlineView.reloadItem(child, reloadChildren: true)
             outlineView.expandItem(child)
             restoreExpandedState(child, expandedURLs: expandedURLs)
+        }
+    }
+
+    private func reselectNode(url: URL) {
+        for row in 0..<outlineView.numberOfRows {
+            if let node = outlineView.item(atRow: row) as? FileNode, node.url == url {
+                outlineView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+                return
+            }
         }
     }
 
