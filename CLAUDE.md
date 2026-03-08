@@ -92,6 +92,13 @@ See PLAN.md for full phase breakdown. Short version:
 - Copy Relative Path in tab context menu
 - Image preview for binary files (inline with dimensions)
 - Navigator keyboard shortcuts (Delete=trash, Enter=rename)
+- Jump bar scope display (shows current function/class as cursor moves)
+- Visible-range-only highlighting for files >100K chars (performance)
+- Breadcrumb directory navigation (recursive submenus up to 3 levels)
+- Tab pinning (pin/unpin via context menu, persisted across sessions)
+- Styled welcome screen with shortcuts when no files are open
+- Smart Home key (first non-whitespace, then column 0)
+- Minimap occurrence markers (orange bars for highlighted word)
 
 ## Autonomous Development Mode
 
