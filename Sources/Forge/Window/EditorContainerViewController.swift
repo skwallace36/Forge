@@ -353,6 +353,58 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.jumpToPreviousIssue(sender)
     }
 
+    @objc func showDocumentSymbols(_ sender: Any?) {
+        guard let doc = project.tabManager.currentDocument else { return }
+        Task {
+            let symbols = (try? await project.lspClient.documentSymbols(url: doc.url)) ?? []
+            await MainActor.run {
+                guard !symbols.isEmpty else { return }
+                let menu = NSMenu()
+                self.addSymbolItems(symbols, to: menu, indent: 0)
+                // Show the menu at the jump bar location
+                let pt = NSPoint(x: self.jumpBar.frame.minX + 10, y: self.jumpBar.frame.maxY)
+                menu.popUp(positioning: nil, at: pt, in: self.view)
+            }
+        }
+    }
+
+    private func addSymbolItems(_ symbols: [LSPDocumentSymbol], to menu: NSMenu, indent: Int) {
+        for sym in symbols {
+            let prefix = String(repeating: "  ", count: indent)
+            let icon = symbolIcon(for: sym.kind)
+            let item = NSMenuItem(title: "\(prefix)\(icon) \(sym.name)", action: #selector(symbolItemSelected(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = [sym.selectionRange.start.line, sym.selectionRange.start.character]
+            menu.addItem(item)
+
+            if let children = sym.children, !children.isEmpty {
+                addSymbolItems(children, to: menu, indent: indent + 1)
+            }
+        }
+    }
+
+    @objc private func symbolItemSelected(_ sender: NSMenuItem) {
+        guard let coords = sender.representedObject as? [Int], coords.count == 2 else { return }
+        editor.scrollToLine(coords[0], column: coords[1])
+    }
+
+    private func symbolIcon(for kind: Int) -> String {
+        switch kind {
+        case 5: return "C"
+        case 6: return "M"
+        case 9: return "C"
+        case 10: return "E"
+        case 11: return "I"
+        case 12: return "F"
+        case 13: return "V"
+        case 14: return "K"
+        case 23: return "S"
+        case 8: return "P"
+        case 22: return "E"
+        default: return "·"
+        }
+    }
+
     @objc func goToLine(_ sender: Any?) {
         let alert = NSAlert()
         alert.messageText = "Go to Line"

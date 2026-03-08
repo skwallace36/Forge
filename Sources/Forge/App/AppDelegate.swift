@@ -262,6 +262,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let goToLine = NSMenuItem(title: "Go to Line…", action: #selector(EditorContainerViewController.goToLine(_:)), keyEquivalent: "l")
         navMenu.addItem(goToLine)
 
+        let docSymbols = NSMenuItem(title: "Document Symbols", action: #selector(EditorContainerViewController.showDocumentSymbols(_:)), keyEquivalent: "6")
+        docSymbols.keyEquivalentModifierMask = [.control]
+        navMenu.addItem(docSymbols)
+
         let nextIssue = NSMenuItem(title: "Jump to Next Issue", action: #selector(EditorContainerViewController.jumpToNextIssue(_:)), keyEquivalent: "'")
         nextIssue.keyEquivalentModifierMask = [.command, .control]
         navMenu.addItem(nextIssue)
