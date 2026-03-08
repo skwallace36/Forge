@@ -4,10 +4,14 @@ import AppKit
 class ForgeLayoutManager: NSLayoutManager {
 
     var indentGuideColor = NSColor(white: 0.30, alpha: 0.35)
+    var activeIndentGuideColor = NSColor(white: 0.55, alpha: 0.60)
     var columnRulerColor = NSColor(white: 0.22, alpha: 1.0)
     var invisibleColor = NSColor(white: 0.35, alpha: 0.5)
     var tabSpaces: Int = 4
     var rulerColumn: Int = 0 // 0 = disabled
+
+    /// The indent level of the line the cursor is on (0-based). -1 means no active guide.
+    var activeIndentLevel: Int = -1
 
     /// Inline diagnostic messages: maps 0-indexed line number to (message, severity)
     /// Severity: 1 = error, 2 = warning, 3+ = info/hint
@@ -51,7 +55,7 @@ class ForgeLayoutManager: NSLayoutManager {
 
         let charRange = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
 
-        indentGuideColor.setStroke()
+        let activeLevel = activeIndentLevel
 
         var lineStart = charRange.location
         while lineStart < NSMaxRange(charRange) && lineStart < text.length {
@@ -87,10 +91,16 @@ class ForgeLayoutManager: NSLayoutManager {
 
                 for level in 0..<indentLevels {
                     let x = origin.x + CGFloat(level) * indentWidth + textContainerInset().width
+                    // Highlight the active indent guide
+                    if level == activeLevel {
+                        activeIndentGuideColor.setStroke()
+                    } else {
+                        indentGuideColor.setStroke()
+                    }
                     let guide = NSBezierPath()
                     guide.move(to: NSPoint(x: x, y: lineRect.origin.y + origin.y))
                     guide.line(to: NSPoint(x: x, y: lineRect.origin.y + lineRect.height + origin.y))
-                    guide.lineWidth = 0.5
+                    guide.lineWidth = level == activeLevel ? 1.0 : 0.5
                     guide.stroke()
                 }
             }

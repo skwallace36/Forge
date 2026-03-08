@@ -1717,8 +1717,69 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         ts.endEditing()
 
+        // Update active indent guide level
+        updateActiveIndentLevel(text: text, lineRange: lineRange)
+
         // Update inline blame annotation
         updateInlineBlame()
+    }
+
+    // MARK: - Active Indent Guide
+
+    private func updateActiveIndentLevel(text: NSString, lineRange: NSRange) {
+        guard Preferences.shared.showIndentGuides else {
+            forgeLayoutManager?.activeIndentLevel = -1
+            return
+        }
+
+        // Count leading whitespace on the current line
+        var spaces = 0
+        let lineEnd = min(NSMaxRange(lineRange), text.length)
+        var idx = lineRange.location
+        while idx < lineEnd {
+            let ch = text.character(at: idx)
+            if ch == 0x20 { spaces += 1 }
+            else if ch == 0x09 { spaces += tabWidth }
+            else { break }
+            idx += 1
+        }
+
+        // For the active guide, we want the indent level of the content
+        // If the cursor is on an empty/whitespace-only line, look at surrounding context
+        let isBlankLine = idx == lineEnd || text.character(at: idx) == 0x0A
+        var level = spaces / max(1, tabWidth)
+
+        if isBlankLine && level == 0 {
+            // Look at the next non-blank line's indent to determine active scope
+            var searchIdx = NSMaxRange(lineRange)
+            while searchIdx < text.length {
+                let nextLineRange = text.lineRange(for: NSRange(location: searchIdx, length: 0))
+                var nextSpaces = 0
+                var ni = nextLineRange.location
+                let nextEnd = min(NSMaxRange(nextLineRange), text.length)
+                while ni < nextEnd {
+                    let ch = text.character(at: ni)
+                    if ch == 0x20 { nextSpaces += 1 }
+                    else if ch == 0x09 { nextSpaces += tabWidth }
+                    else { break }
+                    ni += 1
+                }
+                let isNextBlank = ni == nextEnd || text.character(at: ni) == 0x0A
+                if !isNextBlank {
+                    level = nextSpaces / max(1, tabWidth)
+                    break
+                }
+                searchIdx = NSMaxRange(nextLineRange)
+            }
+        }
+
+        // The active guide is one level below (the scope containing us)
+        let activeLevel = max(0, level - 1)
+        let oldLevel = forgeLayoutManager?.activeIndentLevel ?? -1
+        if activeLevel != oldLevel {
+            forgeLayoutManager?.activeIndentLevel = level > 0 ? activeLevel : -1
+            textView.needsDisplay = true
+        }
     }
 
     // MARK: - Inline Git Blame Annotation
