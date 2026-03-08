@@ -162,6 +162,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         editMenu.addItem(.separator())
 
+        let selectNextItem = NSMenuItem(title: "Select Next Occurrence", action: #selector(EditorContainerViewController.selectNextOccurrence(_:)), keyEquivalent: "d")
+        editMenu.addItem(selectNextItem)
+
         let sendToClaudeItem = NSMenuItem(title: "Send to Claude", action: #selector(EditorContainerViewController.sendToClaude(_:)), keyEquivalent: "c")
         sendToClaudeItem.keyEquivalentModifierMask = [.control, .shift]
         editMenu.addItem(sendToClaudeItem)

@@ -1579,6 +1579,47 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         textView.performFindPanelAction(menuItem)
     }
 
+    // MARK: - Select Next Occurrence (⌘D)
+
+    @objc func selectNextOccurrence(_ sender: Any?) {
+        let text = textView.string as NSString
+        guard text.length > 0 else { return }
+
+        let sel = textView.selectedRange()
+        let selectedText: String
+
+        if sel.length > 0 {
+            selectedText = text.substring(with: sel)
+        } else {
+            // First press: select the word under cursor
+            let wordRange = wordRangeAtIndex(min(sel.location, text.length), in: text)
+            guard wordRange.length > 0 else { return }
+            textView.setSelectedRange(wordRange)
+            return
+        }
+
+        // Search forward from end of current selection, wrapping around
+        let afterSel = NSMaxRange(sel)
+        var searchRange = NSRange(location: afterSel, length: text.length - afterSel)
+        var found = text.range(of: selectedText, options: .literal, range: searchRange)
+
+        // Wrap around
+        if found.location == NSNotFound {
+            searchRange = NSRange(location: 0, length: sel.location)
+            found = text.range(of: selectedText, options: .literal, range: searchRange)
+        }
+
+        guard found.location != NSNotFound else { return }
+
+        textView.setSelectedRange(found)
+        textView.scrollRangeToVisible(found)
+
+        // Populate find pasteboard
+        let pb = NSPasteboard(name: .find)
+        pb.clearContents()
+        pb.setString(selectedText, forType: .string)
+    }
+
     // MARK: - Delete Line (⌃⇧K)
 
     private func deleteLine() {
