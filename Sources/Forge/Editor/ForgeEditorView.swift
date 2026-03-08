@@ -136,6 +136,12 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
     }
 
     func displayDocument(_ doc: ForgeDocument) {
+        // Save state for the previous document
+        if let prevDoc = document {
+            prevDoc.savedSelectionRange = textView.selectedRange()
+            prevDoc.savedScrollPosition = scrollView.contentView.bounds.origin
+        }
+
         self.document = doc
 
         // Set text content
@@ -181,10 +187,22 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         // Apply any existing diagnostics
         applyDiagnosticUnderlines()
 
-        textView.scrollRangeToVisible(NSRange(location: 0, length: 0))
-
         gutterView.textView = textView
         gutterView.needsDisplay = true
+
+        // Restore saved position or start at top
+        if let savedRange = doc.savedSelectionRange,
+           savedRange.location + savedRange.length <= (textView.string as NSString).length {
+            textView.setSelectedRange(savedRange)
+            if let savedScroll = doc.savedScrollPosition {
+                scrollView.contentView.scroll(to: savedScroll)
+                scrollView.reflectScrolledClipView(scrollView.contentView)
+            } else {
+                textView.scrollRangeToVisible(savedRange)
+            }
+        } else {
+            textView.scrollRangeToVisible(NSRange(location: 0, length: 0))
+        }
 
         // Fire initial cursor position and line highlight
         notifyCursorPosition()

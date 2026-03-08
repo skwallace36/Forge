@@ -7,6 +7,11 @@ class ForgeDocument {
     var isModified: Bool = false
     let undoManager = UndoManager()
 
+    /// Remembered cursor position (selection range) for this document
+    var savedSelectionRange: NSRange?
+    /// Remembered scroll position for this document
+    var savedScrollPosition: NSPoint?
+
     init(url: URL) {
         self.url = url
         self.textStorage = NSTextStorage()
