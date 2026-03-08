@@ -10,6 +10,9 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     private let minimap = MinimapView()
     private let stickyScroll = StickyScrollView()
     private let statusBar = StatusBar()
+    private let findReplaceBar = FindReplaceBar()
+    private lazy var findBarHeightConstraint = findReplaceBar.heightAnchor.constraint(equalToConstant: 0)
+    private lazy var findBarTopConstraint = findReplaceBar.topAnchor.constraint(equalTo: tabBar.bottomAnchor)
     private let placeholderLabel = NSTextField(labelWithString: "Open a file to start editing\n\n⇧⌘O  Open Quickly\n⌘O    Open File\n⌘N    New File")
     private let binaryLabel = NSTextField(labelWithString: "")
     private let imagePreview = NSImageView()
@@ -62,6 +65,11 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         minimap.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(minimap)
 
+        // Find/Replace bar (hidden until ⌘F)
+        findReplaceBar.translatesAutoresizingMaskIntoConstraints = false
+        findReplaceBar.isHidden = true
+        container.addSubview(findReplaceBar)
+
         // Sticky scroll (overlays top of editor, hidden when not needed)
         stickyScroll.translatesAutoresizingMaskIntoConstraints = false
         stickyScroll.isHidden = true
@@ -110,26 +118,32 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             statusBar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
             statusBar.heightAnchor.constraint(equalToConstant: statusBar.barHeight),
 
-            // Gutter: left side, between tab bar and status bar
-            editor.gutterView.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
+            // Find/Replace bar
+            findBarTopConstraint,
+            findReplaceBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            findReplaceBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            findBarHeightConstraint,
+
+            // Gutter: left side, between find bar and status bar
+            editor.gutterView.topAnchor.constraint(equalTo: findReplaceBar.bottomAnchor),
             editor.gutterView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             editor.gutterView.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
             gutterWidthConstraint,
 
             // Scroll view: to the right of gutter, left of minimap
-            sv.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
+            sv.topAnchor.constraint(equalTo: findReplaceBar.bottomAnchor),
             sv.leadingAnchor.constraint(equalTo: editor.gutterView.trailingAnchor),
             sv.trailingAnchor.constraint(equalTo: minimap.leadingAnchor),
             sv.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
 
             // Minimap: right side
-            minimap.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
+            minimap.topAnchor.constraint(equalTo: findReplaceBar.bottomAnchor),
             minimap.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             minimap.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
             minimap.widthAnchor.constraint(equalToConstant: 80),
 
             // Sticky scroll: overlays top of editor scroll view
-            stickyScroll.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
+            stickyScroll.topAnchor.constraint(equalTo: findReplaceBar.bottomAnchor),
             stickyScroll.leadingAnchor.constraint(equalTo: editor.gutterView.trailingAnchor),
             stickyScroll.trailingAnchor.constraint(equalTo: minimap.leadingAnchor),
 
@@ -265,6 +279,41 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             guard let self = self else { return }
             self.editor.textView.setSelectedRange(NSRange(location: charOffset, length: 0))
             self.editor.textView.scrollRangeToVisible(NSRange(location: charOffset, length: 0))
+        }
+
+        // Wire up find bar
+        editor.onShowFindBar = { [weak self] withReplace, initialText in
+            self?.showFindBar(withReplace: withReplace, initialText: initialText)
+        }
+
+        findReplaceBar.onSearch = { [weak self] query, options -> [NSRange] in
+            guard let self = self else { return [] }
+            return self.editor.findAll(query: query, options: options)
+        }
+
+        findReplaceBar.onNavigate = { [weak self] direction in
+            self?.editor.navigateFind(direction: direction)
+        }
+
+        findReplaceBar.onReplace = { [weak self] replacement in
+            self?.editor.replaceCurrent(with: replacement)
+        }
+
+        findReplaceBar.onReplaceAll = { [weak self] replacement in
+            self?.editor.replaceAll(with: replacement)
+        }
+
+        findReplaceBar.onHeightChange = { [weak self] height in
+            self?.findBarHeightConstraint.constant = height
+            self?.view.needsLayout = true
+        }
+
+        findReplaceBar.onDismiss = { [weak self] in
+            guard let self = self else { return }
+            self.editor.clearFindHighlights()
+            self.findBarHeightConstraint.constant = 0
+            self.findReplaceBar.isHidden = true
+            self.view.window?.makeFirstResponder(self.editor.textView)
         }
 
         refreshEditor()
@@ -614,6 +663,55 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
     @objc func renameSymbol(_ sender: Any?) {
         editor.renameSymbol(sender)
+    }
+
+    // MARK: - Find / Replace Bar
+
+    @objc func showFindBar(_ sender: Any?) {
+        showFindBar(withReplace: false, initialText: selectedTextForFind())
+    }
+
+    @objc func showFindAndReplace(_ sender: Any?) {
+        showFindBar(withReplace: true, initialText: selectedTextForFind())
+    }
+
+    private func showFindBar(withReplace: Bool, initialText: String?) {
+        findReplaceBar.isHidden = false
+        findReplaceBar.show(withReplace: withReplace, initialText: initialText)
+        findBarHeightConstraint.constant = findReplaceBar.barHeight
+        view.needsLayout = true
+    }
+
+    @objc func findNext(_ sender: Any?) {
+        if findReplaceBar.isHidden {
+            // Use occurrence navigation if find bar is not open
+            editor.nextOccurrence(sender)
+        } else {
+            editor.navigateFind(direction: .next)
+            findReplaceBar.updateCurrentMatchIndex(cursorLocation: editor.textView.selectedRange().location)
+        }
+    }
+
+    @objc func findPrevious(_ sender: Any?) {
+        if findReplaceBar.isHidden {
+            editor.previousOccurrence(sender)
+        } else {
+            editor.navigateFind(direction: .previous)
+            findReplaceBar.updateCurrentMatchIndex(cursorLocation: editor.textView.selectedRange().location)
+        }
+    }
+
+    @objc func useSelectionForFind(_ sender: Any?) {
+        let text = selectedTextForFind()
+        if let text = text, !text.isEmpty {
+            showFindBar(withReplace: false, initialText: text)
+        }
+    }
+
+    private func selectedTextForFind() -> String? {
+        let sel = editor.textView.selectedRange()
+        guard sel.length > 0, sel.length < 500 else { return nil }
+        return (editor.textView.string as NSString).substring(with: sel)
     }
 
     @objc func sortImports(_ sender: Any?) {

@@ -122,6 +122,16 @@ class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate, N
             PaletteCommand(title: "Close Tab", shortcut: "⌘W", category: "File",
                            action: #selector(MainWindowController.closeCurrentTab(_:)), target: nil),
 
+            // Find
+            PaletteCommand(title: "Find…", shortcut: "⌘F", category: "Find",
+                           action: #selector(EditorContainerViewController.showFindBar(_:)), target: nil),
+            PaletteCommand(title: "Find and Replace…", shortcut: "⌘⌥F", category: "Find",
+                           action: #selector(EditorContainerViewController.showFindAndReplace(_:)), target: nil),
+            PaletteCommand(title: "Find Next", shortcut: "⌘G", category: "Find",
+                           action: #selector(EditorContainerViewController.findNext(_:)), target: nil),
+            PaletteCommand(title: "Find Previous", shortcut: "⌘⇧G", category: "Find",
+                           action: #selector(EditorContainerViewController.findPrevious(_:)), target: nil),
+
             // Edit
             PaletteCommand(title: "Toggle Comment", shortcut: "⌘/", category: "Edit",
                            action: #selector(EditorContainerViewController.toggleComment(_:)), target: nil),

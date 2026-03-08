@@ -47,6 +47,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Called on scroll (for sticky scroll headers)
     var onScroll: (() -> Void)?
 
+    /// Called to show the find/replace bar: (withReplace, initialText)
+    var onShowFindBar: ((Bool, String?) -> Void)?
+
     let theme: Theme = .xcodeDefaultDark
     private(set) var fontSize: CGFloat = Preferences.shared.fontSize
     var editorFont: NSFont { Preferences.shared.editorFont(size: fontSize) }
@@ -141,8 +144,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         textView.isEditable = true
         textView.isSelectable = true
         textView.allowsUndo = true
-        textView.usesFindBar = true
-        textView.isIncrementalSearchingEnabled = true
+        textView.usesFindBar = false
+        textView.isIncrementalSearchingEnabled = false
         textView.isAutomaticTextCompletionEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
         textView.isAutomaticQuoteSubstitutionEnabled = false
@@ -1277,6 +1280,185 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         return CharacterSet.alphanumerics.contains(scalar) || scalar == "_"
     }
 
+    // MARK: - Find / Replace
+
+    /// Search highlight color (brighter than occurrence highlight)
+    private let findHighlightColor = NSColor(red: 0.55, green: 0.45, blue: 0.15, alpha: 0.55)
+    /// The currently active match gets a brighter highlight
+    private let findActiveMatchColor = NSColor(red: 0.75, green: 0.60, blue: 0.10, alpha: 0.70)
+    /// Tracks find highlight ranges so we can clear them
+    private var findHighlightRanges: [NSRange] = []
+    /// Whether the custom find bar is currently driving highlights (overrides occurrence highlights)
+    private(set) var isFindBarActive = false
+
+    /// Perform a search and highlight all matches. Returns the match ranges.
+    func findAll(query: String, options: FindReplaceBar.SearchOptions) -> [NSRange] {
+        guard let ts = textView.textStorage else { return [] }
+        let text = ts.string as NSString
+
+        // Clear previous find highlights
+        clearFindHighlights()
+
+        guard !query.isEmpty, text.length > 0 else {
+            isFindBarActive = false
+            minimapView?.searchMatchRanges = []
+            return []
+        }
+
+        isFindBarActive = true
+
+        // Build ranges
+        var ranges: [NSRange] = []
+
+        if options.regex {
+            // Regex search
+            var regexOptions: NSRegularExpression.Options = [.anchorsMatchLines]
+            if !options.caseSensitive {
+                regexOptions.insert(.caseInsensitive)
+            }
+            guard let regex = try? NSRegularExpression(pattern: query, options: regexOptions) else {
+                return []
+            }
+            let results = regex.matches(in: text as String, range: NSRange(location: 0, length: text.length))
+            for match in results {
+                ranges.append(match.range)
+            }
+        } else {
+            // Literal search
+            var searchOptions: NSString.CompareOptions = []
+            if !options.caseSensitive {
+                searchOptions.insert(.caseInsensitive)
+            }
+            var searchRange = NSRange(location: 0, length: text.length)
+            while searchRange.location < text.length {
+                let found = text.range(of: query, options: searchOptions, range: searchRange)
+                guard found.location != NSNotFound else { break }
+
+                if options.wholeWord {
+                    let before = found.location > 0 ? text.character(at: found.location - 1) : UInt16(0x20)
+                    let after = NSMaxRange(found) < text.length ? text.character(at: NSMaxRange(found)) : UInt16(0x20)
+                    if isIdentChar(before) || isIdentChar(after) {
+                        searchRange.location = NSMaxRange(found)
+                        searchRange.length = text.length - searchRange.location
+                        continue
+                    }
+                }
+
+                ranges.append(found)
+                searchRange.location = NSMaxRange(found)
+                searchRange.length = text.length - searchRange.location
+            }
+        }
+
+        // Highlight all matches
+        ts.beginEditing()
+        for range in ranges {
+            ts.addAttribute(.backgroundColor, value: findHighlightColor, range: range)
+        }
+        ts.endEditing()
+        findHighlightRanges = ranges
+
+        // Update minimap
+        minimapView?.searchMatchRanges = ranges
+
+        // Navigate to the first match near cursor
+        if !ranges.isEmpty {
+            let cursor = textView.selectedRange().location
+            let target = ranges.first(where: { $0.location >= cursor }) ?? ranges.first!
+            textView.setSelectedRange(target)
+            textView.scrollRangeToVisible(target)
+            highlightActiveMatch(target)
+        }
+
+        return ranges
+    }
+
+    /// Navigate to next/previous find match
+    func navigateFind(direction: FindReplaceBar.NavigateDirection) {
+        guard !findHighlightRanges.isEmpty else { return }
+        let cursor = textView.selectedRange().location
+
+        let target: NSRange
+        if direction == .next {
+            target = findHighlightRanges.first(where: { $0.location > cursor })
+                ?? findHighlightRanges.first!
+        } else {
+            target = findHighlightRanges.last(where: { $0.location < cursor })
+                ?? findHighlightRanges.last!
+        }
+
+        textView.setSelectedRange(target)
+        textView.scrollRangeToVisible(target)
+        highlightActiveMatch(target)
+    }
+
+    /// Replace the current selection if it matches a find result
+    func replaceCurrent(with replacement: String) {
+        let sel = textView.selectedRange()
+        guard findHighlightRanges.contains(sel) else {
+            // If cursor isn't on a match, navigate to next first
+            navigateFind(direction: .next)
+            return
+        }
+
+        if textView.shouldChangeText(in: sel, replacementString: replacement) {
+            textView.textStorage?.replaceCharacters(in: sel, with: replacement)
+            textView.didChangeText()
+        }
+    }
+
+    /// Replace all find matches with replacement text
+    func replaceAll(with replacement: String) {
+        guard !findHighlightRanges.isEmpty, let ts = textView.textStorage else { return }
+
+        // Replace from end to start to preserve earlier offsets
+        let sortedRanges = findHighlightRanges.sorted { $0.location > $1.location }
+        let fullRange = NSRange(location: 0, length: ts.length)
+
+        if textView.shouldChangeText(in: fullRange, replacementString: nil) {
+            ts.beginEditing()
+            for range in sortedRanges {
+                ts.replaceCharacters(in: range, with: replacement)
+            }
+            ts.endEditing()
+            textView.didChangeText()
+        }
+    }
+
+    /// Clear find highlights and reset state
+    func clearFindHighlights() {
+        guard let ts = textView.textStorage else { return }
+        ts.beginEditing()
+        for range in findHighlightRanges {
+            if range.location + range.length <= ts.length {
+                ts.removeAttribute(.backgroundColor, range: range)
+            }
+        }
+        ts.endEditing()
+        findHighlightRanges.removeAll()
+        isFindBarActive = false
+        updateCurrentLineHighlight()
+    }
+
+    private func highlightActiveMatch(_ range: NSRange) {
+        guard let ts = textView.textStorage, range.location + range.length <= ts.length else { return }
+        // Briefly make the active match brighter
+        ts.beginEditing()
+        ts.addAttribute(.backgroundColor, value: findActiveMatchColor, range: range)
+        ts.endEditing()
+
+        // Reset it back after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self, let ts = self.textView.textStorage else { return }
+            guard range.location + range.length <= ts.length else { return }
+            if self.findHighlightRanges.contains(range) {
+                ts.beginEditing()
+                ts.addAttribute(.backgroundColor, value: self.findHighlightColor, range: range)
+                ts.endEditing()
+            }
+        }
+    }
+
     // MARK: - Bracket Matching
 
     private let bracketHighlightColor = NSColor(red: 0.40, green: 0.50, blue: 0.60, alpha: 0.5)
@@ -1964,10 +2146,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         pb.clearContents()
         pb.setString(selectedText, forType: .string)
 
-        // Open the find bar pre-populated (tag 1 = show find panel)
-        let menuItem = NSMenuItem()
-        menuItem.tag = 1
-        textView.performFindPanelAction(menuItem)
+        // Open the custom find bar pre-populated
+        onShowFindBar?(false, selectedText)
     }
 
     // MARK: - Jump to Issue

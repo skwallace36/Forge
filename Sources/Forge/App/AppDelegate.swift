@@ -161,26 +161,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         editMenu.addItem(.separator())
 
-        let findItem = editMenu.addItem(withTitle: "Find…", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "f")
-        findItem.tag = Int(NSTextFinder.Action.showFindInterface.rawValue)
+        editMenu.addItem(withTitle: "Find…", action: #selector(EditorContainerViewController.showFindBar(_:)), keyEquivalent: "f")
 
-        let findReplaceItem = NSMenuItem(title: "Find and Replace…", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "f")
+        let findReplaceItem = NSMenuItem(title: "Find and Replace…", action: #selector(EditorContainerViewController.showFindAndReplace(_:)), keyEquivalent: "f")
         findReplaceItem.keyEquivalentModifierMask = [.command, .option]
-        findReplaceItem.tag = Int(NSTextFinder.Action.showReplaceInterface.rawValue)
         editMenu.addItem(findReplaceItem)
 
-        let findNextItem = NSMenuItem(title: "Find Next", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "g")
-        findNextItem.tag = Int(NSTextFinder.Action.nextMatch.rawValue)
-        editMenu.addItem(findNextItem)
+        editMenu.addItem(withTitle: "Find Next", action: #selector(EditorContainerViewController.findNext(_:)), keyEquivalent: "g")
 
-        let findPrevItem = NSMenuItem(title: "Find Previous", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "G")
+        let findPrevItem = NSMenuItem(title: "Find Previous", action: #selector(EditorContainerViewController.findPrevious(_:)), keyEquivalent: "G")
         findPrevItem.keyEquivalentModifierMask = [.command, .shift]
-        findPrevItem.tag = Int(NSTextFinder.Action.previousMatch.rawValue)
         editMenu.addItem(findPrevItem)
 
-        let useSelectionItem = NSMenuItem(title: "Use Selection for Find", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "e")
-        useSelectionItem.tag = Int(NSTextFinder.Action.setSearchString.rawValue)
-        editMenu.addItem(useSelectionItem)
+        editMenu.addItem(withTitle: "Use Selection for Find", action: #selector(EditorContainerViewController.useSelectionForFind(_:)), keyEquivalent: "e")
 
         editMenu.addItem(.separator())
 
