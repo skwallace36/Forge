@@ -289,8 +289,9 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
     }
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        let totalRows = isSymbolMode ? symbolResults.count : filteredResults.count
         if commandSelector == #selector(NSResponder.moveDown(_:)) {
-            let newRow = min(tableView.selectedRow + 1, filteredResults.count - 1)
+            let newRow = min(tableView.selectedRow + 1, totalRows - 1)
             tableView.selectRowIndexes(IndexSet(integer: newRow), byExtendingSelection: false)
             tableView.scrollRowToVisible(newRow)
             return true
