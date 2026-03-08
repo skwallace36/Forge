@@ -3411,7 +3411,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
                 // Show at cursor position
                 let glyphRange = self.textView.layoutManager?.glyphRange(forCharacterRange: NSRange(location: sel.location, length: 0), actualCharacterRange: nil) ?? NSRange(location: 0, length: 0)
-                let rect = self.textView.layoutManager?.boundingRect(forGlyphRange: glyphRange, in: self.textView.textContainer!) ?? .zero
+                let rect = self.textView.textContainer.flatMap { self.textView.layoutManager?.boundingRect(forGlyphRange: glyphRange, in: $0) } ?? .zero
                 let menuPoint = NSPoint(x: rect.origin.x + self.textView.textContainerInset.width, y: rect.maxY + self.textView.textContainerInset.height + 4)
                 menu.popUp(positioning: nil, at: menuPoint, in: self.textView)
             } catch {}
