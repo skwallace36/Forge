@@ -194,4 +194,47 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         node.loadChildren()
         outlineView.reloadItem(node, reloadChildren: true)
     }
+
+    // MARK: - Reveal in Navigator (⌘⇧J)
+
+    func revealFile(url: URL) {
+        guard let root = rootNode else { return }
+
+        // Build the path from root to the target file
+        let rootPath = root.url.standardizedFileURL.path
+        let filePath = url.standardizedFileURL.path
+
+        guard filePath.hasPrefix(rootPath) else { return }
+
+        let relativePath = String(filePath.dropFirst(rootPath.count))
+        let components = relativePath.split(separator: "/").map(String.init)
+
+        var currentNode = root
+        var nodePath: [FileNode] = []
+
+        for component in components {
+            currentNode.loadChildren()
+            guard let child = currentNode.children.first(where: { $0.name == component }) else {
+                return
+            }
+            nodePath.append(child)
+            currentNode = child
+        }
+
+        // Expand all ancestor directories
+        isAutoExpanding = true
+        for node in nodePath.dropLast() {
+            node.loadChildren()
+            outlineView.reloadItem(node, reloadChildren: true)
+            outlineView.expandItem(node)
+        }
+        isAutoExpanding = false
+
+        // Select and scroll to the file
+        let row = outlineView.row(forItem: currentNode)
+        if row >= 0 {
+            outlineView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+            outlineView.scrollRowToVisible(row)
+        }
+    }
 }

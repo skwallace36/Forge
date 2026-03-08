@@ -80,7 +80,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         findItem.tag = Int(NSTextFinder.Action.showFindInterface.rawValue)
 
         editMenu.addItem(.separator())
-        editMenu.addItem(withTitle: "Toggle Comment", action: #selector(ForgeTextView.toggleComment(_:)), keyEquivalent: "/")
+        editMenu.addItem(withTitle: "Toggle Comment", action: #selector(EditorContainerViewController.toggleComment(_:)), keyEquivalent: "/")
 
         editMenuItem.submenu = editMenu
         mainMenu.addItem(editMenuItem)
@@ -114,6 +114,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let reopenTab = NSMenuItem(title: "Reopen Closed Tab", action: #selector(MainWindowController.reopenLastTab(_:)), keyEquivalent: "T")
         reopenTab.keyEquivalentModifierMask = [.command, .shift]
         navMenu.addItem(reopenTab)
+
+        let revealInNav = NSMenuItem(title: "Reveal in Navigator", action: #selector(MainSplitViewController.revealInNavigator(_:)), keyEquivalent: "J")
+        revealInNav.keyEquivalentModifierMask = [.command, .shift]
+        navMenu.addItem(revealInNav)
 
         navMenu.addItem(.separator())
 

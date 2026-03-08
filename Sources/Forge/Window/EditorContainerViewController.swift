@@ -87,6 +87,9 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         self.view = container
     }
 
+    /// Set this to enable jump-to-definition navigation
+    weak var windowController: MainWindowController?
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -104,6 +107,11 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             guard let self = self else { return }
             let ext = self.project.tabManager.currentDocument?.fileExtension
             self.statusBar.update(line: line, column: column, totalLines: totalLines, fileExtension: ext)
+        }
+
+        // Wire up jump-to-definition
+        editor.onJumpToDefinition = { [weak self] url, line, column in
+            self?.windowController?.openFile(url, atLine: line, column: column)
         }
 
         refreshEditor()
@@ -138,5 +146,17 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     func tabBar(_ tabBar: TabBar, didCloseTabAt index: Int) {
         project.tabManager.close(at: index)
         refreshEditor()
+    }
+
+    // MARK: - Toggle Comment (forwarded to editor manager)
+
+    @objc func toggleComment(_ sender: Any?) {
+        editor.toggleComment(sender)
+    }
+
+    // MARK: - Navigation
+
+    func scrollToLine(_ line: Int, column: Int) {
+        editor.scrollToLine(line, column: column)
     }
 }

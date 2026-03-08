@@ -8,8 +8,16 @@ class FileNode {
     private var childrenLoaded = false
 
     // Hidden files/dirs to skip
-    private static let hiddenPrefixes: Set<String> = [".git", ".build", ".swiftpm", "DerivedData"]
-    private static let hiddenNames: Set<String> = [".DS_Store", ".gitignore"]
+    private static let hiddenPrefixes: Set<String> = [
+        ".git", ".build", ".swiftpm", "DerivedData", "xcuserdata",
+    ]
+    private static let hiddenNames: Set<String> = [
+        ".DS_Store", ".gitignore", "node_modules", "Pods",
+        "__pycache__", ".vscode", ".idea",
+    ]
+    private static let hiddenExtensions: Set<String> = [
+        "o", "a", "dylib",
+    ]
 
     init(url: URL, isDirectory: Bool) {
         self.url = url
@@ -75,6 +83,7 @@ class FileNode {
                 let name = url.lastPathComponent
                 if FileNode.hiddenPrefixes.contains(where: { name.hasPrefix($0) }) { return false }
                 if FileNode.hiddenNames.contains(name) { return false }
+                if FileNode.hiddenExtensions.contains(url.pathExtension.lowercased()) { return false }
                 return true
             }
             .map { childURL in

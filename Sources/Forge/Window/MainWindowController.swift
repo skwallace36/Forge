@@ -55,6 +55,12 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
         splitViewController.editorAreaDidUpdate()
     }
 
+    /// Open a file and scroll to a specific line/column (0-based, LSP convention)
+    func openFile(_ url: URL, atLine line: Int, column: Int) {
+        openFile(url)
+        splitViewController.scrollToLine(line, column: column)
+    }
+
     func saveCurrentDocument() {
         guard let doc = project.tabManager.currentDocument else { return }
         try? doc.save()

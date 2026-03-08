@@ -31,6 +31,7 @@ class MainSplitViewController: NSSplitViewController {
         // Create child controllers
         navigatorVC = NavigatorViewController(project: project, windowController: windowController)
         editorContainerVC = EditorContainerViewController(project: project)
+        editorContainerVC.windowController = windowController
         bottomPanelVC = BottomPanelViewController()
 
         // Inner horizontal split for navigator + editor
@@ -68,6 +69,24 @@ class MainSplitViewController: NSSplitViewController {
 
     func editorAreaDidUpdate() {
         editorContainerVC.refreshEditor()
+    }
+
+    func scrollToLine(_ line: Int, column: Int) {
+        editorContainerVC.scrollToLine(line, column: column)
+    }
+
+    // MARK: - Reveal in Navigator (⌘⇧J)
+
+    @objc func revealInNavigator(_ sender: Any?) {
+        guard let currentDoc = project.tabManager.currentDocument else { return }
+
+        // Make sure navigator is visible
+        if let horizontalSplit = splitViewItems.first?.viewController as? NSSplitViewController,
+           horizontalSplit.splitViewItems.first?.isCollapsed == true {
+            horizontalSplit.splitViewItems.first?.animator().isCollapsed = false
+        }
+
+        navigatorVC.revealFile(url: currentDoc.url)
     }
 
     // MARK: - Panel toggles
