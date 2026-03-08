@@ -25,8 +25,12 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
     private var symbolResults: [LSPSymbolInformation] = []
     private var pendingLine: Int? // parsed from query:line syntax
     private var isSymbolMode = false
+    private var isRecentMode = false
     private var indexingTask: Task<Void, Never>?
     private var symbolSearchTask: Task<Void, Never>?
+
+    /// Recently opened file URLs — shown when query is empty
+    var recentFileURLs: [URL] = []
 
     private let projectRoot: URL
     weak var lspClient: LSPClient?
@@ -178,8 +182,7 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
         panel.makeFirstResponder(searchField)
 
         searchField.stringValue = ""
-        filteredResults = []
-        tableView.reloadData()
+        updateSearch() // Shows recent files when query is empty
     }
 
     func dismiss() {
@@ -223,11 +226,18 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
         }
 
         if searchQuery.isEmpty && pendingLine == nil {
-            filteredResults = []
+            // Show recent files when query is empty
+            isRecentMode = !recentFileURLs.isEmpty
+            filteredResults = recentFileURLs.compactMap { url in
+                guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+                return (url: url, match: FuzzyMatch.Result(score: 0, matchedIndices: []))
+            }
         } else if searchQuery.isEmpty && pendingLine != nil {
             // Just ":42" — jump to line in current file, handled by confirmSelection
+            isRecentMode = false
             filteredResults = []
         } else {
+            isRecentMode = false
             let rootPath = projectRoot.standardizedFileURL.path
             filteredResults = allFiles.compactMap { url in
                 // Try matching against filename first (higher priority)
@@ -394,21 +404,29 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
             let url = result.url
             cell.imageView?.image = NSWorkspace.shared.icon(forFile: url.path)
 
-            // Build attributed string with highlighted match characters
             let fileName = url.lastPathComponent
-            let attrStr = NSMutableAttributedString(string: fileName, attributes: [
-                .foregroundColor: NSColor(white: 0.85, alpha: 1.0),
-                .font: NSFont.systemFont(ofSize: 14),
-            ])
-            for idx in result.match.matchedIndices {
-                if idx < fileName.count {
-                    attrStr.addAttributes([
-                        .foregroundColor: NSColor(red: 0.40, green: 0.72, blue: 0.99, alpha: 1.0),
-                        .font: NSFont.boldSystemFont(ofSize: 14),
-                    ], range: NSRange(location: idx, length: 1))
+
+            if isRecentMode {
+                // Recent mode: plain filename, no highlight
+                cell.textField?.stringValue = fileName
+                cell.textField?.textColor = NSColor(white: 0.85, alpha: 1.0)
+                cell.textField?.font = NSFont.systemFont(ofSize: 14)
+            } else {
+                // Build attributed string with highlighted match characters
+                let attrStr = NSMutableAttributedString(string: fileName, attributes: [
+                    .foregroundColor: NSColor(white: 0.85, alpha: 1.0),
+                    .font: NSFont.systemFont(ofSize: 14),
+                ])
+                for idx in result.match.matchedIndices {
+                    if idx < fileName.count {
+                        attrStr.addAttributes([
+                            .foregroundColor: NSColor(red: 0.40, green: 0.72, blue: 0.99, alpha: 1.0),
+                            .font: NSFont.boldSystemFont(ofSize: 14),
+                        ], range: NSRange(location: idx, length: 1))
+                    }
                 }
+                cell.textField?.attributedStringValue = attrStr
             }
-            cell.textField?.attributedStringValue = attrStr
 
             // Show relative path
             if let pathLabel = cell.viewWithTag(pathTag) as? NSTextField {

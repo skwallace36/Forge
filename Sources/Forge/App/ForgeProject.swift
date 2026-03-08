@@ -10,6 +10,10 @@ class ForgeProject {
     let buildSystem: BuildSystem
     let gitStatus: GitStatusTracker
 
+    /// Recently opened file URLs, most recent first. Used by Open Quickly.
+    private(set) var recentFileURLs: [URL] = []
+    private let maxRecentFiles = 20
+
     init(rootURL: URL) {
         self.rootURL = rootURL
         self.lspClient = LSPClient(rootURL: rootURL)
@@ -63,6 +67,15 @@ class ForgeProject {
         openDocuments.removeValue(forKey: url)
         if LSPClient.languageId(for: url) != nil {
             lspClient.didClose(url: url)
+        }
+    }
+
+    /// Track a file as recently opened (moves to front if already present)
+    func noteRecentFile(_ url: URL) {
+        recentFileURLs.removeAll { $0 == url }
+        recentFileURLs.insert(url, at: 0)
+        if recentFileURLs.count > maxRecentFiles {
+            recentFileURLs.removeLast()
         }
     }
 
