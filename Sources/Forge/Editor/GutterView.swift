@@ -19,6 +19,9 @@ class GutterView: NSView {
     /// Callback when a fold marker is clicked: (lineNumber: 0-indexed)
     var onFoldToggle: ((Int) -> Void)?
 
+    /// Anchor line range for drag-to-select in gutter
+    private var dragAnchorLineRange: NSRange?
+
     override var isFlipped: Bool { true }
 
     override func updateTrackingAreas() {
@@ -116,7 +119,7 @@ class GutterView: NSView {
             }
         }
 
-        // Default: select the line
+        // Default: select the line and set anchor for drag
         let textViewY = localPoint.y + visibleRect.origin.y
         let adjustedPoint = NSPoint(x: 0, y: textViewY - textView.textContainerInset.height)
         let glyphIndex = layoutManager.glyphIndex(for: adjustedPoint, in: textContainer)
@@ -126,6 +129,36 @@ class GutterView: NSView {
 
         let lineRange = text.lineRange(for: NSRange(location: charIndex, length: 0))
         textView.setSelectedRange(lineRange)
+        dragAnchorLineRange = lineRange
+        window?.makeFirstResponder(textView)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let textView = textView,
+              let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer,
+              let anchor = dragAnchorLineRange else { return }
+
+        let text = textView.string as NSString
+        guard text.length > 0 else { return }
+
+        let visibleRect = textView.enclosingScrollView?.contentView.bounds ?? .zero
+        let localPoint = convert(event.locationInWindow, from: nil)
+        let textViewY = localPoint.y + visibleRect.origin.y
+        let adjustedPoint = NSPoint(x: 0, y: textViewY - textView.textContainerInset.height)
+        let glyphIndex = layoutManager.glyphIndex(for: adjustedPoint, in: textContainer)
+        let charIndex = min(layoutManager.characterIndexForGlyph(at: glyphIndex), text.length - 1)
+
+        let dragLineRange = text.lineRange(for: NSRange(location: charIndex, length: 0))
+
+        // Union of anchor line range and current drag line range
+        let start = min(anchor.location, dragLineRange.location)
+        let end = max(NSMaxRange(anchor), NSMaxRange(dragLineRange))
+        textView.setSelectedRange(NSRange(location: start, length: end - start))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        dragAnchorLineRange = nil
     }
 
     override func draw(_ dirtyRect: NSRect) {
