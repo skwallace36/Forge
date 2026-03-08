@@ -260,6 +260,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let selectNextItem = NSMenuItem(title: "Select Next Occurrence", action: #selector(EditorContainerViewController.selectNextOccurrence(_:)), keyEquivalent: "d")
         editMenu.addItem(selectNextItem)
 
+        let selectEnclosingItem = NSMenuItem(title: "Select Enclosing Brackets", action: #selector(EditorContainerViewController.selectEnclosingBrackets(_:)), keyEquivalent: "")
+        editMenu.addItem(selectEnclosingItem)
+
         let sendToClaudeItem = NSMenuItem(title: "Send to Claude", action: #selector(EditorContainerViewController.sendToClaude(_:)), keyEquivalent: "c")
         sendToClaudeItem.keyEquivalentModifierMask = [.control, .shift]
         editMenu.addItem(sendToClaudeItem)

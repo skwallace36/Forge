@@ -1542,6 +1542,12 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             return true
         }
 
+        // ⌃⇧⌘→ → select enclosing brackets
+        if mods == [.control, .shift, .command] && event.keyCode == 124 { // right arrow
+            selectEnclosingBrackets(nil)
+            return true
+        }
+
         // If completion window is showing, handle navigation keys
         guard let cw = completionWindow, cw.isShowing else { return false }
 
@@ -1767,6 +1773,70 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
                 scrollToLine(target.range.start.line, column: target.range.start.character)
             }
         }
+    }
+
+    // MARK: - Select Enclosing Brackets (⌃⇧⌘→)
+
+    @objc func selectEnclosingBrackets(_ sender: Any?) {
+        let text = textView.string as NSString
+        guard text.length > 0 else { return }
+
+        let cursor = textView.selectedRange().location
+        let openBrackets: [unichar] = [0x28, 0x5B, 0x7B] // ( [ {
+        let closeBrackets: [unichar] = [0x29, 0x5D, 0x7D] // ) ] }
+
+        // Search backward for unmatched open bracket
+        var depth: [unichar: Int] = [:]
+        var openPos = -1
+        var openChar: unichar = 0
+
+        var i = cursor - 1
+        while i >= 0 {
+            let ch = text.character(at: i)
+            if closeBrackets.contains(ch) {
+                depth[ch, default: 0] += 1
+            } else if openBrackets.contains(ch) {
+                let closeIdx = openBrackets.firstIndex(of: ch)!
+                let closeCh = closeBrackets[closeIdx]
+                let d = depth[closeCh, default: 0]
+                if d > 0 {
+                    depth[closeCh] = d - 1
+                } else {
+                    openPos = i
+                    openChar = ch
+                    break
+                }
+            }
+            i -= 1
+        }
+
+        guard openPos >= 0 else { return }
+
+        // Search forward for matching close bracket
+        let openIdx = openBrackets.firstIndex(of: openChar)!
+        let closeChar = closeBrackets[openIdx]
+        var closePos = -1
+        var nestCount = 0
+
+        for j in (openPos + 1)..<text.length {
+            let ch = text.character(at: j)
+            if ch == openChar {
+                nestCount += 1
+            } else if ch == closeChar {
+                if nestCount == 0 {
+                    closePos = j
+                    break
+                }
+                nestCount -= 1
+            }
+        }
+
+        guard closePos >= 0 else { return }
+
+        // Select content between brackets (excluding the brackets themselves)
+        let innerRange = NSRange(location: openPos + 1, length: closePos - openPos - 1)
+        textView.setSelectedRange(innerRange)
+        textView.scrollRangeToVisible(innerRange)
     }
 
     // MARK: - Select Next Occurrence (⌘D)
@@ -2143,6 +2213,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
         menu.addItem(withTitle: "Select All Occurrences", action: #selector(selectAllOccurrencesAction(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "Select Enclosing Brackets", action: #selector(selectEnclosingBrackets(_:)), keyEquivalent: "")
 
         // Send to Claude
         if textView.selectedRange().length > 0 {

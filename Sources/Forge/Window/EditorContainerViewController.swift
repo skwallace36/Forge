@@ -453,6 +453,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.selectNextOccurrence(sender)
     }
 
+    @objc func selectEnclosingBrackets(_ sender: Any?) {
+        editor.selectEnclosingBrackets(sender)
+    }
+
     @objc func jumpToNextIssue(_ sender: Any?) {
         editor.jumpToNextIssue(sender)
     }
