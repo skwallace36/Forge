@@ -425,6 +425,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         jumpToDef.keyEquivalentModifierMask = [.command, .control]
         navMenu.addItem(jumpToDef)
 
+        let quickActions = NSMenuItem(title: "Show Quick Actions", action: #selector(EditorContainerViewController.showQuickActions(_:)), keyEquivalent: "A")
+        quickActions.keyEquivalentModifierMask = [.control, .shift]
+        navMenu.addItem(quickActions)
+
         let findRefs = NSMenuItem(title: "Find All References", action: #selector(EditorContainerViewController.findReferences(_:)), keyEquivalent: "")
         navMenu.addItem(findRefs)
 

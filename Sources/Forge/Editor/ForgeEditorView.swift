@@ -2834,6 +2834,44 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
     }
 
+    /// Show code actions as a popup menu at the cursor position (⌘.)
+    @objc func showQuickActions(_ sender: Any?) {
+        guard let doc = document, let lsp = lspClient else { return }
+        let sel = textView.selectedRange()
+        let (startLine, startChar) = characterIndexToLineColumn(sel.location)
+        let (endLine, endChar) = characterIndexToLineColumn(sel.location + sel.length)
+        let range = LSPRange(
+            start: LSPPosition(line: startLine, character: startChar),
+            end: LSPPosition(line: endLine, character: endChar)
+        )
+
+        let relevantDiags = diagnostics.filter { diag in
+            diag.range.start.line <= endLine && diag.range.end.line >= startLine
+        }
+
+        Task { @MainActor in
+            do {
+                let actions = try await lsp.codeActions(url: doc.url, range: range, diagnostics: relevantDiags)
+                guard !actions.isEmpty else { return }
+                self.pendingCodeActions = actions
+
+                let menu = NSMenu()
+                for (idx, action) in actions.enumerated() {
+                    let item = NSMenuItem(title: action.title, action: #selector(self.codeActionSelected(_:)), keyEquivalent: "")
+                    item.target = self
+                    item.tag = idx
+                    menu.addItem(item)
+                }
+
+                // Show at cursor position
+                let glyphRange = self.textView.layoutManager?.glyphRange(forCharacterRange: NSRange(location: sel.location, length: 0), actualCharacterRange: nil) ?? NSRange(location: 0, length: 0)
+                let rect = self.textView.layoutManager?.boundingRect(forGlyphRange: glyphRange, in: self.textView.textContainer!) ?? .zero
+                let menuPoint = NSPoint(x: rect.origin.x + self.textView.textContainerInset.width, y: rect.maxY + self.textView.textContainerInset.height + 4)
+                menu.popUp(positioning: nil, at: menuPoint, in: self.textView)
+            } catch {}
+        }
+    }
+
     @objc private func codeActionSelected(_ sender: NSMenuItem) {
         let idx = sender.tag
         guard idx >= 0, idx < pendingCodeActions.count else { return }

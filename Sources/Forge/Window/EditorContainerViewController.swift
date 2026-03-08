@@ -790,6 +790,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.jumpToDefinitionAction(sender)
     }
 
+    @objc func showQuickActions(_ sender: Any?) {
+        editor.showQuickActions(sender)
+    }
+
     @objc func sendToClaude(_ sender: Any?) {
         editor.sendToClaudeAction(sender)
     }
