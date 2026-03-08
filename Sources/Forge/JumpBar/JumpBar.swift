@@ -276,17 +276,50 @@ class JumpBar: NSView {
         for item in sorted {
             let isDir = (try? item.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
             let title = isDir ? "\(item.lastPathComponent)/" : item.lastPathComponent
-            let menuItem = NSMenuItem(title: title, action: #selector(breadcrumbFileSelected(_:)), keyEquivalent: "")
+            let menuItem = NSMenuItem(title: title, action: isDir ? nil : #selector(breadcrumbFileSelected(_:)), keyEquivalent: "")
             menuItem.target = self
             menuItem.representedObject = item
             if isDir {
-                menuItem.isEnabled = false // Directories not navigable in this simple version
+                // Build a submenu listing the directory's contents
+                menuItem.submenu = buildDirectorySubmenu(for: item)
             }
             menu.addItem(menuItem)
         }
 
         let location = NSPoint(x: sender.frame.origin.x, y: sender.frame.maxY + 2)
         menu.popUp(positioning: nil, at: location, in: self)
+    }
+
+    /// Build a recursive submenu for a directory's contents
+    private func buildDirectorySubmenu(for dirURL: URL, depth: Int = 0) -> NSMenu {
+        let submenu = NSMenu()
+        guard depth < 3 else { return submenu } // Limit nesting depth
+
+        let fm = FileManager.default
+        guard let items = try? fm.contentsOfDirectory(at: dirURL, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) else {
+            return submenu
+        }
+
+        let sorted = items.sorted { a, b in
+            let aDir = (try? a.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            let bDir = (try? b.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            if aDir != bDir { return aDir }
+            return a.lastPathComponent.localizedCaseInsensitiveCompare(b.lastPathComponent) == .orderedAscending
+        }
+
+        for item in sorted {
+            let isDir = (try? item.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            let title = isDir ? "\(item.lastPathComponent)/" : item.lastPathComponent
+            let menuItem = NSMenuItem(title: title, action: isDir ? nil : #selector(breadcrumbFileSelected(_:)), keyEquivalent: "")
+            menuItem.target = self
+            menuItem.representedObject = item
+            if isDir {
+                menuItem.submenu = buildDirectorySubmenu(for: item, depth: depth + 1)
+            }
+            submenu.addItem(menuItem)
+        }
+
+        return submenu
     }
 
     @objc private func breadcrumbFileSelected(_ sender: NSMenuItem) {
