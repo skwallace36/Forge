@@ -387,6 +387,10 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         return cell
     }
 
+    func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
+        return NavigatorRowView()
+    }
+
     func outlineViewSelectionDidChange(_ notification: Notification) {
         let row = outlineView.selectedRow
         guard row >= 0, let node = outlineView.item(atRow: row) as? FileNode else { return }
@@ -737,6 +741,26 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         let fakeMenuItem = NSMenuItem()
         fakeMenuItem.representedObject = node
         renameAction(fakeMenuItem)
+    }
+}
+
+// MARK: - Custom Row View (dark-themed selection)
+
+/// Custom row view that draws a consistent dark selection highlight
+/// instead of the system accent color (blue) which flashes inconsistently.
+private class NavigatorRowView: NSTableRowView {
+    override func drawSelection(in dirtyRect: NSRect) {
+        guard isSelected else { return }
+        let color = isEmphasized
+            ? NSColor(white: 0.28, alpha: 1.0)
+            : NSColor(white: 0.22, alpha: 1.0)
+        color.setFill()
+        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 0), xRadius: 4, yRadius: 4)
+        path.fill()
+    }
+
+    override var interiorBackgroundStyle: NSView.BackgroundStyle {
+        return isSelected ? .emphasized : .normal
     }
 }
 
