@@ -44,6 +44,33 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 
+    /// Handle files opened from Finder (double-click, drag onto dock icon, etc.)
+    func application(_ sender: NSApplication, openFiles filenames: [String]) {
+        for filename in filenames {
+            let url = URL(fileURLWithPath: filename)
+            if url.hasDirectoryPath {
+                // Open as a new project
+                let project = ForgeProject(rootURL: url)
+                let wc = MainWindowController(project: project)
+                windowControllers.append(wc)
+                wc.showWindow(nil)
+            } else {
+                // Open file in existing window, or create one if needed
+                if let wc = windowController {
+                    wc.openFile(url)
+                } else {
+                    let dir = url.deletingLastPathComponent()
+                    let project = ForgeProject(rootURL: dir)
+                    let wc = MainWindowController(project: project)
+                    windowControllers.append(wc)
+                    wc.showWindow(nil)
+                    wc.openFile(url)
+                }
+            }
+        }
+        sender.reply(toOpenOrPrint: .success)
+    }
+
     /// Called by MainWindowController when its window closes
     func windowControllerDidClose(_ wc: MainWindowController) {
         windowControllers.removeAll { $0 === wc }

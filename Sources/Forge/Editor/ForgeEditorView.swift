@@ -60,6 +60,11 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Tracks bracket match highlight range
     private var bracketMatchRange: NSRange?
 
+    /// Line-start offset cache for O(log n) line/column conversion.
+    /// Each entry is the character offset where that line begins.
+    /// Invalidated on text change, rebuilt lazily on first access.
+    private var _lineStartOffsets: [Int]?
+
     /// Debounce for occurrence highlighting
     private var occurrenceWorkItem: DispatchWorkItem?
 
@@ -277,6 +282,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         // Set text content
         textView.string = doc.textStorage.string
+        invalidateLineCache()
         updateLineCount()
 
         // Apply font and foreground color
@@ -464,23 +470,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     private func lspRangeToNSRange(_ lspRange: LSPRange, in text: NSString) -> NSRange? {
         guard text.length > 0 else { return nil }
 
-        var lineStart = 0
-        var currentLine = 0
-
-        while currentLine < lspRange.start.line && lineStart < text.length {
-            let lineRange = text.lineRange(for: NSRange(location: lineStart, length: 0))
-            lineStart = NSMaxRange(lineRange)
-            currentLine += 1
-        }
-        let startOffset = min(lineStart + lspRange.start.character, text.length)
-
-        var endLineStart = lineStart
-        while currentLine < lspRange.end.line && endLineStart < text.length {
-            let lineRange = text.lineRange(for: NSRange(location: endLineStart, length: 0))
-            endLineStart = NSMaxRange(lineRange)
-            currentLine += 1
-        }
-        let endOffset = min(endLineStart + lspRange.end.character, text.length)
+        let startOffset = lineColumnToCharacterIndex(line: lspRange.start.line, column: lspRange.start.character)
+        let endOffset = lineColumnToCharacterIndex(line: lspRange.end.line, column: lspRange.end.character)
 
         guard startOffset <= endOffset else { return nil }
         return NSRange(location: startOffset, length: endOffset - startOffset)
@@ -492,6 +483,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
     func textDidChange(_ notification: Notification) {
         document?.isModified = true
+        invalidateLineCache()
         gutterView.needsDisplay = true
         minimapView?.invalidateCodeCache()
         updateLineCount()
@@ -2304,16 +2296,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         let text = textView.string as NSString
         guard text.length > 0 else { return }
 
-        var currentLine = 0
-        var offset = 0
-        while currentLine < line && offset < text.length {
-            if text.character(at: offset) == 0x0A {
-                currentLine += 1
-            }
-            offset += 1
-        }
-
-        let charOffset = min(offset + column, text.length)
+        let charOffset = lineColumnToCharacterIndex(line: line, column: column)
         let selLen = min(selectLength, text.length - charOffset)
         let selRange = NSRange(location: charOffset, length: max(selLen, 0))
         textView.setSelectedRange(selRange)
@@ -2327,21 +2310,53 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
     }
 
-    // MARK: - Position Conversion
+    // MARK: - Position Conversion (cached line offsets)
 
-    /// Converts a character index in the text to (line, character) — both 0-based for LSP.
-    private func characterIndexToLineColumn(_ index: Int) -> (Int, Int) {
+    /// Build or return the cached array of line-start character offsets.
+    /// offsets[i] is the character index where line i begins.
+    private var lineStartOffsets: [Int] {
+        if let cached = _lineStartOffsets { return cached }
         let text = textView.string as NSString
-        let safeIndex = min(index, text.length)
-        var line = 0
-        var lastLineStart = 0
-        for i in 0..<safeIndex {
+        var offsets = [0]
+        for i in 0..<text.length {
             if text.character(at: i) == 0x0A {
-                line += 1
-                lastLineStart = i + 1
+                offsets.append(i + 1)
             }
         }
-        return (line, safeIndex - lastLineStart)
+        _lineStartOffsets = offsets
+        return offsets
+    }
+
+    /// Invalidate the line offset cache (call on every text change).
+    private func invalidateLineCache() {
+        _lineStartOffsets = nil
+    }
+
+    /// Converts a character index in the text to (line, character) — both 0-based for LSP.
+    /// Uses binary search on the cached line offsets for O(log n) performance.
+    private func characterIndexToLineColumn(_ index: Int) -> (Int, Int) {
+        let offsets = lineStartOffsets
+        let safeIndex = min(index, (textView.string as NSString).length)
+        // Binary search: find the last offset <= safeIndex
+        var lo = 0, hi = offsets.count - 1
+        while lo < hi {
+            let mid = (lo + hi + 1) / 2
+            if offsets[mid] <= safeIndex {
+                lo = mid
+            } else {
+                hi = mid - 1
+            }
+        }
+        return (lo, safeIndex - offsets[lo])
+    }
+
+    /// Converts a 0-based (line, column) to a character index.
+    private func lineColumnToCharacterIndex(line: Int, column: Int) -> Int {
+        let offsets = lineStartOffsets
+        guard line < offsets.count else {
+            return (textView.string as NSString).length
+        }
+        return min(offsets[line] + column, (textView.string as NSString).length)
     }
 
     // MARK: - Code Folding
@@ -2357,14 +2372,40 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             return
         }
 
+        let offsets = lineStartOffsets
         var foldable = Set<Int>()
-        let lines = text.components(separatedBy: "\n") as [String]
 
-        for (i, line) in lines.enumerated() {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasSuffix("{") && !trimmed.hasPrefix("//") && !trimmed.hasPrefix("*") {
-                foldable.insert(i)
+        for i in 0..<offsets.count {
+            let lineStart = offsets[i]
+            let lineEnd = (i + 1 < offsets.count) ? offsets[i + 1] - 1 : text.length
+            guard lineEnd > lineStart else { continue }
+
+            // Find last non-whitespace character on the line
+            var lastNonSpace = lineEnd - 1
+            while lastNonSpace >= lineStart {
+                let c = text.character(at: lastNonSpace)
+                if c != 0x20 && c != 0x09 { break } // skip space and tab
+                lastNonSpace -= 1
             }
+            guard lastNonSpace >= lineStart && text.character(at: lastNonSpace) == 0x7B else { continue } // '{'
+
+            // Find first non-whitespace character on the line
+            var firstNonSpace = lineStart
+            while firstNonSpace < lineEnd {
+                let c = text.character(at: firstNonSpace)
+                if c != 0x20 && c != 0x09 { break }
+                firstNonSpace += 1
+            }
+            guard firstNonSpace < lineEnd else { continue }
+
+            // Skip comment lines
+            let firstChar = text.character(at: firstNonSpace)
+            if firstChar == 0x2F && firstNonSpace + 1 < lineEnd && text.character(at: firstNonSpace + 1) == 0x2F {
+                continue // "//"
+            }
+            if firstChar == 0x2A { continue } // "*"
+
+            foldable.insert(i)
         }
 
         gutterView.foldableLines = foldable
@@ -2396,18 +2437,21 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
     private func fold(at startLine: Int) {
         let text = textView.string as NSString
-        let lines = (text as String).components(separatedBy: "\n")
-        guard startLine < lines.count else { return }
+        let offsets = lineStartOffsets
+        guard startLine < offsets.count else { return }
 
-        // Find matching closing brace
+        // Find matching closing brace by scanning characters
         var braceCount = 0
         var endLine = startLine
+        let totalLines = offsets.count
 
-        for i in startLine..<lines.count {
-            let line = lines[i]
-            for ch in line {
-                if ch == "{" { braceCount += 1 }
-                else if ch == "}" { braceCount -= 1 }
+        for i in startLine..<totalLines {
+            let lineStart = offsets[i]
+            let lineEnd = (i + 1 < totalLines) ? offsets[i + 1] - 1 : text.length
+            for j in lineStart..<lineEnd {
+                let ch = text.character(at: j)
+                if ch == 0x7B { braceCount += 1 }      // '{'
+                else if ch == 0x7D { braceCount -= 1 }  // '}'
             }
             if braceCount == 0 && i > startLine {
                 endLine = i
@@ -2418,17 +2462,18 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         guard endLine > startLine else { return }
 
         // Calculate the range to fold (from end of startLine to end of endLine)
-        var offset = 0
-        for i in 0..<startLine {
-            offset += (lines[i] as NSString).length + 1 // +1 for newline
+        let foldStart: Int
+        if startLine + 1 < offsets.count {
+            foldStart = offsets[startLine + 1] - 1  // newline at end of startLine
+        } else {
+            return
         }
-        let foldStart = offset + (lines[startLine] as NSString).length // end of the start line
-
-        var foldEnd = 0
-        for i in 0...endLine {
-            foldEnd += (lines[i] as NSString).length + 1
+        let foldEnd: Int
+        if endLine + 1 < offsets.count {
+            foldEnd = offsets[endLine + 1] - 1  // end of endLine (before its newline)
+        } else {
+            foldEnd = text.length
         }
-        foldEnd -= 1 // don't include the last newline
 
         let foldRange = NSRange(location: foldStart, length: foldEnd - foldStart)
         guard foldRange.length > 0 && foldRange.location + foldRange.length <= text.length else { return }
