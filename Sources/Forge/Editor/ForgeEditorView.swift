@@ -804,11 +804,23 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         // Add extra indent after { or (
         let trimmed = lineText.trimmingCharacters(in: .whitespaces)
-        if trimmed.hasSuffix("{") || trimmed.hasSuffix("(") {
+        let needsExtraIndent = trimmed.hasSuffix("{") || trimmed.hasSuffix("(")
+        if needsExtraIndent {
             indent += String(repeating: " ", count: tabWidth)
         }
 
-        textView.insertText("\n" + indent, replacementRange: textView.selectedRange())
+        // Check if cursor is between matching brackets: {|} or (|)
+        let afterCursor = cursorLocation < text.length ? String(Character(UnicodeScalar(text.character(at: cursorLocation))!)) : ""
+        if needsExtraIndent && (afterCursor == "}" || afterCursor == ")") {
+            // Insert new line with extra indent, plus closing bracket on its own line
+            let closingIndent = String(indent.dropLast(tabWidth))
+            textView.insertText("\n" + indent + "\n" + closingIndent, replacementRange: textView.selectedRange())
+            // Move cursor to the middle line
+            let newCursorPos = cursorLocation + 1 + indent.count
+            textView.setSelectedRange(NSRange(location: newCursorPos, length: 0))
+        } else {
+            textView.insertText("\n" + indent, replacementRange: textView.selectedRange())
+        }
     }
 
     // MARK: - Toggle Comment (⌘/)
