@@ -16,6 +16,8 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     private let stageAllButton = NSButton(title: "Stage All", target: nil, action: nil)
     private let commitField = NSTextField()
     private let commitButton = NSButton(title: "Commit", target: nil, action: nil)
+    private let pushButton = NSButton(title: "Push", target: nil, action: nil)
+    private let pullButton = NSButton(title: "Pull", target: nil, action: nil)
     private let diffView: DiffTextView
     private let diffScrollView: NSScrollView
     private let splitView = NSSplitView()
@@ -87,6 +89,20 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         commitButton.action = #selector(commitClicked)
         addSubview(commitButton)
 
+        // Push button
+        pushButton.translatesAutoresizingMaskIntoConstraints = false
+        pushButton.bezelStyle = .accessoryBarAction
+        pushButton.target = self
+        pushButton.action = #selector(pushClicked)
+        addSubview(pushButton)
+
+        // Pull button
+        pullButton.translatesAutoresizingMaskIntoConstraints = false
+        pullButton.bezelStyle = .accessoryBarAction
+        pullButton.target = self
+        pullButton.action = #selector(pullClicked)
+        addSubview(pullButton)
+
         // File list table
         fileListScrollView.translatesAutoresizingMaskIntoConstraints = false
         fileListScrollView.hasVerticalScroller = true
@@ -139,7 +155,13 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             statusLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
 
             refreshButton.centerYAnchor.constraint(equalTo: statusLabel.centerYAnchor),
-            refreshButton.trailingAnchor.constraint(equalTo: stageAllButton.leadingAnchor, constant: -6),
+            refreshButton.trailingAnchor.constraint(equalTo: pullButton.leadingAnchor, constant: -6),
+
+            pullButton.centerYAnchor.constraint(equalTo: statusLabel.centerYAnchor),
+            pullButton.trailingAnchor.constraint(equalTo: pushButton.leadingAnchor, constant: -6),
+
+            pushButton.centerYAnchor.constraint(equalTo: statusLabel.centerYAnchor),
+            pushButton.trailingAnchor.constraint(equalTo: stageAllButton.leadingAnchor, constant: -6),
 
             stageAllButton.centerYAnchor.constraint(equalTo: statusLabel.centerYAnchor),
             stageAllButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
@@ -208,6 +230,48 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
     @objc private func refreshClicked() {
         reloadFiles()
+    }
+
+    @objc private func pushClicked() {
+        guard let root = projectRoot else { return }
+        pushButton.isEnabled = false
+        pushButton.title = "Pushing…"
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let success = Self.runGit(["push"], root: root)
+            DispatchQueue.main.async {
+                self?.pushButton.isEnabled = true
+                self?.pushButton.title = "Push"
+                if !success {
+                    let alert = NSAlert()
+                    alert.messageText = "Push Failed"
+                    alert.informativeText = "git push failed. Check your remote configuration and try again."
+                    alert.alertStyle = .warning
+                    alert.runModal()
+                }
+            }
+        }
+    }
+
+    @objc private func pullClicked() {
+        guard let root = projectRoot else { return }
+        pullButton.isEnabled = false
+        pullButton.title = "Pulling…"
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let success = Self.runGit(["pull"], root: root)
+            DispatchQueue.main.async {
+                self?.pullButton.isEnabled = true
+                self?.pullButton.title = "Pull"
+                if success {
+                    self?.reloadFiles()
+                } else {
+                    let alert = NSAlert()
+                    alert.messageText = "Pull Failed"
+                    alert.informativeText = "git pull failed. You may have merge conflicts to resolve."
+                    alert.alertStyle = .warning
+                    alert.runModal()
+                }
+            }
+        }
     }
 
     @objc private func stageAllClicked() {
