@@ -432,7 +432,12 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
     }
 
     func openQuickly(_ controller: OpenQuicklyWindowController, didSelectURL url: URL, atLine line: Int, column: Int) {
-        openFile(url, atLine: line, column: column)
+        if url.path.isEmpty {
+            // Just ":line" — navigate in current file
+            splitViewController.scrollToLine(line, column: column)
+        } else {
+            openFile(url, atLine: line, column: column)
+        }
     }
 
     // MARK: - Tab State Persistence

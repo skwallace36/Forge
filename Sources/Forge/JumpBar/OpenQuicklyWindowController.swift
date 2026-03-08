@@ -23,6 +23,7 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
     private var allFiles: [URL] = []
     private var filteredResults: [(url: URL, match: FuzzyMatch.Result)] = []
     private var symbolResults: [LSPSymbolInformation] = []
+    private var pendingLine: Int? // parsed from query:line syntax
     private var isSymbolMode = false
     private var indexingTask: Task<Void, Never>?
     private var symbolSearchTask: Task<Void, Never>?
@@ -205,14 +206,27 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
         symbolResults = []
         symbolSearchTask?.cancel()
 
-        if query.isEmpty {
+        // Parse :line suffix (e.g., "file.swift:42")
+        pendingLine = nil
+        var searchQuery = query
+        if let colonRange = query.range(of: ":", options: .backwards),
+           let lineNum = Int(query[colonRange.upperBound...].trimmingCharacters(in: .whitespaces)),
+           lineNum > 0 {
+            pendingLine = lineNum - 1 // convert to 0-based
+            searchQuery = String(query[..<colonRange.lowerBound])
+        }
+
+        if searchQuery.isEmpty && pendingLine == nil {
+            filteredResults = []
+        } else if searchQuery.isEmpty && pendingLine != nil {
+            // Just ":42" — jump to line in current file, handled by confirmSelection
             filteredResults = []
         } else {
             let rootPath = projectRoot.standardizedFileURL.path
             filteredResults = allFiles.compactMap { url in
                 // Try matching against filename first (higher priority)
                 let fileName = url.lastPathComponent
-                if let result = FuzzyMatch.match(pattern: query, candidate: fileName) {
+                if let result = FuzzyMatch.match(pattern: searchQuery, candidate: fileName) {
                     return (url: url, match: result)
                 }
                 // Fall back to matching against relative path
@@ -220,7 +234,7 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
                 let relative = filePath.hasPrefix(rootPath)
                     ? String(filePath.dropFirst(rootPath.count + 1))
                     : filePath
-                if let result = FuzzyMatch.match(pattern: query, candidate: relative) {
+                if let result = FuzzyMatch.match(pattern: searchQuery, candidate: relative) {
                     // Slightly lower score for path matches
                     let adjustedResult = FuzzyMatch.Result(score: result.score - 10, matchedIndices: [])
                     return (url: url, match: adjustedResult)
@@ -413,19 +427,26 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
 
     private func confirmSelection() {
         let row = tableView.selectedRow
-        guard row >= 0 else { return }
 
         if isSymbolMode {
-            guard row < symbolResults.count else { return }
+            guard row >= 0, row < symbolResults.count else { return }
             let sym = symbolResults[row]
             guard let url = URL(string: sym.location.uri) else { return }
             dismiss()
             delegate?.openQuickly(self, didSelectURL: url, atLine: sym.location.range.start.line, column: sym.location.range.start.character)
-        } else {
-            guard row < filteredResults.count else { return }
+        } else if row >= 0, row < filteredResults.count {
             let url = filteredResults[row].url
             dismiss()
-            delegate?.openQuickly(self, didSelectURL: url)
+            if let line = pendingLine {
+                delegate?.openQuickly(self, didSelectURL: url, atLine: line, column: 0)
+            } else {
+                delegate?.openQuickly(self, didSelectURL: url)
+            }
+        } else if filteredResults.isEmpty, let line = pendingLine {
+            // Just ":42" — navigate to line in current file
+            dismiss()
+            // Handled by delegate as jump-to-line
+            delegate?.openQuickly(self, didSelectURL: URL(fileURLWithPath: ""), atLine: line, column: 0)
         }
     }
 
