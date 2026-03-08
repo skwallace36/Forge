@@ -3685,16 +3685,27 @@ class ForgeTextView: NSTextView {
         addTrackingArea(area)
     }
 
+    /// Range of the currently ⌘-underlined word (for removal on mouse move)
+    private var cmdUnderlineRange: NSRange?
+
     override func mouseMoved(with event: NSEvent) {
         super.mouseMoved(with: event)
         let point = convert(event.locationInWindow, from: nil)
         guard bounds.contains(point) else {
             cancelHoverTimer()
+            clearCmdUnderline()
             onHoverDismiss?()
             return
         }
 
         let charIndex = characterIndexForInsertion(at: point)
+
+        // ⌘-hover: underline the word under cursor to indicate clickable
+        if event.modifierFlags.contains(.command) {
+            updateCmdUnderline(at: charIndex)
+        } else {
+            clearCmdUnderline()
+        }
 
         // If we moved to a different character, reset the hover timer
         if charIndex != lastHoverCharIndex {
@@ -3718,11 +3729,70 @@ class ForgeTextView: NSTextView {
         }
     }
 
+    private func updateCmdUnderline(at charIndex: Int) {
+        let text = string as NSString
+        guard charIndex < text.length else {
+            clearCmdUnderline()
+            return
+        }
+
+        let isWord = { (c: unichar) -> Bool in
+            (Unicode.Scalar(c).map { CharacterSet.alphanumerics.contains($0) } ?? false) || c == 0x5F
+        }
+
+        guard isWord(text.character(at: charIndex)) else {
+            clearCmdUnderline()
+            return
+        }
+
+        // Find word boundaries
+        var start = charIndex
+        while start > 0 && isWord(text.character(at: start - 1)) { start -= 1 }
+        var end = charIndex
+        while end < text.length && isWord(text.character(at: end)) { end += 1 }
+
+        let wordRange = NSRange(location: start, length: end - start)
+
+        // Skip if already underlined at this range
+        if let existing = cmdUnderlineRange, existing == wordRange { return }
+
+        clearCmdUnderline()
+
+        // Apply underline + link-style color
+        textStorage?.addAttributes([
+            .underlineStyle: NSUnderlineStyle.single.rawValue,
+            .underlineColor: NSColor(red: 0.45, green: 0.65, blue: 0.95, alpha: 0.8),
+        ], range: wordRange)
+        cmdUnderlineRange = wordRange
+        NSCursor.pointingHand.set()
+    }
+
+    private func clearCmdUnderline() {
+        if let range = cmdUnderlineRange {
+            let text = string as NSString
+            if range.location + range.length <= text.length {
+                textStorage?.removeAttribute(.underlineStyle, range: range)
+                textStorage?.removeAttribute(.underlineColor, range: range)
+            }
+            cmdUnderlineRange = nil
+            NSCursor.iBeam.set()
+        }
+    }
+
     override func mouseExited(with event: NSEvent) {
         super.mouseExited(with: event)
         cancelHoverTimer()
+        clearCmdUnderline()
         onHoverDismiss?()
         lastHoverCharIndex = -1
+    }
+
+    override func flagsChanged(with event: NSEvent) {
+        super.flagsChanged(with: event)
+        // Clear ⌘-hover underline when ⌘ key is released
+        if !event.modifierFlags.contains(.command) {
+            clearCmdUnderline()
+        }
     }
 
     private func cancelHoverTimer() {
@@ -3732,6 +3802,7 @@ class ForgeTextView: NSTextView {
 
     override func mouseDown(with event: NSEvent) {
         cancelHoverTimer()
+        clearCmdUnderline()
         onHoverDismiss?()
         if event.modifierFlags.contains(.command) && event.clickCount == 1 {
             // ⌘-click: position cursor at click location, then jump to definition
