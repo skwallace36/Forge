@@ -381,6 +381,25 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         gutterView.diagnosticMessages = diagnosticMessagesByLine()
         gutterView.needsDisplay = true
 
+        // Update inline diagnostic messages in layout manager
+        if let layoutMgr = forgeLayoutManager {
+            var inlineDiags: [Int: (message: String, severity: Int)] = [:]
+            for diag in newDiagnostics {
+                let line = diag.range.start.line
+                let severity = diag.severity ?? 3
+                // Keep the highest severity diagnostic per line
+                if let existing = inlineDiags[line] {
+                    if severity < existing.severity {
+                        inlineDiags[line] = (message: diag.message, severity: severity)
+                    }
+                } else {
+                    inlineDiags[line] = (message: diag.message, severity: severity)
+                }
+            }
+            layoutMgr.inlineDiagnostics = inlineDiags
+            textView.needsDisplay = true
+        }
+
         // Update minimap diagnostic markers
         minimapView?.diagnosticMarkers = newDiagnostics.map { (line: $0.range.start.line, severity: $0.severity ?? 3) }
         minimapView?.needsDisplay = true
