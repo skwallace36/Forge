@@ -152,6 +152,12 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         (textView as? ForgeTextView)?.onCommandClick = { [weak self] in
             self?.jumpToDefinitionAction(nil as Any?)
         }
+        (textView as? ForgeTextView)?.onHoverAtCharIndex = { [weak self] charIndex in
+            self?.handleAutoHover(charIndex: charIndex)
+        }
+        (textView as? ForgeTextView)?.onHoverDismiss = { [weak self] in
+            self?.dismissAutoHover()
+        }
         textView.isAutomaticTextCompletionEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
         textView.isAutomaticQuoteSubstitutionEnabled = false
@@ -234,6 +240,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
                   self.textView.window?.firstResponder === self.textView else {
                 return event
             }
+            // Dismiss auto-hover on any keystroke
+            self.dismissAutoHover()
             if self.handleKeyForCompletion(event) {
                 return nil // consume
             }
@@ -570,6 +578,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         updateGutterFirstVisibleLine()
         gutterView.needsDisplay = true
         minimapView?.needsDisplay = true
+        dismissAutoHover()
         onScroll?()
 
         // For large files, rehighlight visible range on scroll (debounced)
@@ -1810,6 +1819,43 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         popover.show(relativeTo: showRect, of: scrollView.contentView, preferredEdge: .maxY)
         hoverPopover = popover
+    }
+
+    // MARK: - Auto-hover (mouse hover with delay)
+
+    /// Character index for the currently showing auto-hover (to avoid re-triggering)
+    private var autoHoverCharIndex: Int = -1
+
+    private func handleAutoHover(charIndex: Int) {
+        // Don't re-trigger if already showing hover for this position
+        guard charIndex != autoHoverCharIndex else { return }
+        guard let doc = document, let lsp = lspClient else { return }
+
+        // Don't show hover while completion or signature help is visible
+        if completionWindow?.isVisible == true { return }
+        if signaturePopover?.isShown == true { return }
+
+        let (line, character) = characterIndexToLineColumn(charIndex)
+
+        Task { @MainActor in
+            do {
+                guard let hoverText = try await lsp.hover(url: doc.url, line: line, character: character),
+                      !hoverText.isEmpty else { return }
+                // Check that cursor hasn't moved elsewhere while we were awaiting
+                guard (self.textView as? ForgeTextView)?.lastHoverCharIndex == charIndex else { return }
+                self.autoHoverCharIndex = charIndex
+                self.showHoverPopover(text: hoverText, at: charIndex)
+            } catch {
+                // No hover info — normal
+            }
+        }
+    }
+
+    private func dismissAutoHover() {
+        guard autoHoverCharIndex != -1 else { return }
+        autoHoverCharIndex = -1
+        hoverPopover?.close()
+        hoverPopover = nil
     }
 
     // MARK: - Code Completion
@@ -3353,7 +3399,76 @@ class ForgeTextView: NSTextView {
     /// Callback for ⌘-click jump to definition
     var onCommandClick: (() -> Void)?
 
+    /// Callback for auto-hover: passes the character index under the mouse
+    var onHoverAtCharIndex: ((Int) -> Void)?
+    /// Callback when mouse leaves or hover should dismiss
+    var onHoverDismiss: (() -> Void)?
+
+    private var hoverTimer: DispatchWorkItem?
+    fileprivate(set) var lastHoverCharIndex: Int = -1
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas where area.owner === self {
+            removeTrackingArea(area)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+            owner: self,
+            userInfo: nil,
+        )
+        addTrackingArea(area)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        let point = convert(event.locationInWindow, from: nil)
+        guard bounds.contains(point) else {
+            cancelHoverTimer()
+            onHoverDismiss?()
+            return
+        }
+
+        let charIndex = characterIndexForInsertion(at: point)
+
+        // If we moved to a different character, reset the hover timer
+        if charIndex != lastHoverCharIndex {
+            lastHoverCharIndex = charIndex
+            onHoverDismiss?()
+            cancelHoverTimer()
+
+            guard charIndex < string.count else { return }
+
+            // Check if the character is part of an identifier (not whitespace/punctuation)
+            let ch = (string as NSString).character(at: charIndex)
+            guard CharacterSet.alphanumerics.contains(Unicode.Scalar(ch)!)
+                    || ch == 0x5F /* underscore */ else { return }
+
+            let work = DispatchWorkItem { [weak self] in
+                guard let self = self else { return }
+                self.onHoverAtCharIndex?(charIndex)
+            }
+            hoverTimer = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+        }
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        cancelHoverTimer()
+        onHoverDismiss?()
+        lastHoverCharIndex = -1
+    }
+
+    private func cancelHoverTimer() {
+        hoverTimer?.cancel()
+        hoverTimer = nil
+    }
+
     override func mouseDown(with event: NSEvent) {
+        cancelHoverTimer()
+        onHoverDismiss?()
         if event.modifierFlags.contains(.command) && event.clickCount == 1 {
             // ⌘-click: position cursor at click location, then jump to definition
             let point = convert(event.locationInWindow, from: nil)
