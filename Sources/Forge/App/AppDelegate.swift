@@ -84,6 +84,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         openQuickly.keyEquivalentModifierMask = [.command, .shift]
         fileMenu.addItem(openQuickly)
 
+        // Open Recent submenu
+        let recentMenuItem = NSMenuItem(title: "Open Recent", action: nil, keyEquivalent: "")
+        let recentMenu = NSMenu(title: "Open Recent")
+        recentMenu.performSelector(onMainThread: NSSelectorFromString("_setMenuName:"), with: "NSRecentDocumentsMenu", waitUntilDone: false)
+        recentMenu.addItem(withTitle: "Clear Menu", action: #selector(NSDocumentController.clearRecentDocuments(_:)), keyEquivalent: "")
+        recentMenuItem.submenu = recentMenu
+        fileMenu.addItem(recentMenuItem)
+
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "Save", action: #selector(saveDocument(_:)), keyEquivalent: "s")
 

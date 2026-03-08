@@ -197,6 +197,9 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         project.tabManager.openOrFocus(document: doc)
         project.navigationHistory.push(url: url)
         splitViewController.editorAreaDidUpdate()
+
+        // Track in recent documents
+        NSDocumentController.shared.noteNewRecentDocumentURL(url)
     }
 
     /// Open a file and scroll to a specific line/column (0-based, LSP convention)
