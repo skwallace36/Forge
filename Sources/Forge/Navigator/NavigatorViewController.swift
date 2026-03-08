@@ -43,7 +43,7 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         scrollView.drawsBackground = false
         scrollView.autohidesScrollers = true
 
-        outlineView = NSOutlineView()
+        outlineView = NavigatorOutlineView()
         outlineView.headerView = nil
         outlineView.backgroundColor = .clear
         outlineView.indentationPerLevel = 16
@@ -666,5 +666,51 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
             outlineView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
             outlineView.scrollRowToVisible(row)
         }
+    }
+
+    // MARK: - Keyboard Actions (called from NavigatorOutlineView)
+
+    func deleteSelectedFile() {
+        let row = outlineView.selectedRow
+        guard row >= 0, let node = outlineView.item(atRow: row) as? FileNode else { return }
+
+        // Reuse deleteAction logic
+        let fakeMenuItem = NSMenuItem()
+        fakeMenuItem.representedObject = node
+        deleteAction(fakeMenuItem)
+    }
+
+    func renameSelectedFile() {
+        let row = outlineView.selectedRow
+        guard row >= 0, let node = outlineView.item(atRow: row) as? FileNode else { return }
+
+        let fakeMenuItem = NSMenuItem()
+        fakeMenuItem.representedObject = node
+        renameAction(fakeMenuItem)
+    }
+}
+
+// MARK: - Custom Outline View with Keyboard Handling
+
+/// NSOutlineView subclass that forwards Delete and Enter keys to the navigator.
+private class NavigatorOutlineView: NSOutlineView {
+    override func keyDown(with event: NSEvent) {
+        // Delete or Backspace → trash selected item
+        if event.keyCode == 51 || event.keyCode == 117 { // Backspace or Forward Delete
+            if let nav = delegate as? NavigatorViewController {
+                nav.deleteSelectedFile()
+                return
+            }
+        }
+
+        // Enter (Return) → rename selected item
+        if event.keyCode == 36 { // Return key
+            if let nav = delegate as? NavigatorViewController {
+                nav.renameSelectedFile()
+                return
+            }
+        }
+
+        super.keyDown(with: event)
     }
 }
