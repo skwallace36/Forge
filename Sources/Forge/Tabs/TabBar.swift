@@ -3,6 +3,7 @@ import AppKit
 protocol TabBarDelegate: AnyObject {
     func tabBar(_ tabBar: TabBar, didSelectTabAt index: Int)
     func tabBar(_ tabBar: TabBar, didCloseTabAt index: Int)
+    func tabBar(_ tabBar: TabBar, didMoveTabFrom sourceIndex: Int, to destIndex: Int)
 }
 
 /// Custom tab bar view — single row of tabs above the editor.
@@ -37,7 +38,6 @@ class TabBar: NSView {
         tabButtons.removeAll()
 
         var xOffset: CGFloat = 0
-        let tabWidth: CGFloat = 150
 
         for (index, tab) in tabs.enumerated() {
             let button = TabButton(
@@ -58,12 +58,59 @@ class TabBar: NSView {
         needsDisplay = true
     }
 
+    private let tabWidth: CGFloat = 150
+
     @objc private func tabClicked(_ sender: TabButton) {
         delegate?.tabBar(self, didSelectTabAt: sender.index)
     }
 
     @objc private func tabCloseClicked(_ sender: TabButton) {
         delegate?.tabBar(self, didCloseTabAt: sender.index)
+    }
+
+    /// Called during drag to reorder tabs visually and notify delegate
+    func handleDrag(from button: TabButton, event: NSEvent) {
+        let startLocation = convert(event.locationInWindow, from: nil)
+        let originalIndex = button.index
+        var currentIndex = originalIndex
+
+        // Drag loop
+        while true {
+            guard let nextEvent = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) else { break }
+
+            if nextEvent.type == .leftMouseUp { break }
+
+            let currentLocation = convert(nextEvent.locationInWindow, from: nil)
+            let deltaX = currentLocation.x - startLocation.x
+
+            // Calculate which tab position the drag is over
+            let dragCenter = CGFloat(originalIndex) * tabWidth + tabWidth / 2 + deltaX
+            var targetIndex = Int(dragCenter / tabWidth)
+            targetIndex = max(0, min(targetIndex, tabButtons.count - 1))
+
+            if targetIndex != currentIndex {
+                // Swap buttons visually
+                let sourceButton = tabButtons.remove(at: currentIndex)
+                tabButtons.insert(sourceButton, at: targetIndex)
+
+                // Update indices
+                for (i, btn) in tabButtons.enumerated() {
+                    btn.index = i
+                    btn.frame.origin.x = CGFloat(i) * tabWidth
+                }
+
+                delegate?.tabBar(self, didMoveTabFrom: currentIndex, to: targetIndex)
+                currentIndex = targetIndex
+            }
+
+            // Move the dragged button to follow the mouse
+            button.frame.origin.x = max(0, currentLocation.x - tabWidth / 2)
+        }
+
+        // Snap back to grid position
+        for (i, btn) in tabButtons.enumerated() {
+            btn.frame.origin.x = CGFloat(i) * tabWidth
+        }
     }
 
     override var intrinsicContentSize: NSSize {
@@ -134,10 +181,17 @@ class TabButton: NSView {
             if let target = target, let action = closeAction {
                 _ = target.perform(action, with: self)
             }
-        } else {
-            if let target = target, let action = selectAction {
-                _ = target.perform(action, with: self)
-            }
+            return
+        }
+
+        // Select the tab first
+        if let target = target, let action = selectAction {
+            _ = target.perform(action, with: self)
+        }
+
+        // Start drag tracking
+        if let tabBar = superview as? TabBar {
+            tabBar.handleDrag(from: self, event: event)
         }
     }
 

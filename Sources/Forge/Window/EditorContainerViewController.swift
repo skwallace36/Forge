@@ -165,6 +165,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         refreshEditor()
     }
 
+    func tabBar(_ tabBar: TabBar, didMoveTabFrom sourceIndex: Int, to destIndex: Int) {
+        project.tabManager.moveTab(from: sourceIndex, to: destIndex)
+    }
+
     func tabBar(_ tabBar: TabBar, didCloseTabAt index: Int) {
         guard index >= 0 && index < project.tabManager.tabs.count else { return }
         let doc = project.tabManager.tabs[index].document

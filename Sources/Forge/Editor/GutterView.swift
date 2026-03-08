@@ -9,6 +9,37 @@ class GutterView: NSView {
 
     override var isFlipped: Bool { true }
 
+    override func mouseDown(with event: NSEvent) {
+        guard let textView = textView,
+              let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else {
+            super.mouseDown(with: event)
+            return
+        }
+
+        let text = textView.string as NSString
+        guard text.length > 0 else { return }
+
+        let visibleRect = textView.enclosingScrollView?.contentView.bounds ?? .zero
+        let localPoint = convert(event.locationInWindow, from: nil)
+
+        // Adjust y for scroll offset
+        let textViewY = localPoint.y + visibleRect.origin.y
+
+        // Convert to a character index via layout manager
+        let adjustedPoint = NSPoint(
+            x: 0,
+            y: textViewY - textView.textContainerInset.height
+        )
+        let glyphIndex = layoutManager.glyphIndex(for: adjustedPoint, in: textContainer)
+        let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
+
+        guard charIndex < text.length else { return }
+
+        let lineRange = text.lineRange(for: NSRange(location: charIndex, length: 0))
+        textView.setSelectedRange(lineRange)
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         let bgColor = theme?.gutterBackground ?? NSColor(red: 0.13, green: 0.14, blue: 0.16, alpha: 1.0)
         let lineNumColor = theme?.gutterForeground ?? NSColor(white: 0.45, alpha: 1.0)

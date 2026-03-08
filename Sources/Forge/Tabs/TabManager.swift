@@ -76,6 +76,22 @@ class TabManager {
         selectedIndex = index
     }
 
+    func moveTab(from sourceIndex: Int, to destIndex: Int) {
+        guard sourceIndex >= 0 && sourceIndex < tabs.count,
+              destIndex >= 0 && destIndex < tabs.count,
+              sourceIndex != destIndex else { return }
+        let tab = tabs.remove(at: sourceIndex)
+        tabs.insert(tab, at: destIndex)
+        // Adjust selected index
+        if selectedIndex == sourceIndex {
+            selectedIndex = destIndex
+        } else if sourceIndex < selectedIndex && destIndex >= selectedIndex {
+            selectedIndex -= 1
+        } else if sourceIndex > selectedIndex && destIndex <= selectedIndex {
+            selectedIndex += 1
+        }
+    }
+
     func reopenLast() {
         guard let doc = recentlyClosed.popLast() else { return }
         doc.loadFromDisk()
