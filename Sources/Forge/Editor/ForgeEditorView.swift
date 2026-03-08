@@ -47,7 +47,11 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     let theme: Theme = .xcodeDefaultDark
     private(set) var fontSize: CGFloat = Preferences.shared.fontSize
     var editorFont: NSFont { Preferences.shared.editorFont(size: fontSize) }
-    let gutterWidth: CGFloat = 44
+    /// Minimum gutter width; increases for files with 10k+ lines
+    private(set) var gutterWidth: CGFloat = 44
+
+    /// Callback to notify container that gutter width needs updating
+    var onGutterWidthChange: ((CGFloat) -> Void)?
     var tabWidth: Int { document?.detectedTabWidth ?? Preferences.shared.tabWidth }
     private var forgeLayoutManager: ForgeLayoutManager?
 
@@ -549,6 +553,19 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Update cached total line count (call on text change)
     private func updateLineCount() {
         cachedTotalLines = lineStartOffsets.count
+        updateGutterWidth()
+    }
+
+    /// Recompute gutter width based on total line count
+    private func updateGutterWidth() {
+        let digits = max(3, String(cachedTotalLines).count)
+        // Approximate: 8pt per digit + 14pt padding for diagnostics/fold markers
+        let newWidth = CGFloat(digits) * 8.0 + 14.0
+        let rounded = ceil(newWidth / 2.0) * 2.0 // round to even
+        if rounded != gutterWidth {
+            gutterWidth = rounded
+            onGutterWidthChange?(rounded)
+        }
     }
 
     private func notifyCursorPosition() {

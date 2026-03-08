@@ -11,6 +11,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     private let statusBar = StatusBar()
     private let placeholderLabel = NSTextField(labelWithString: "Open a file to start editing\n\n⇧⌘O  Open Quickly\n⌘O    Open File\n⌘N    New File")
     private let binaryLabel = NSTextField(labelWithString: "")
+    private lazy var gutterWidthConstraint = editor.gutterView.widthAnchor.constraint(equalToConstant: editor.gutterWidth)
 
     init(project: ForgeProject) {
         self.project = project
@@ -92,7 +93,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             editor.gutterView.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
             editor.gutterView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             editor.gutterView.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
-            editor.gutterView.widthAnchor.constraint(equalToConstant: editor.gutterWidth),
+            gutterWidthConstraint,
 
             // Scroll view: to the right of gutter, left of minimap
             sv.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
@@ -131,6 +132,11 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         // Wire up LSP (diagnostics routing is handled by MainSplitViewController)
         editor.lspClient = project.lspClient
         editor.projectRootURL = project.rootURL
+
+        // Update gutter width when line count changes
+        editor.onGutterWidthChange = { [weak self] newWidth in
+            self?.gutterWidthConstraint.constant = newWidth
+        }
 
         // Wire up cursor position to status bar and inspector
         editor.onCursorChange = { [weak self] line, column, totalLines, selectionLength in
