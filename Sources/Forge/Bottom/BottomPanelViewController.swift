@@ -118,6 +118,18 @@ class BottomPanelViewController: NSViewController {
         showPanel(at: 3)
     }
 
+    func showTerminal() {
+        segmented.selectedSegment = 2
+        showPanel(at: 2)
+    }
+
+    /// Show a specific panel by index (0=Build Log, 1=Problems, 2=Terminal, 3=Claude, 4=Search, 5=Source Control)
+    func showPanelByIndex(_ index: Int) {
+        guard index >= 0 && index <= 5 else { return }
+        segmented.selectedSegment = index
+        showPanel(at: index)
+    }
+
     func sendCodeToClaude(_ code: String, fileName: String?, line: Int?) {
         showClaude()
         claudeView.sendCodeToClaude(code, fileName: fileName, line: line)

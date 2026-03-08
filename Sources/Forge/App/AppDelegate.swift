@@ -324,9 +324,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         toggleBottom.keyEquivalentModifierMask = [.command, .shift]
         viewMenu.addItem(toggleBottom)
 
-        let showSC = NSMenuItem(title: "Source Control", action: #selector(MainSplitViewController.showSourceControlAction(_:)), keyEquivalent: "2")
-        showSC.keyEquivalentModifierMask = [.command, .control]
-        viewMenu.addItem(showSC)
+        // Bottom panel tab shortcuts ⌃⌘1-6
+        let bottomTabs = [
+            ("Build Log", #selector(MainSplitViewController.showBottomTab1(_:)), "1"),
+            ("Problems", #selector(MainSplitViewController.showBottomTab2(_:)), "2"),
+            ("Terminal", #selector(MainSplitViewController.showBottomTab3(_:)), "3"),
+            ("Claude", #selector(MainSplitViewController.showBottomTab4(_:)), "4"),
+            ("Search", #selector(MainSplitViewController.showBottomTab5(_:)), "5"),
+            ("Source Control", #selector(MainSplitViewController.showBottomTab6(_:)), "6"),
+        ]
+        for (title, action, key) in bottomTabs {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            item.keyEquivalentModifierMask = [.command, .control]
+            viewMenu.addItem(item)
+        }
 
         viewMenu.addItem(.separator())
 

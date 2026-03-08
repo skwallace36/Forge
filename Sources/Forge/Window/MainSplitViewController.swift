@@ -259,6 +259,17 @@ class MainSplitViewController: NSSplitViewController {
         bottomPanelVC.sourceControlView.refresh(gitStatus: project.gitStatus)
         bottomPanelVC.showSourceControl()
     }
+
+    @objc func showBottomTab1(_ sender: Any?) { showBottomPanel(); bottomPanelVC.showPanelByIndex(0) }
+    @objc func showBottomTab2(_ sender: Any?) { showBottomPanel(); bottomPanelVC.showPanelByIndex(1) }
+    @objc func showBottomTab3(_ sender: Any?) { showBottomPanel(); bottomPanelVC.showPanelByIndex(2) }
+    @objc func showBottomTab4(_ sender: Any?) { showBottomPanel(); bottomPanelVC.showPanelByIndex(3) }
+    @objc func showBottomTab5(_ sender: Any?) { showBottomPanel(); bottomPanelVC.showPanelByIndex(4) }
+    @objc func showBottomTab6(_ sender: Any?) {
+        showBottomPanel()
+        bottomPanelVC.sourceControlView.refresh(gitStatus: project.gitStatus)
+        bottomPanelVC.showPanelByIndex(5)
+    }
 }
 
 extension MainSplitViewController: SearchResultsViewDelegate {
