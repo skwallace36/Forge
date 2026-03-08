@@ -38,7 +38,7 @@ class TabManager {
     }
     /// Track MRU by URL so it survives tab close/reorder
     private var previousSelectedURL: URL?
-    private var recentlyClosed: [ForgeDocument] = []
+    private var recentlyClosedURLs: [URL] = []
 
     var currentTab: Tab? {
         guard selectedIndex >= 0 && selectedIndex < tabs.count else { return nil }
@@ -78,10 +78,9 @@ class TabManager {
         // Replace existing preview tab if any
         if let previewIndex = tabs.firstIndex(where: { $0.isPreview }) {
             let closed = tabs.remove(at: previewIndex)
-            if !closed.isModified {
-                // Don't add unmodified preview tabs to recently closed
-            } else {
-                recentlyClosed.append(closed.document)
+            onTabClosed?(closed.url)
+            if closed.isModified {
+                recentlyClosedURLs.append(closed.url)
             }
             // Adjust selected index after removal
             if selectedIndex > previewIndex {
@@ -108,7 +107,8 @@ class TabManager {
     func closeCurrent() {
         guard selectedIndex >= 0 && selectedIndex < tabs.count else { return }
         let closed = tabs.remove(at: selectedIndex)
-        recentlyClosed.append(closed.document)
+        recentlyClosedURLs.append(closed.url)
+        onTabClosed?(closed.url)
 
         if tabs.isEmpty {
             selectedIndex = -1
@@ -120,7 +120,8 @@ class TabManager {
     func close(at index: Int) {
         guard index >= 0 && index < tabs.count else { return }
         let closed = tabs.remove(at: index)
-        recentlyClosed.append(closed.document)
+        recentlyClosedURLs.append(closed.url)
+        onTabClosed?(closed.url)
 
         if tabs.isEmpty {
             selectedIndex = -1
@@ -128,6 +129,9 @@ class TabManager {
             selectedIndex = max(0, selectedIndex - 1)
         }
     }
+
+    /// Called when a tab is closed so the project can clean up LSP/documents
+    var onTabClosed: ((URL) -> Void)?
 
     func selectPrevious() {
         guard tabs.count > 1 else { return }
@@ -172,10 +176,11 @@ class TabManager {
         }
     }
 
-    func reopenLast() {
-        guard let doc = recentlyClosed.popLast() else { return }
-        doc.loadFromDisk()
-        openOrFocus(document: doc)
+    /// The most recently closed URL (for reopen)
+    var lastClosedURL: URL? { recentlyClosedURLs.last }
+
+    func popLastClosedURL() -> URL? {
+        recentlyClosedURLs.popLast()
     }
 
     /// Close all tabs except the one at the given index
@@ -183,7 +188,8 @@ class TabManager {
         guard index >= 0 && index < tabs.count else { return }
         let kept = tabs[index]
         for (i, tab) in tabs.enumerated() where i != index {
-            recentlyClosed.append(tab.document)
+            recentlyClosedURLs.append(tab.url)
+            onTabClosed?(tab.url)
         }
         tabs = [kept]
         selectedIndex = 0
@@ -192,7 +198,8 @@ class TabManager {
     /// Close all tabs
     func closeAll() {
         for tab in tabs {
-            recentlyClosed.append(tab.document)
+            recentlyClosedURLs.append(tab.url)
+            onTabClosed?(tab.url)
         }
         tabs.removeAll()
         selectedIndex = -1
@@ -203,7 +210,8 @@ class TabManager {
         guard index >= 0 && index < tabs.count - 1 else { return }
         let removed = tabs[(index + 1)...]
         for tab in removed {
-            recentlyClosed.append(tab.document)
+            recentlyClosedURLs.append(tab.url)
+            onTabClosed?(tab.url)
         }
         tabs.removeSubrange((index + 1)...)
         if selectedIndex > index {

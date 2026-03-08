@@ -347,8 +347,9 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
     }
 
     @objc func reopenLastTab(_ sender: Any?) {
-        project.tabManager.reopenLast()
-        splitViewController.editorAreaDidUpdate()
+        guard let url = project.tabManager.popLastClosedURL(),
+              FileManager.default.fileExists(atPath: url.path) else { return }
+        openFile(url)
     }
 
     @objc func switchToMostRecentTab(_ sender: Any?) {

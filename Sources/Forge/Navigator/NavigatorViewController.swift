@@ -99,13 +99,25 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
     }
 
     private func startFileWatcher() {
-        fileWatcher = FileSystemWatcher(path: project.rootURL.path, debounceInterval: 0.8) { [weak self] _ in
+        fileWatcher = FileSystemWatcher(path: project.rootURL.path, debounceInterval: 0.8) { [weak self] changedPaths in
             self?.reloadFileTree()
             self?.refreshGitStatus()
-            // Also check if any open documents were modified externally
-            self?.windowController?.checkForExternalChanges()
+            // Check if any open documents were modified externally
+            // Only check documents whose files actually changed
+            self?.checkOpenDocuments(changedPaths: changedPaths)
         }
         fileWatcher?.start()
+    }
+
+    private func checkOpenDocuments(changedPaths: [String]) {
+        guard !changedPaths.isEmpty else { return }
+        let changedURLs = Set(changedPaths.map { URL(fileURLWithPath: $0) })
+        let hasOpenChanged = project.tabManager.tabs.contains { tab in
+            changedURLs.contains(tab.url)
+        }
+        if hasOpenChanged {
+            windowController?.checkForExternalChanges()
+        }
     }
 
     /// Reload the file tree while preserving expanded state

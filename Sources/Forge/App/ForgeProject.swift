@@ -16,6 +16,11 @@ class ForgeProject {
         self.buildSystem = BuildSystem(projectRoot: rootURL)
         self.gitStatus = GitStatusTracker(rootURL: rootURL)
 
+        // Clean up when a tab is closed
+        tabManager.onTabClosed = { [weak self] url in
+            self?.closeDocument(for: url)
+        }
+
         // Re-open documents with LSP after a crash restart
         lspClient.onRestarted = { [weak self] in
             guard let self = self else { return }
