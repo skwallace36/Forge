@@ -40,6 +40,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
     let theme: Theme = .xcodeDefaultDark
     private(set) var fontSize: CGFloat = Preferences.shared.fontSize
+    var editorFont: NSFont { Preferences.shared.editorFont(size: fontSize) }
     let gutterWidth: CGFloat = 44
     var tabWidth: Int { Preferences.shared.tabWidth }
     private var forgeLayoutManager: ForgeLayoutManager?
@@ -135,7 +136,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         applyWordWrap(Preferences.shared.wordWrap)
 
         // Editor font & colors from theme
-        textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        textView.font = editorFont
         textView.textColor = theme.foreground
         textView.backgroundColor = theme.background
         textView.insertionPointColor = theme.cursor
@@ -262,7 +263,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         textView.string = doc.textStorage.string
 
         // Apply font and foreground color
-        textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        textView.font = editorFont
         textView.textColor = theme.foreground
 
         if let ts = textView.textStorage, ts.length > 0 {
@@ -270,7 +271,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             ts.beginEditing()
             ts.addAttributes([
                 .foregroundColor: theme.foreground,
-                .font: NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular),
+                .font: editorFont,
             ], range: fullRange)
             ts.endEditing()
         }
@@ -629,7 +630,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     }
 
     private func applyFontSize() {
-        textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        textView.font = editorFont
         if let doc = document {
             // Re-display to apply new font size to highlighting
             displayDocument(doc)
@@ -1488,7 +1489,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         if textView.shouldChangeText(in: NSRange(location: insertPoint, length: 0), replacementString: insertText) {
             ts.insert(NSAttributedString(string: insertText, attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular),
+                .font: editorFont,
                 .foregroundColor: theme.foreground,
             ]), at: insertPoint)
             textView.didChangeText()
@@ -1709,7 +1710,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         if textView.shouldChangeText(in: NSRange(location: insertPoint, length: 0), replacementString: insertText) {
             ts.insert(NSAttributedString(string: insertText, attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular),
+                .font: editorFont,
                 .foregroundColor: theme.foreground,
             ]), at: insertPoint)
             textView.didChangeText()
@@ -1737,7 +1738,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         if textView.shouldChangeText(in: NSRange(location: insertPoint, length: 0), replacementString: insertText) {
             ts.insert(NSAttributedString(string: insertText, attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular),
+                .font: editorFont,
                 .foregroundColor: theme.foreground,
             ]), at: insertPoint)
             textView.didChangeText()

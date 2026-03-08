@@ -10,6 +10,7 @@ class Preferences {
     // MARK: - Keys
 
     private enum Key {
+        static let fontName = "ForgeFontName"
         static let fontSize = "ForgeFontSize"
         static let tabWidth = "ForgeTabWidth"
         static let showMinimap = "ForgeShowMinimap"
@@ -21,6 +22,24 @@ class Preferences {
     }
 
     // MARK: - Font
+
+    /// The font family name (nil = system monospace)
+    var fontName: String? {
+        get { defaults.string(forKey: Key.fontName) }
+        set {
+            defaults.set(newValue, forKey: Key.fontName)
+            NotificationCenter.default.post(name: .preferencesDidChange, object: nil)
+        }
+    }
+
+    /// Returns the editor font at the given size
+    func editorFont(size: CGFloat? = nil) -> NSFont {
+        let sz = size ?? fontSize
+        if let name = fontName, let font = NSFont(name: name, size: sz) {
+            return font
+        }
+        return NSFont.monospacedSystemFont(ofSize: sz, weight: .regular)
+    }
 
     var fontSize: CGFloat {
         get {

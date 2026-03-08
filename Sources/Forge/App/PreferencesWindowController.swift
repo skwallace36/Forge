@@ -5,7 +5,7 @@ class PreferencesWindowController: NSWindowController {
 
     init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 400),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 440),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -31,16 +31,41 @@ class PreferencesViewController: NSViewController {
     private let prefs = Preferences.shared
 
     override func loadView() {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 400))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 440))
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor(red: 0.15, green: 0.16, blue: 0.18, alpha: 1.0).cgColor
 
-        var y: CGFloat = 366
+        var y: CGFloat = 406
 
         // Editor section
         let titleLabel = makeLabel("Editor", bold: true, size: 15)
         titleLabel.frame = NSRect(x: 20, y: y, width: 200, height: 20)
         container.addSubview(titleLabel)
+        y -= 34
+
+        // Font family
+        let fontFamilyLabel = makeLabel("Font:")
+        fontFamilyLabel.frame = NSRect(x: 20, y: y, width: 140, height: 20)
+        container.addSubview(fontFamilyLabel)
+
+        let fontPopup = NSPopUpButton(frame: NSRect(x: 170, y: y - 4, width: 200, height: 28))
+        fontPopup.addItem(withTitle: "System Monospace")
+        // Find monospaced fonts
+        let monoFonts = NSFontManager.shared.availableFontFamilies.filter { family in
+            guard let font = NSFont(name: family, size: 13) else { return false }
+            return font.isFixedPitch || family.localizedCaseInsensitiveContains("mono") || family.localizedCaseInsensitiveContains("code") || family.localizedCaseInsensitiveContains("courier")
+        }.sorted()
+        for family in monoFonts {
+            fontPopup.addItem(withTitle: family)
+        }
+        if let currentFont = prefs.fontName {
+            fontPopup.selectItem(withTitle: currentFont)
+        } else {
+            fontPopup.selectItem(withTitle: "System Monospace")
+        }
+        fontPopup.target = self
+        fontPopup.action = #selector(fontFamilyChanged(_:))
+        container.addSubview(fontPopup)
         y -= 34
 
         // Font size
@@ -153,6 +178,14 @@ class PreferencesViewController: NSViewController {
     }
 
     // MARK: - Actions
+
+    @objc private func fontFamilyChanged(_ sender: NSPopUpButton) {
+        if sender.selectedItem?.title == "System Monospace" {
+            prefs.fontName = nil
+        } else {
+            prefs.fontName = sender.selectedItem?.title
+        }
+    }
 
     @objc private func fontSizeChanged(_ sender: NSStepper) {
         prefs.fontSize = CGFloat(sender.integerValue)
