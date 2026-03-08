@@ -67,7 +67,7 @@ struct Theme {
         background: NSColor(red: 0.15, green: 0.16, blue: 0.18, alpha: 1.0),
         foreground: NSColor(white: 0.85, alpha: 1.0),
         cursor: NSColor.white,
-        selection: NSColor(white: 1.0, alpha: 0.15),
+        selection: NSColor(red: 0.24, green: 0.34, blue: 0.52, alpha: 1.0),
         currentLine: NSColor(white: 1.0, alpha: 0.06),
         gutterBackground: NSColor(red: 0.13, green: 0.14, blue: 0.16, alpha: 1.0),
         gutterForeground: NSColor(white: 0.45, alpha: 1.0),
