@@ -10,6 +10,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
 
     private(set) var document: ForgeDocument?
     private var highlighter: SyntaxHighlighter?
+    private var simpleHighlighter: SimpleHighlighter?
     private var rehighlightWorkItem: DispatchWorkItem?
     private var lspChangeWorkItem: DispatchWorkItem?
 
@@ -155,14 +156,26 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         }
 
         // Syntax highlighting
-        if doc.fileExtension == "swift" {
+        let ext = doc.fileExtension.lowercased()
+        if ext == "swift" {
             highlighter = SyntaxHighlighter(theme: theme, fontSize: fontSize)
+            simpleHighlighter = nil
             highlighter?.parse(textView.string)
             if let ts = textView.textStorage {
                 highlighter?.highlight(ts)
             }
         } else {
             highlighter = nil
+            let supportedExts = ["json", "md", "markdown", "yml", "yaml", "py", "python",
+                                 "js", "ts", "c", "h", "cpp", "m"]
+            if supportedExts.contains(ext) {
+                simpleHighlighter = SimpleHighlighter(theme: theme, fontSize: fontSize, language: ext)
+                if let ts = textView.textStorage {
+                    simpleHighlighter?.highlight(ts)
+                }
+            } else {
+                simpleHighlighter = nil
+            }
         }
 
         // Apply any existing diagnostics
@@ -314,12 +327,17 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
     }
 
     private func rehighlight() {
-        guard let highlighter = highlighter, let ts = textView.textStorage else { return }
-        let text = ts.string
-        highlighter.parse(text)
-
+        guard let ts = textView.textStorage else { return }
         let selectedRange = textView.selectedRange()
-        highlighter.highlight(ts)
+
+        if let highlighter = highlighter {
+            let text = ts.string
+            highlighter.parse(text)
+            highlighter.highlight(ts)
+        } else if let simple = simpleHighlighter {
+            simple.highlight(ts)
+        }
+
         applyDiagnosticUnderlines()
         updateCurrentLineHighlight()
         textView.setSelectedRange(selectedRange)

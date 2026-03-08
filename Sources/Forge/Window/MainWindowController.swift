@@ -72,8 +72,33 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
     // MARK: - Tab actions
 
     @objc func closeCurrentTab(_ sender: Any?) {
-        project.tabManager.closeCurrent()
-        splitViewController.editorAreaDidUpdate()
+        guard let doc = project.tabManager.currentDocument else { return }
+
+        if doc.isModified {
+            let alert = NSAlert()
+            alert.messageText = "Do you want to save changes to \(doc.fileName)?"
+            alert.informativeText = "Your changes will be lost if you don't save them."
+            alert.addButton(withTitle: "Save")
+            alert.addButton(withTitle: "Don't Save")
+            alert.addButton(withTitle: "Cancel")
+            alert.alertStyle = .warning
+
+            let response = alert.runModal()
+            switch response {
+            case .alertFirstButtonReturn: // Save
+                saveCurrentDocument()
+                project.tabManager.closeCurrent()
+                splitViewController.editorAreaDidUpdate()
+            case .alertSecondButtonReturn: // Don't Save
+                project.tabManager.closeCurrent()
+                splitViewController.editorAreaDidUpdate()
+            default: // Cancel
+                return
+            }
+        } else {
+            project.tabManager.closeCurrent()
+            splitViewController.editorAreaDidUpdate()
+        }
     }
 
     @objc func selectPreviousTab(_ sender: Any?) {
