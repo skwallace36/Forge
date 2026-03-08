@@ -90,11 +90,46 @@ class LSPClient {
 
     func stop() {
         initialized = false
-        connection?.onTermination = nil // prevent crash handler during intentional stop
-        connection?.sendNotification(method: "shutdown", params: nil)
-        connection?.sendNotification(method: "exit", params: nil)
-        connection?.stop()
+        guard let conn = connection else { return }
+        conn.onTermination = nil // prevent crash handler during intentional stop
         connection = nil
+
+        // LSP spec: shutdown is a request, exit is a notification.
+        // Send shutdown request and follow with exit; don't wait for response
+        // since we may be called from deinit.
+        Task {
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    _ = try? await conn.sendRequest(method: "shutdown", params: nil)
+                    conn.sendNotification(method: "exit", params: nil)
+                }
+                // Timeout after 2 seconds — don't hang forever
+                group.addTask {
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                }
+                // Whichever finishes first
+                await group.next()
+                group.cancelAll()
+            }
+            conn.stop()
+        }
+    }
+
+    // MARK: - Language Detection
+
+    /// Map file extensions to LSP language identifiers.
+    /// sourcekit-lsp supports Swift, C, C++, Objective-C, and Objective-C++.
+    static func languageId(for url: URL) -> String? {
+        switch url.pathExtension.lowercased() {
+        case "swift": return "swift"
+        case "c": return "c"
+        case "h": return "c"  // headers default to C; sourcekit-lsp infers if ObjC
+        case "cpp", "cc", "cxx": return "cpp"
+        case "hpp", "hxx": return "cpp"
+        case "m": return "objective-c"
+        case "mm": return "objective-cpp"
+        default: return nil
+        }
     }
 
     // MARK: - Document Lifecycle

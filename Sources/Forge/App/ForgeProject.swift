@@ -19,8 +19,9 @@ class ForgeProject {
         // Re-open documents with LSP after a crash restart
         lspClient.onRestarted = { [weak self] in
             guard let self = self else { return }
-            for (url, doc) in self.openDocuments where url.pathExtension == "swift" {
-                self.lspClient.didOpen(url: url, text: doc.textStorage.string)
+            for (url, doc) in self.openDocuments {
+                guard let lang = LSPClient.languageId(for: url) else { continue }
+                self.lspClient.didOpen(url: url, text: doc.textStorage.string, language: lang)
             }
         }
 
@@ -44,9 +45,9 @@ class ForgeProject {
         doc.reloadIndentSettings()
         openDocuments[url] = doc
 
-        // Notify LSP
-        if url.pathExtension == "swift" {
-            lspClient.didOpen(url: url, text: doc.textStorage.string)
+        // Notify LSP for supported languages
+        if let lang = LSPClient.languageId(for: url) {
+            lspClient.didOpen(url: url, text: doc.textStorage.string, language: lang)
         }
 
         return doc
@@ -55,7 +56,9 @@ class ForgeProject {
     /// Close a document
     func closeDocument(for url: URL) {
         openDocuments.removeValue(forKey: url)
-        lspClient.didClose(url: url)
+        if LSPClient.languageId(for: url) != nil {
+            lspClient.didClose(url: url)
+        }
     }
 
     var displayName: String {

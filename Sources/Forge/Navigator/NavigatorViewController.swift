@@ -102,6 +102,8 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         fileWatcher = FileSystemWatcher(path: project.rootURL.path, debounceInterval: 0.8) { [weak self] _ in
             self?.reloadFileTree()
             self?.refreshGitStatus()
+            // Also check if any open documents were modified externally
+            self?.windowController?.checkForExternalChanges()
         }
         fileWatcher?.start()
     }
