@@ -160,6 +160,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         formatItem.keyEquivalentModifierMask = [.control, .shift]
         editMenu.addItem(formatItem)
 
+        editMenu.addItem(.separator())
+
+        let sendToClaudeItem = NSMenuItem(title: "Send to Claude", action: #selector(EditorContainerViewController.sendToClaude(_:)), keyEquivalent: "c")
+        sendToClaudeItem.keyEquivalentModifierMask = [.control, .shift]
+        editMenu.addItem(sendToClaudeItem)
+
         editMenuItem.submenu = editMenu
         mainMenu.addItem(editMenuItem)
 

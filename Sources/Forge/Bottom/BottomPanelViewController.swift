@@ -113,6 +113,16 @@ class BottomPanelViewController: NSViewController {
         showPanel(at: 5)
     }
 
+    func showClaude() {
+        segmented.selectedSegment = 3
+        showPanel(at: 3)
+    }
+
+    func sendCodeToClaude(_ code: String, fileName: String?, line: Int?) {
+        showClaude()
+        claudeView.sendCodeToClaude(code, fileName: fileName, line: line)
+    }
+
     func appendBuildOutput(_ text: String) {
         buildLogView.append(text)
     }

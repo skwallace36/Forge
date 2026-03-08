@@ -119,6 +119,9 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     /// Set this to enable jump-to-definition navigation
     weak var windowController: MainWindowController?
 
+    /// Callback to send code to Claude panel: (code, fileName, line)
+    var onSendToClaude: ((String, String?, Int?) -> Void)?
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -135,6 +138,11 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         // Wire up jump-to-definition
         editor.onJumpToDefinition = { [weak self] url, line, column in
             self?.windowController?.openFile(url, atLine: line, column: column)
+        }
+
+        // Wire up send to Claude
+        editor.onSendToClaude = { [weak self] code, fileName, line in
+            self?.onSendToClaude?(code, fileName, line)
         }
 
         // Wire up jump bar symbol navigation
@@ -327,6 +335,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
     @objc func formatDocument(_ sender: Any?) {
         editor.formatDocument(sender)
+    }
+
+    @objc func sendToClaude(_ sender: Any?) {
+        editor.sendToClaudeAction(sender)
     }
 
     @objc func goToLine(_ sender: Any?) {

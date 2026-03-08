@@ -89,6 +89,22 @@ class TerminalPanelView: NSView, LocalProcessTerminalViewDelegate {
         terminalView.send(txt: text)
     }
 
+    /// Send code to Claude with file context
+    func sendCodeToClaude(_ code: String, fileName: String?, line: Int?) {
+        launchClaude()
+        var prompt = ""
+        if let fileName = fileName {
+            prompt += "# From \(fileName)"
+            if let line = line { prompt += ":\(line)" }
+            prompt += "\n"
+        }
+        prompt += code
+        // Escape the text for terminal input
+        let escaped = prompt.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        sendText(escaped)
+    }
+
     /// Focus the terminal for input
     func focus() {
         window?.makeFirstResponder(terminalView)

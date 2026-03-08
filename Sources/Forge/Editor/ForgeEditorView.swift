@@ -35,6 +35,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Called when "Find All References" finds results: [(url, line, column)]
     var onShowReferences: (([LSPLocation]) -> Void)?
 
+    /// Called when user wants to send selected code to Claude: (code, fileName, line)
+    var onSendToClaude: ((String, String?, Int?) -> Void)?
+
     let theme: Theme = .xcodeDefaultDark
     private(set) var fontSize: CGFloat = Preferences.shared.fontSize
     let gutterWidth: CGFloat = 44
@@ -1740,6 +1743,20 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
         menu.addItem(withTitle: "Select All Occurrences", action: #selector(selectAllOccurrencesAction(_:)), keyEquivalent: "")
+
+        // Send to Claude
+        if textView.selectedRange().length > 0 {
+            menu.addItem(.separator())
+            menu.addItem(withTitle: "Send to Claude", action: #selector(sendToClaudeAction(_:)), keyEquivalent: "")
+        }
+    }
+
+    @objc func sendToClaudeAction(_ sender: Any?) {
+        let sel = textView.selectedRange()
+        guard sel.length > 0 else { return }
+        let text = (textView.string as NSString).substring(with: sel)
+        let (line, _) = characterIndexToLineColumn(sel.location)
+        onSendToClaude?(text, document?.fileName, line + 1)
     }
 
     @objc private func selectAllOccurrencesAction(_ sender: Any?) {

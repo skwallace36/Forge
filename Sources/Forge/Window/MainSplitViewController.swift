@@ -34,6 +34,11 @@ class MainSplitViewController: NSSplitViewController {
         editorContainerVC.windowController = windowController
         bottomPanelVC = BottomPanelViewController()
 
+        // Wire up send to Claude
+        editorContainerVC.onSendToClaude = { [weak self] code, fileName, line in
+            self?.bottomPanelVC.sendCodeToClaude(code, fileName: fileName, line: line)
+        }
+
         // Inner horizontal split for navigator + editor
         let horizontalSplit = NSSplitViewController()
         horizontalSplit.splitView.isVertical = true
