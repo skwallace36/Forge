@@ -40,7 +40,13 @@ struct Theme {
 
     func attributes(for captureName: String, fontSize: CGFloat) -> [NSAttributedString.Key: Any]? {
         guard let style = style(for: captureName) else { return nil }
-        let baseFont = NSFont.monospacedSystemFont(ofSize: fontSize, weight: style.bold ? .bold : .regular)
+        let prefFont = Preferences.shared.editorFont(size: fontSize)
+        let baseFont: NSFont
+        if style.bold {
+            baseFont = NSFontManager.shared.convert(prefFont, toHaveTrait: .boldFontMask)
+        } else {
+            baseFont = prefFont
+        }
         let font: NSFont
         if style.italic {
             let descriptor = baseFont.fontDescriptor.withSymbolicTraits(.italic)

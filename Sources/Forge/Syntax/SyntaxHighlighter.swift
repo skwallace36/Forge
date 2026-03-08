@@ -63,7 +63,7 @@ class SyntaxHighlighter {
         // Reset to default style
         let defaultAttrs: [NSAttributedString.Key: Any] = [
             .foregroundColor: theme.foreground,
-            .font: NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular),
+            .font: Preferences.shared.editorFont(size: fontSize),
         ]
         textStorage.beginEditing()
         textStorage.setAttributes(defaultAttrs, range: fullRange)
@@ -99,7 +99,7 @@ class SyntaxHighlighter {
 
         let defaultAttrs: [NSAttributedString.Key: Any] = [
             .foregroundColor: theme.foreground,
-            .font: NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular),
+            .font: Preferences.shared.editorFont(size: fontSize),
         ]
         textStorage.beginEditing()
         textStorage.setAttributes(defaultAttrs, range: visibleRange)

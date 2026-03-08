@@ -25,7 +25,7 @@ class SimpleHighlighter {
 
         let defaultAttrs: [NSAttributedString.Key: Any] = [
             .foregroundColor: theme.foreground,
-            .font: NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular),
+            .font: Preferences.shared.editorFont(size: fontSize),
         ]
 
         textStorage.beginEditing()
