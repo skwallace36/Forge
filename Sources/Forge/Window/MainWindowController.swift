@@ -281,7 +281,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
             try? tab.document.save()
             project.lspClient.didSave(url: tab.document.url)
         }
-        // Don't refresh editor — just save silently
+        // Persist tab state (scroll/cursor positions, recent files)
+        saveOpenTabs()
     }
 
     // MARK: - External file change detection
@@ -515,13 +516,21 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
     }
 
     func saveOpenTabs() {
+        // Save current document's scroll/cursor before persisting
+        splitViewController.saveCurrentViewportState()
+
         let urls = project.tabManager.tabs.map { $0.url.path }
         let pinned = project.tabManager.tabs.map { $0.isPinned }
         let selectedIndex = project.tabManager.selectedIndex
+        let scrollPositions = project.tabManager.tabs.map { $0.document.savedScrollPosition?.y ?? 0.0 }
+        let cursorPositions = project.tabManager.tabs.map { $0.document.savedSelectionRange?.location ?? 0 }
         let state: [String: Any] = [
             "files": urls,
             "pinned": pinned,
             "selected": selectedIndex,
+            "scrollY": scrollPositions,
+            "cursor": cursorPositions,
+            "recentFiles": project.recentFileURLs.map(\.path),
         ]
         UserDefaults.standard.set(state, forKey: tabStateKey)
     }
@@ -532,11 +541,36 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
               let selected = state["selected"] as? Int else { return }
 
         let pinnedStates = state["pinned"] as? [Bool]
+        let scrollPositions = state["scrollY"] as? [Double]
+        let cursorPositions = state["cursor"] as? [Int]
+
+        // Restore recent files
+        if let recentPaths = state["recentFiles"] as? [String] {
+            for path in recentPaths {
+                let url = URL(fileURLWithPath: path)
+                if FileManager.default.fileExists(atPath: path) {
+                    project.noteRecentFile(url)
+                }
+            }
+        }
 
         for (i, path) in files.enumerated() {
             let url = URL(fileURLWithPath: path)
             guard FileManager.default.fileExists(atPath: path) else { continue }
             let doc = project.document(for: url)
+
+            // Restore scroll/cursor positions into the document
+            if let scrollY = scrollPositions, i < scrollY.count {
+                doc.savedScrollPosition = NSPoint(x: 0, y: scrollY[i])
+            }
+            if let cursor = cursorPositions, i < cursor.count {
+                let loc = cursor[i]
+                let len = (doc.textStorage.string as NSString).length
+                if loc <= len {
+                    doc.savedSelectionRange = NSRange(location: loc, length: 0)
+                }
+            }
+
             project.tabManager.openOrFocus(document: doc)
             // Restore pinned state
             if let pinned = pinnedStates, i < pinned.count, pinned[i] {

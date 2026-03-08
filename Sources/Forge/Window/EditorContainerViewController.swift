@@ -1064,6 +1064,13 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.syncDocumentContent()
     }
 
+    /// Save current document's scroll and cursor position for state persistence
+    func saveCurrentViewportState() {
+        guard let doc = project.tabManager.currentDocument else { return }
+        doc.savedSelectionRange = editor.textView.selectedRange()
+        doc.savedScrollPosition = editor.scrollView.contentView.bounds.origin
+    }
+
     /// Prompt user to save a modified document before closing.
     /// Returns true if OK to proceed (saved or discarded), false if user cancelled.
     private func promptSaveForClose(doc: ForgeDocument) -> Bool {

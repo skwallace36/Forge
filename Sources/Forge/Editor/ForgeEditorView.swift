@@ -2550,7 +2550,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         let ch = text.character(at: position)
         let isWordChar = { (c: unichar) -> Bool in
-            CharacterSet.alphanumerics.contains(Unicode.Scalar(c)!) || c == 0x5F // underscore
+            (Unicode.Scalar(c).map { CharacterSet.alphanumerics.contains($0) } ?? false) || c == 0x5F // underscore
         }
 
         guard isWordChar(ch) else {
@@ -3706,7 +3706,7 @@ class ForgeTextView: NSTextView {
 
             // Check if the character is part of an identifier (not whitespace/punctuation)
             let ch = (string as NSString).character(at: charIndex)
-            guard CharacterSet.alphanumerics.contains(Unicode.Scalar(ch)!)
+            guard (Unicode.Scalar(ch).map { CharacterSet.alphanumerics.contains($0) } ?? false)
                     || ch == 0x5F /* underscore */ else { return }
 
             let work = DispatchWorkItem { [weak self] in
