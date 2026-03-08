@@ -1162,6 +1162,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         guard sel.length == 0, text.length > 0 else {
             ts.endEditing()
             updateCurrentLineHighlight()
+            minimapView?.searchMatchRanges = []
             return
         }
 
@@ -1170,6 +1171,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         guard wordRange.length >= 2 else {
             ts.endEditing()
             updateCurrentLineHighlight()
+            minimapView?.searchMatchRanges = []
             return
         }
 
@@ -1199,6 +1201,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         ts.endEditing()
         updateCurrentLineHighlight()
+
+        // Update minimap with occurrence markers
+        minimapView?.searchMatchRanges = occurrenceHighlightRanges
     }
 
     private func wordRangeAtIndex(_ index: Int, in text: NSString) -> NSRange {

@@ -12,6 +12,11 @@ class MinimapView: NSView {
         didSet { cachedCodeImage = nil }
     }
 
+    /// Search match positions (character offsets) shown as orange markers
+    var searchMatchRanges: [NSRange] = [] {
+        didSet { needsDisplay = true }
+    }
+
     private let scale: CGFloat = 0.12
     private let minimapWidth: CGFloat = 80
 
@@ -117,6 +122,20 @@ class MinimapView: NSView {
 
         viewportBorderColor.setStroke()
         NSBezierPath(rect: vpRect).stroke()
+
+        // Draw search match markers on the right edge
+        if !searchMatchRanges.isEmpty {
+            let searchColor = NSColor(red: 0.95, green: 0.70, blue: 0.20, alpha: 0.80)
+            searchColor.setFill()
+            for range in searchMatchRanges {
+                guard range.location < text.length else { continue }
+                let glyphIdx = layoutManager.glyphIndexForCharacter(at: range.location)
+                guard glyphIdx != NSNotFound else { continue }
+                let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIdx, effectiveRange: nil)
+                let y = (lineRect.origin.y + textView.textContainerInset.height) * scaleFactor
+                NSRect(x: bounds.width - 8, y: y, width: 7, height: max(2, 2)).fill()
+            }
+        }
     }
 
     private func renderCodeImage(
