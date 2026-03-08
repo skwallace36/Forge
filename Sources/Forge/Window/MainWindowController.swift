@@ -204,9 +204,9 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
     }
 
     /// Open a file and scroll to a specific line/column (0-based, LSP convention)
-    func openFile(_ url: URL, atLine line: Int, column: Int) {
+    func openFile(_ url: URL, atLine line: Int, column: Int, selectLength: Int = 0) {
         openFile(url)
-        splitViewController.scrollToLine(line, column: column)
+        splitViewController.scrollToLine(line, column: column, selectLength: selectLength)
     }
 
     func saveCurrentDocument() {

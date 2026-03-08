@@ -2066,7 +2066,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     // MARK: - Scroll to Line
 
     /// Scrolls to a specific line and column (0-based, LSP convention) and places the cursor there.
-    func scrollToLine(_ line: Int, column: Int) {
+    func scrollToLine(_ line: Int, column: Int, selectLength: Int = 0) {
         let text = textView.string as NSString
         guard text.length > 0 else { return }
 
@@ -2080,11 +2080,17 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
 
         let charOffset = min(offset + column, text.length)
-        let lineRange = text.lineRange(for: NSRange(location: charOffset, length: 0))
-        textView.setSelectedRange(NSRange(location: charOffset, length: 0))
-        textView.scrollRangeToVisible(lineRange)
-        // Flash the line briefly to draw attention
-        textView.showFindIndicator(for: lineRange)
+        let selLen = min(selectLength, text.length - charOffset)
+        let selRange = NSRange(location: charOffset, length: max(selLen, 0))
+        textView.setSelectedRange(selRange)
+        textView.scrollRangeToVisible(selRange)
+        // Flash the match or line briefly to draw attention
+        if selLen > 0 {
+            textView.showFindIndicator(for: selRange)
+        } else {
+            let lineRange = text.lineRange(for: NSRange(location: charOffset, length: 0))
+            textView.showFindIndicator(for: lineRange)
+        }
     }
 
     // MARK: - Position Conversion

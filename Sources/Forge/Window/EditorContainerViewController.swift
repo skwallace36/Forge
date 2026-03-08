@@ -468,8 +468,8 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
     // MARK: - Navigation
 
-    func scrollToLine(_ line: Int, column: Int) {
-        editor.scrollToLine(line, column: column)
+    func scrollToLine(_ line: Int, column: Int, selectLength: Int = 0) {
+        editor.scrollToLine(line, column: column, selectLength: selectLength)
     }
 
     // MARK: - Focus

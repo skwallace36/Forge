@@ -107,8 +107,8 @@ class MainSplitViewController: NSSplitViewController {
         editorContainerVC.syncDocumentContent()
     }
 
-    func scrollToLine(_ line: Int, column: Int) {
-        editorContainerVC.scrollToLine(line, column: column)
+    func scrollToLine(_ line: Int, column: Int, selectLength: Int = 0) {
+        editorContainerVC.scrollToLine(line, column: column, selectLength: selectLength)
     }
 
     // MARK: - Focus Editor (Escape)
@@ -201,8 +201,8 @@ class MainSplitViewController: NSSplitViewController {
 }
 
 extension MainSplitViewController: SearchResultsViewDelegate {
-    func searchResultsView(_ view: SearchResultsView, didSelectResult result: SearchResult) {
-        windowController?.openFile(result.url, atLine: result.line - 1, column: result.column - 1)
+    func searchResultsView(_ view: SearchResultsView, didSelectResult result: SearchResult, matchLength: Int) {
+        windowController?.openFile(result.url, atLine: result.line - 1, column: result.column - 1, selectLength: matchLength)
     }
 }
 

@@ -10,7 +10,7 @@ struct SearchResult {
 }
 
 protocol SearchResultsViewDelegate: AnyObject {
-    func searchResultsView(_ view: SearchResultsView, didSelectResult result: SearchResult)
+    func searchResultsView(_ view: SearchResultsView, didSelectResult result: SearchResult, matchLength: Int)
 }
 
 /// Displays search results in the bottom panel with clickable file:line entries and replace support.
@@ -322,7 +322,8 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     @objc private func resultDoubleClicked() {
         let row = tableView.clickedRow
         guard row >= 0 && row < results.count else { return }
-        delegate?.searchResultsView(self, didSelectResult: results[row])
+        let matchLen = results[row].lineText.distance(from: results[row].matchRange.lowerBound, to: results[row].matchRange.upperBound)
+        delegate?.searchResultsView(self, didSelectResult: results[row], matchLength: matchLen)
     }
 
     // MARK: - NSTableViewDataSource
@@ -404,6 +405,7 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     func tableViewSelectionDidChange(_ notification: Notification) {
         let row = tableView.selectedRow
         guard row >= 0 && row < results.count else { return }
-        delegate?.searchResultsView(self, didSelectResult: results[row])
+        let matchLen = results[row].lineText.distance(from: results[row].matchRange.lowerBound, to: results[row].matchRange.upperBound)
+        delegate?.searchResultsView(self, didSelectResult: results[row], matchLength: matchLen)
     }
 }
