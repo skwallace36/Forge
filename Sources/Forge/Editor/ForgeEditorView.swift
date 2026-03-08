@@ -294,6 +294,10 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         applyDiagnosticUnderlines()
 
         gutterView.textView = textView
+        gutterView.onFoldToggle = { [weak self] line in
+            self?.toggleFold(at: line)
+        }
+        updateFoldableLines()
         gutterView.needsDisplay = true
 
         // Restore saved position or start at top
@@ -1718,5 +1722,100 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             }
         }
         return (line, safeIndex - lastLineStart)
+    }
+
+    // MARK: - Code Folding
+
+    /// Tracks folded regions as (startLine, endLine, originalText) for unfold restoration
+    private(set) var foldedRegions: [(startLine: Int, endLine: Int)] = []
+
+    /// Detect lines that start foldable blocks (ending with `{`)
+    func updateFoldableLines() {
+        let text = textView.string as NSString
+        guard text.length > 0 else {
+            gutterView.foldableLines = []
+            return
+        }
+
+        var foldable = Set<Int>()
+        let lines = text.components(separatedBy: "\n") as [String]
+
+        for (i, line) in lines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasSuffix("{") && !trimmed.hasPrefix("//") && !trimmed.hasPrefix("*") {
+                foldable.insert(i)
+            }
+        }
+
+        gutterView.foldableLines = foldable
+    }
+
+    /// Toggle fold/unfold at a given 0-indexed line
+    func toggleFold(at line: Int) {
+        if gutterView.foldedLines.contains(line) {
+            unfold(at: line)
+        } else {
+            fold(at: line)
+        }
+    }
+
+    private func fold(at startLine: Int) {
+        let text = textView.string as NSString
+        let lines = (text as String).components(separatedBy: "\n")
+        guard startLine < lines.count else { return }
+
+        // Find matching closing brace
+        var braceCount = 0
+        var endLine = startLine
+
+        for i in startLine..<lines.count {
+            let line = lines[i]
+            for ch in line {
+                if ch == "{" { braceCount += 1 }
+                else if ch == "}" { braceCount -= 1 }
+            }
+            if braceCount == 0 && i > startLine {
+                endLine = i
+                break
+            }
+        }
+
+        guard endLine > startLine else { return }
+
+        // Calculate the range to fold (from end of startLine to end of endLine)
+        var offset = 0
+        for i in 0..<startLine {
+            offset += (lines[i] as NSString).length + 1 // +1 for newline
+        }
+        let foldStart = offset + (lines[startLine] as NSString).length // end of the start line
+
+        var foldEnd = 0
+        for i in 0...endLine {
+            foldEnd += (lines[i] as NSString).length + 1
+        }
+        foldEnd -= 1 // don't include the last newline
+
+        let foldRange = NSRange(location: foldStart, length: foldEnd - foldStart)
+        guard foldRange.length > 0 && foldRange.location + foldRange.length <= text.length else { return }
+
+        // Replace folded content with a placeholder
+        let placeholder = " ... }"
+        if textView.shouldChangeText(in: foldRange, replacementString: placeholder) {
+            textView.textStorage?.replaceCharacters(in: foldRange, with: placeholder)
+            textView.didChangeText()
+        }
+
+        gutterView.foldedLines.insert(startLine)
+        updateFoldableLines()
+        gutterView.needsDisplay = true
+    }
+
+    private func unfold(at line: Int) {
+        // Unfortunately, once text is replaced, we can't restore the original
+        // without an undo. Just trigger undo to unfold.
+        textView.undoManager?.undo()
+        gutterView.foldedLines.remove(line)
+        updateFoldableLines()
+        gutterView.needsDisplay = true
     }
 }

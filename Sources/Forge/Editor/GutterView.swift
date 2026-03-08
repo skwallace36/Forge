@@ -8,6 +8,15 @@ class GutterView: NSView {
     var diagnosticLines: Set<Int> = [] // 0-indexed line numbers with diagnostics
     var changedLines: [Int: String] = [:] // 0-indexed: "added" or "modified"
 
+    /// Set of 0-indexed line numbers that start a foldable block (line ends with `{`)
+    var foldableLines: Set<Int> = []
+
+    /// Set of 0-indexed line numbers that are currently folded
+    var foldedLines: Set<Int> = []
+
+    /// Callback when a fold marker is clicked: (lineNumber: 0-indexed)
+    var onFoldToggle: ((Int) -> Void)?
+
     override var isFlipped: Bool { true }
 
     override func mouseDown(with event: NSEvent) {
@@ -24,14 +33,28 @@ class GutterView: NSView {
         let visibleRect = textView.enclosingScrollView?.contentView.bounds ?? .zero
         let localPoint = convert(event.locationInWindow, from: nil)
 
-        // Adjust y for scroll offset
-        let textViewY = localPoint.y + visibleRect.origin.y
+        // Check if click is in the fold marker area (left side of gutter)
+        if localPoint.x < 14 {
+            let textViewY = localPoint.y + visibleRect.origin.y
+            let adjustedPoint = NSPoint(x: 0, y: textViewY - textView.textContainerInset.height)
+            let glyphIndex = layoutManager.glyphIndex(for: adjustedPoint, in: textContainer)
+            let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
 
-        // Convert to a character index via layout manager
-        let adjustedPoint = NSPoint(
-            x: 0,
-            y: textViewY - textView.textContainerInset.height
-        )
+            if charIndex < text.length {
+                // Find the line number
+                let preText = text.substring(with: NSRange(location: 0, length: charIndex))
+                let lineNum = preText.components(separatedBy: "\n").count - 1
+
+                if foldableLines.contains(lineNum) {
+                    onFoldToggle?(lineNum)
+                    return
+                }
+            }
+        }
+
+        // Default: select the line
+        let textViewY = localPoint.y + visibleRect.origin.y
+        let adjustedPoint = NSPoint(x: 0, y: textViewY - textView.textContainerInset.height)
         let glyphIndex = layoutManager.glyphIndex(for: adjustedPoint, in: textContainer)
         let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
 
@@ -124,6 +147,16 @@ class GutterView: NSView {
                 NSRect(x: 0, y: lineRect.origin.y, width: 3, height: lineRect.height).fill()
             }
 
+            // Fold marker (triangle)
+            if foldableLines.contains(zeroIndexedLine) {
+                let isFolded = foldedLines.contains(zeroIndexedLine)
+                drawFoldMarker(
+                    at: NSPoint(x: 4, y: lineRect.origin.y + (lineRect.height - 8) / 2),
+                    isFolded: isFolded,
+                    color: isCurrent ? currentColor : lineNumColor,
+                )
+            }
+
             let useAttrs = isCurrent ? currentAttrs : attrs
             let numberString = "\(lineNumber)" as NSString
             let stringSize = numberString.size(withAttributes: useAttrs)
@@ -136,5 +169,26 @@ class GutterView: NSView {
             lineNumber += 1
             charIndex = NSMaxRange(lineRange)
         }
+    }
+
+    private func drawFoldMarker(at point: NSPoint, isFolded: Bool, color: NSColor) {
+        let size: CGFloat = 8
+        let path = NSBezierPath()
+
+        if isFolded {
+            // Right-pointing triangle ▶
+            path.move(to: NSPoint(x: point.x, y: point.y))
+            path.line(to: NSPoint(x: point.x + size, y: point.y + size / 2))
+            path.line(to: NSPoint(x: point.x, y: point.y + size))
+        } else {
+            // Down-pointing triangle ▼
+            path.move(to: NSPoint(x: point.x, y: point.y + 1))
+            path.line(to: NSPoint(x: point.x + size, y: point.y + 1))
+            path.line(to: NSPoint(x: point.x + size / 2, y: point.y + size - 1))
+        }
+
+        path.close()
+        color.withAlphaComponent(0.6).setFill()
+        path.fill()
     }
 }
