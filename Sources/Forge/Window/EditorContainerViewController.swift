@@ -415,6 +415,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.textView.needsDisplay = true
     }
 
+    @objc func toggleBracketColorization(_ sender: Any?) {
+        Preferences.shared.bracketPairColorization = !Preferences.shared.bracketPairColorization
+    }
+
     // MARK: - Toggle Comment (forwarded to editor manager)
 
     @objc func toggleComment(_ sender: Any?) {

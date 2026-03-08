@@ -177,6 +177,8 @@ class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate, N
                            action: #selector(EditorContainerViewController.toggleWordWrap(_:)), target: nil),
             PaletteCommand(title: "Toggle Invisible Characters", shortcut: "⌘⌥I", category: "View",
                            action: #selector(EditorContainerViewController.toggleInvisibles(_:)), target: nil),
+            PaletteCommand(title: "Toggle Bracket Colorization", shortcut: "", category: "View",
+                           action: #selector(EditorContainerViewController.toggleBracketColorization(_:)), target: nil),
             PaletteCommand(title: "Zoom In", shortcut: "⌘+", category: "View",
                            action: #selector(EditorContainerViewController.increaseFontSize(_:)), target: nil),
             PaletteCommand(title: "Zoom Out", shortcut: "⌘-", category: "View",

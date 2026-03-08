@@ -5,7 +5,7 @@ class PreferencesWindowController: NSWindowController {
 
     init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 470),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 498),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -31,11 +31,11 @@ class PreferencesViewController: NSViewController {
     private let prefs = Preferences.shared
 
     override func loadView() {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 470))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 498))
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor(red: 0.15, green: 0.16, blue: 0.18, alpha: 1.0).cgColor
 
-        var y: CGFloat = 436
+        var y: CGFloat = 464
 
         // Editor section
         let titleLabel = makeLabel("Editor", bold: true, size: 15)
@@ -138,6 +138,13 @@ class PreferencesViewController: NSViewController {
         invisiblesCheck.state = prefs.showInvisibles ? .on : .off
         invisiblesCheck.frame = NSRect(x: 20, y: y, width: 250, height: 20)
         container.addSubview(invisiblesCheck)
+        y -= 28
+
+        // Bracket pair colorization
+        let bracketCheck = NSButton(checkboxWithTitle: "Bracket Pair Colorization", target: self, action: #selector(bracketColorizationToggled(_:)))
+        bracketCheck.state = prefs.bracketPairColorization ? .on : .off
+        bracketCheck.frame = NSRect(x: 20, y: y, width: 250, height: 20)
+        container.addSubview(bracketCheck)
         y -= 30
 
         // Column ruler
@@ -221,6 +228,10 @@ class PreferencesViewController: NSViewController {
 
     @objc private func invisiblesToggled(_ sender: NSButton) {
         prefs.showInvisibles = sender.state == .on
+    }
+
+    @objc private func bracketColorizationToggled(_ sender: NSButton) {
+        prefs.bracketPairColorization = sender.state == .on
     }
 
     @objc private func rulerChanged(_ sender: NSPopUpButton) {
