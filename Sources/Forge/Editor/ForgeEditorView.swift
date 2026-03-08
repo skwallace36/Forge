@@ -274,6 +274,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         // Set text content
         textView.string = doc.textStorage.string
+        updateLineCount()
 
         // Apply font and foreground color
         textView.font = editorFont
@@ -490,6 +491,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         document?.isModified = true
         gutterView.needsDisplay = true
         minimapView?.invalidateCodeCache()
+        updateLineCount()
         onTextDidChange?()
 
         rehighlightWorkItem?.cancel()
@@ -533,24 +535,45 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
     }
 
+    private var cachedTotalLines: Int = 1
+
+    /// Update cached total line count (call on text change)
+    private func updateLineCount() {
+        let text = textView.string as NSString
+        guard text.length > 0 else { cachedTotalLines = 1; return }
+        var count = 1
+        var searchRange = NSRange(location: 0, length: text.length)
+        while searchRange.location < text.length {
+            let found = text.range(of: "\n", options: [], range: searchRange)
+            if found.location == NSNotFound { break }
+            count += 1
+            searchRange.location = found.location + 1
+            searchRange.length = text.length - searchRange.location
+        }
+        cachedTotalLines = count
+    }
+
     private func notifyCursorPosition() {
         let text = textView.string as NSString
         let sel = textView.selectedRange()
         let loc = min(sel.location, text.length)
 
-        // Count line and column
-        var line = 1
-        var lastLineStart = 0
-        for i in 0..<loc {
-            if text.character(at: i) == 0x0A { // \n
-                line += 1
-                lastLineStart = i + 1
-            }
-        }
-        let column = loc - lastLineStart + 1
-        let totalLines = text.components(separatedBy: "\n").count
+        // Use lineRange to find current line start efficiently
+        let lineRange = text.lineRange(for: NSRange(location: loc, length: 0))
+        let column = loc - lineRange.location + 1
 
-        onCursorChange?(line, column, totalLines, sel.length)
+        // Count line number by counting newlines before cursor
+        var line = 1
+        var searchRange = NSRange(location: 0, length: loc)
+        while searchRange.location < loc {
+            let found = text.range(of: "\n", options: [], range: searchRange)
+            if found.location == NSNotFound || found.location >= loc { break }
+            line += 1
+            searchRange.location = found.location + 1
+            searchRange.length = loc - searchRange.location
+        }
+
+        onCursorChange?(line, column, cachedTotalLines, sel.length)
     }
 
     private func rehighlight() {
@@ -2108,6 +2131,30 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             menu.addItem(.separator())
             menu.addItem(withTitle: "Send to Claude", action: #selector(sendToClaudeAction(_:)), keyEquivalent: "")
         }
+
+        // File actions
+        if let doc = document {
+            menu.addItem(.separator())
+
+            let copyPathItem = NSMenuItem(title: "Copy File Path", action: #selector(copyFilePath(_:)), keyEquivalent: "")
+            copyPathItem.representedObject = doc.url
+            menu.addItem(copyPathItem)
+
+            let revealItem = NSMenuItem(title: "Reveal in Finder", action: #selector(revealInFinder(_:)), keyEquivalent: "")
+            revealItem.representedObject = doc.url
+            menu.addItem(revealItem)
+        }
+    }
+
+    @objc private func copyFilePath(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? URL else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(url.path, forType: .string)
+    }
+
+    @objc private func revealInFinder(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? URL else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
     @objc func sendToClaudeAction(_ sender: Any?) {
