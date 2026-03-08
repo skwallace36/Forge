@@ -354,7 +354,14 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         guard !name.isEmpty else { return }
 
         let fileURL = project.rootURL.appendingPathComponent(name)
-        FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+        guard FileManager.default.createFile(atPath: fileURL.path, contents: nil) else {
+            let alert = NSAlert()
+            alert.messageText = "Could not create file"
+            alert.informativeText = "Failed to create \"\(name)\" in the project root."
+            alert.alertStyle = .warning
+            alert.runModal()
+            return
+        }
         windowController?.openFile(fileURL)
     }
 

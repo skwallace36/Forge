@@ -183,6 +183,7 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         for row in 0..<outlineView.numberOfRows {
             if let node = outlineView.item(atRow: row) as? FileNode, node.url == url {
                 outlineView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+                outlineView.scrollRowToVisible(row)
                 return
             }
         }
@@ -482,7 +483,10 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         guard let parentURL = sender.representedObject as? URL else { return }
         promptForName(title: "New File", message: "Enter the file name:") { name in
             let fileURL = parentURL.appendingPathComponent(name)
-            FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+            if !FileManager.default.createFile(atPath: fileURL.path, contents: nil) {
+                self.showFileError("Could not create file \"\(name)\".")
+                return
+            }
             self.reloadFileTree()
             self.windowController?.openFile(fileURL)
         }
@@ -492,7 +496,12 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         guard let parentURL = sender.representedObject as? URL else { return }
         promptForName(title: "New Folder", message: "Enter the folder name:") { name in
             let folderURL = parentURL.appendingPathComponent(name)
-            try? FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
+            do {
+                try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
+            } catch {
+                self.showFileError("Could not create folder \"\(name)\": \(error.localizedDescription)")
+                return
+            }
             self.reloadFileTree()
         }
     }
@@ -501,7 +510,12 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         guard let node = sender.representedObject as? FileNode else { return }
         promptForName(title: "Rename", message: "Enter the new name:", defaultValue: node.name) { name in
             let newURL = node.url.deletingLastPathComponent().appendingPathComponent(name)
-            try? FileManager.default.moveItem(at: node.url, to: newURL)
+            do {
+                try FileManager.default.moveItem(at: node.url, to: newURL)
+            } catch {
+                self.showFileError("Could not rename \"\(node.name)\": \(error.localizedDescription)")
+                return
+            }
             self.reloadFileTree()
         }
     }
@@ -520,7 +534,12 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
 
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
-        try? FileManager.default.trashItem(at: node.url, resultingItemURL: nil)
+        do {
+            try FileManager.default.trashItem(at: node.url, resultingItemURL: nil)
+        } catch {
+            showFileError("Could not delete \"\(node.name)\": \(error.localizedDescription)")
+            return
+        }
         reloadFileTree()
     }
 
@@ -571,8 +590,22 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
             counter += 1
         }
 
-        try? FileManager.default.copyItem(at: node.url, to: copyURL)
+        do {
+            try FileManager.default.copyItem(at: node.url, to: copyURL)
+        } catch {
+            showFileError("Could not duplicate \"\(node.name)\": \(error.localizedDescription)")
+            return
+        }
         reloadFileTree()
+    }
+
+    private func showFileError(_ message: String) {
+        let alert = NSAlert()
+        alert.messageText = "File Operation Failed"
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     private func promptForName(title: String, message: String, defaultValue: String = "", completion: @escaping (String) -> Void) {
