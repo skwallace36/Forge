@@ -203,6 +203,10 @@ class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate, N
                            action: #selector(EditorContainerViewController.jumpToPreviousMethod(_:)), target: nil),
             PaletteCommand(title: "Next Method/Function", shortcut: "⌃↓", category: "Navigate",
                            action: #selector(EditorContainerViewController.jumpToNextMethod(_:)), target: nil),
+            PaletteCommand(title: "Expand Selection", shortcut: "⌃⇧↑", category: "Navigate",
+                           action: #selector(EditorContainerViewController.expandSelection(_:)), target: nil),
+            PaletteCommand(title: "Shrink Selection", shortcut: "⌃⇧↓", category: "Navigate",
+                           action: #selector(EditorContainerViewController.shrinkSelection(_:)), target: nil),
             PaletteCommand(title: "Find All References", shortcut: "", category: "Navigate",
                            action: #selector(EditorContainerViewController.findReferences(_:)), target: nil),
 

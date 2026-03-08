@@ -50,7 +50,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Called to show the find/replace bar: (withReplace, initialText)
     var onShowFindBar: ((Bool, String?) -> Void)?
 
-    /// Provides diff hunks for the current document (set by container)
+    /// Provides diff hunks for the current document (set by container), called off main thread
     var diffHunkProvider: (() -> [GitStatusTracker.DiffHunk])?
 
     /// Called when text changes while find bar is active (to refresh highlights)
@@ -599,6 +599,11 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
+        // Clear expansion stack when selection changes from user interaction
+        if !isExpandingShrinking && !selectionExpansionStack.isEmpty {
+            selectionExpansionStack.removeAll()
+        }
+
         updateGutterFirstVisibleLine()
         gutterView.needsDisplay = true
         notifyCursorPosition()
@@ -1833,8 +1838,16 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
     private func showDiffPopover(forLine line: Int, relativeToRect rect: NSRect) {
         diffPopover?.close()
+        let provider = diffHunkProvider
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let hunks = provider?(), !hunks.isEmpty else { return }
+            DispatchQueue.main.async {
+                self?.presentDiffPopover(hunks: hunks, line: line, rect: rect)
+            }
+        }
+    }
 
-        guard let hunks = diffHunkProvider?(), !hunks.isEmpty else { return }
+    private func presentDiffPopover(hunks: [GitStatusTracker.DiffHunk], line: Int, rect: NSRect) {
 
         // Find the hunk that contains this line
         guard let hunk = hunks.first(where: { h in
@@ -2452,6 +2465,163 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         let innerRange = NSRange(location: openPos + 1, length: closePos - openPos - 1)
         textView.setSelectedRange(innerRange)
         textView.scrollRangeToVisible(innerRange)
+    }
+
+    // MARK: - Smart Expand / Shrink Selection (⌃⇧↑ / ⌃⇧↓)
+
+    /// Stack of previous selection ranges for shrink
+    private var selectionExpansionStack: [NSRange] = []
+    /// Flag to prevent clearing expansion stack during our own selection changes
+    private var isExpandingShrinking = false
+
+    @objc func expandSelection(_ sender: Any?) {
+        let text = textView.string as NSString
+        guard text.length > 0 else { return }
+        let sel = textView.selectedRange()
+
+        // Push current selection onto stack
+        selectionExpansionStack.append(sel)
+
+        // Try progressively wider scopes
+        if let expanded = expandedRange(from: sel, in: text) {
+            isExpandingShrinking = true
+            textView.setSelectedRange(expanded)
+            textView.scrollRangeToVisible(expanded)
+            isExpandingShrinking = false
+        }
+    }
+
+    @objc func shrinkSelection(_ sender: Any?) {
+        guard let previous = selectionExpansionStack.popLast() else { return }
+        let text = textView.string as NSString
+        guard previous.location + previous.length <= text.length else { return }
+        isExpandingShrinking = true
+        textView.setSelectedRange(previous)
+        textView.scrollRangeToVisible(previous)
+        isExpandingShrinking = false
+    }
+
+    private func expandedRange(from sel: NSRange, in text: NSString) -> NSRange? {
+        let cursor = sel.location
+
+        // 1. If no selection (caret), select the word under cursor
+        if sel.length == 0 {
+            let wordRange = wordRange(at: cursor, in: text)
+            if wordRange.length > 0 { return wordRange }
+            // Fall through to line
+        }
+
+        // 2. If selection is smaller than the current line, expand to line
+        let lineRange = text.lineRange(for: sel)
+        // Trim trailing newline from line range for comparison
+        var trimmedLine = lineRange
+        if trimmedLine.length > 0 && text.character(at: NSMaxRange(trimmedLine) - 1) == 0x0A {
+            trimmedLine.length -= 1
+        }
+        if sel.length < trimmedLine.length {
+            return trimmedLine
+        }
+
+        // 3. Expand to enclosing brackets
+        if let bracketRange = enclosingBracketRange(around: sel, in: text) {
+            if bracketRange.length > sel.length {
+                return bracketRange
+            }
+        }
+
+        // 4. Expand to include the brackets themselves
+        if let outerBracketRange = enclosingBracketRangeIncluding(around: sel, in: text) {
+            if outerBracketRange.length > sel.length {
+                return outerBracketRange
+            }
+        }
+
+        // 5. Select all
+        let allRange = NSRange(location: 0, length: text.length)
+        if allRange.length > sel.length {
+            return allRange
+        }
+
+        return nil
+    }
+
+    private func wordRange(at position: Int, in text: NSString) -> NSRange {
+        guard position < text.length else { return NSRange(location: position, length: 0) }
+
+        let ch = text.character(at: position)
+        let isWordChar = { (c: unichar) -> Bool in
+            CharacterSet.alphanumerics.contains(Unicode.Scalar(c)!) || c == 0x5F // underscore
+        }
+
+        guard isWordChar(ch) else {
+            return NSRange(location: position, length: 0)
+        }
+
+        var start = position
+        while start > 0 && isWordChar(text.character(at: start - 1)) { start -= 1 }
+        var end = position
+        while end < text.length && isWordChar(text.character(at: end)) { end += 1 }
+
+        return NSRange(location: start, length: end - start)
+    }
+
+    /// Find the innermost bracket pair that encloses the selection (content only, excluding brackets)
+    private func enclosingBracketRange(around sel: NSRange, in text: NSString) -> NSRange? {
+        let openChars: [unichar] = [0x28, 0x5B, 0x7B] // ( [ {
+        let closeChars: [unichar] = [0x29, 0x5D, 0x7D] // ) ] }
+
+        var depth: [unichar: Int] = [:]
+        var openPos = -1
+        var openChar: unichar = 0
+
+        // Search backward from selection start
+        var i = sel.location - 1
+        while i >= 0 {
+            let ch = text.character(at: i)
+            if closeChars.contains(ch) {
+                depth[ch, default: 0] += 1
+            } else if openChars.contains(ch) {
+                let idx = openChars.firstIndex(of: ch)!
+                let closeCh = closeChars[idx]
+                let d = depth[closeCh, default: 0]
+                if d > 0 {
+                    depth[closeCh] = d - 1
+                } else {
+                    openPos = i
+                    openChar = ch
+                    break
+                }
+            }
+            i -= 1
+        }
+
+        guard openPos >= 0 else { return nil }
+
+        let idx = openChars.firstIndex(of: openChar)!
+        let closeChar = closeChars[idx]
+        var closePos = -1
+        var nestCount = 0
+
+        for j in (openPos + 1)..<text.length {
+            let ch = text.character(at: j)
+            if ch == openChar { nestCount += 1 }
+            else if ch == closeChar {
+                if nestCount == 0 { closePos = j; break }
+                nestCount -= 1
+            }
+        }
+
+        guard closePos >= 0 else { return nil }
+
+        // Inner content (excluding brackets)
+        return NSRange(location: openPos + 1, length: closePos - openPos - 1)
+    }
+
+    /// Find the innermost bracket pair including the brackets themselves
+    private func enclosingBracketRangeIncluding(around sel: NSRange, in text: NSString) -> NSRange? {
+        guard let inner = enclosingBracketRange(around: sel, in: text) else { return nil }
+        // Include the open and close brackets
+        return NSRange(location: inner.location - 1, length: inner.length + 2)
     }
 
     // MARK: - Select Next Occurrence (⌘D)

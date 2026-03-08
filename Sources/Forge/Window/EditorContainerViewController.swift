@@ -809,6 +809,14 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.jumpToNextMethod(sender)
     }
 
+    @objc func expandSelection(_ sender: Any?) {
+        editor.expandSelection(sender)
+    }
+
+    @objc func shrinkSelection(_ sender: Any?) {
+        editor.shrinkSelection(sender)
+    }
+
     @objc func showQuickActions(_ sender: Any?) {
         editor.showQuickActions(sender)
     }

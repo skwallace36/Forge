@@ -452,6 +452,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         nextMethod.keyEquivalentModifierMask = [.control]
         navMenu.addItem(nextMethod)
 
+        navMenu.addItem(NSMenuItem.separator())
+
+        let expandSel = NSMenuItem(title: "Expand Selection", action: #selector(EditorContainerViewController.expandSelection(_:)), keyEquivalent: String(Character(UnicodeScalar(NSUpArrowFunctionKey)!)))
+        expandSel.keyEquivalentModifierMask = [.control, .shift]
+        navMenu.addItem(expandSel)
+
+        let shrinkSel = NSMenuItem(title: "Shrink Selection", action: #selector(EditorContainerViewController.shrinkSelection(_:)), keyEquivalent: String(Character(UnicodeScalar(NSDownArrowFunctionKey)!)))
+        shrinkSel.keyEquivalentModifierMask = [.control, .shift]
+        navMenu.addItem(shrinkSel)
+
+        navMenu.addItem(NSMenuItem.separator())
+
         let findRefs = NSMenuItem(title: "Find All References", action: #selector(EditorContainerViewController.findReferences(_:)), keyEquivalent: "")
         navMenu.addItem(findRefs)
 
