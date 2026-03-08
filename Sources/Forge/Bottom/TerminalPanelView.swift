@@ -58,8 +58,9 @@ class TerminalPanelView: NSView, LocalProcessTerminalViewDelegate {
         )
 
         // Send a cd command to navigate to the project directory
+        let escapedDir = dir.replacingOccurrences(of: "'", with: "'\\''")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            self?.terminalView.send(txt: "cd \(dir) && clear\n")
+            self?.terminalView.send(txt: "cd '\(escapedDir)' && clear\n")
         }
     }
 
@@ -79,8 +80,9 @@ class TerminalPanelView: NSView, LocalProcessTerminalViewDelegate {
         )
 
         // Navigate to project dir and launch claude
+        let escapedDir = dir.replacingOccurrences(of: "'", with: "'\\''")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            self?.terminalView.send(txt: "cd \(dir) && clear && claude\n")
+            self?.terminalView.send(txt: "cd '\(escapedDir)' && clear && claude\n")
         }
     }
 
