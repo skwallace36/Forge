@@ -3310,7 +3310,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         let selLen = min(selectLength, text.length - charOffset)
         let selRange = NSRange(location: charOffset, length: max(selLen, 0))
         textView.setSelectedRange(selRange)
-        textView.scrollRangeToVisible(selRange)
+        smoothScrollToRange(selRange)
         // Flash the match or line briefly to draw attention
         if selLen > 0 {
             textView.showFindIndicator(for: selRange)
@@ -3318,6 +3318,39 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             let lineRange = text.lineRange(for: NSRange(location: charOffset, length: 0))
             textView.showFindIndicator(for: lineRange)
         }
+    }
+
+    /// Smooth animated scroll to make the given range visible (centered if off-screen)
+    private func smoothScrollToRange(_ range: NSRange) {
+        guard let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else {
+            textView.scrollRangeToVisible(range)
+            return
+        }
+
+        let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+        let targetRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
+        let targetY = targetRect.origin.y + textView.textContainerInset.height
+
+        let visibleRect = scrollView.contentView.bounds
+        let visibleTop = visibleRect.origin.y
+        let visibleBottom = visibleTop + visibleRect.height
+
+        // If already visible (with margin), don't scroll
+        let margin: CGFloat = 50
+        if targetY >= visibleTop + margin && targetY + targetRect.height <= visibleBottom - margin {
+            return
+        }
+
+        // Center the target in the viewport
+        let scrollY = max(0, targetY - visibleRect.height / 3)
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            scrollView.contentView.animator().setBoundsOrigin(NSPoint(x: 0, y: scrollY))
+        }
+        scrollView.reflectScrolledClipView(scrollView.contentView)
     }
 
     // MARK: - Position Conversion (cached line offsets)
