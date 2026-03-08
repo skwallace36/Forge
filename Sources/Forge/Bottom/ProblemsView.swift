@@ -148,10 +148,30 @@ class ProblemsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         self.projectRoot = root
     }
 
+    /// Clear all build-sourced diagnostics (called at start of each build).
+    func clearBuildDiagnostics() {
+        allProblems.removeAll { $0.source == "build" }
+        applyFilter()
+    }
+
+    /// Add a build error/warning parsed from compiler output.
+    func addBuildDiagnostic(url: URL, line: Int, column: Int, message: String, severity: Problem.Severity) {
+        allProblems.append(Problem(
+            url: url, line: line, column: column,
+            message: message, severity: severity, source: "build",
+        ))
+        allProblems.sort { a, b in
+            if a.severity.rawValue != b.severity.rawValue { return a.severity.rawValue < b.severity.rawValue }
+            if a.url.path != b.url.path { return a.url.path < b.url.path }
+            return a.line < b.line
+        }
+        applyFilter()
+    }
+
     /// Update diagnostics from LSP for a specific file.
     func updateDiagnostics(url: URL, diagnostics: [LSPDiagnostic]) {
-        // Remove existing problems for this file
-        allProblems.removeAll { $0.url == url }
+        // Remove existing LSP problems for this file
+        allProblems.removeAll { $0.url == url && $0.source != "build" }
 
         // Add new problems
         for d in diagnostics {

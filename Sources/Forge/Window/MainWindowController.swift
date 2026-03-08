@@ -359,55 +359,47 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
 
     // MARK: - Build
 
+    private func setupBuildHandlers(completionLabel: String) {
+        let buildSystem = project.buildSystem
+
+        splitViewController.clearBuildDiagnostics()
+
+        buildSystem.onOutput = { [weak self] text in
+            guard let self = self else { return }
+            self.splitViewController.appendBuildOutput(text)
+            self.splitViewController.parseBuildOutput(text)
+        }
+        buildSystem.onComplete = { [weak self] success in
+            let msg = success ? "\(completionLabel) succeeded.\n" : "\(completionLabel) failed.\n"
+            self?.splitViewController.appendBuildOutput(msg)
+            if !success {
+                self?.splitViewController.showProblems()
+            }
+        }
+    }
+
     @objc func buildProject(_ sender: Any?) {
         splitViewController.showBuildLog()
         splitViewController.clearBuildLog()
-
-        let buildSystem = project.buildSystem
-        buildSystem.onOutput = { [weak self] text in
-            self?.splitViewController.appendBuildOutput(text)
-        }
-        buildSystem.onComplete = { [weak self] success in
-            let msg = success ? "Build succeeded.\n" : "Build failed.\n"
-            self?.splitViewController.appendBuildOutput(msg)
-        }
-
+        setupBuildHandlers(completionLabel: "Build")
         splitViewController.appendBuildOutput("Building \(project.displayName)...\n\n")
-        buildSystem.build()
+        project.buildSystem.build()
     }
 
     @objc func runProject(_ sender: Any?) {
         splitViewController.showBuildLog()
         splitViewController.clearBuildLog()
-
-        let buildSystem = project.buildSystem
-        buildSystem.onOutput = { [weak self] text in
-            self?.splitViewController.appendBuildOutput(text)
-        }
-        buildSystem.onComplete = { [weak self] success in
-            let msg = success ? "Run completed.\n" : "Run failed.\n"
-            self?.splitViewController.appendBuildOutput(msg)
-        }
-
+        setupBuildHandlers(completionLabel: "Run")
         splitViewController.appendBuildOutput("Building and running \(project.displayName)...\n\n")
-        buildSystem.buildAndRun()
+        project.buildSystem.buildAndRun()
     }
 
     @objc func cleanBuild(_ sender: Any?) {
         splitViewController.showBuildLog()
         splitViewController.clearBuildLog()
-
-        let buildSystem = project.buildSystem
-        buildSystem.onOutput = { [weak self] text in
-            self?.splitViewController.appendBuildOutput(text)
-        }
-        buildSystem.onComplete = { [weak self] success in
-            let msg = success ? "Clean complete.\n" : "Clean failed.\n"
-            self?.splitViewController.appendBuildOutput(msg)
-        }
-
+        setupBuildHandlers(completionLabel: "Clean")
         splitViewController.appendBuildOutput("Cleaning \(project.displayName)...\n\n")
-        buildSystem.clean()
+        project.buildSystem.clean()
     }
 
     @objc func stopBuild(_ sender: Any?) {

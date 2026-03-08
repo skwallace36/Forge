@@ -178,6 +178,43 @@ class MainSplitViewController: NSSplitViewController {
         bottomPanelVC.clearBuildLog()
     }
 
+    func showProblems() {
+        showBottomPanel()
+        bottomPanelVC.showProblems()
+    }
+
+    /// Regex matching Swift/clang compiler output: /path/file.swift:42:10: error: message
+    private static let buildErrorPattern = try! NSRegularExpression(
+        pattern: #"^(/[^:]+):(\d+):(\d+):\s*(error|warning):\s*(.+)$"#,
+        options: .anchorsMatchLines
+    )
+
+    func clearBuildDiagnostics() {
+        bottomPanelVC.problemsView.clearBuildDiagnostics()
+    }
+
+    func parseBuildOutput(_ text: String) {
+        let nsText = text as NSString
+        let matches = MainSplitViewController.buildErrorPattern.matches(
+            in: text, range: NSRange(location: 0, length: nsText.length)
+        )
+        for match in matches {
+            guard match.numberOfRanges >= 6 else { continue }
+            let path = nsText.substring(with: match.range(at: 1))
+            let line = Int(nsText.substring(with: match.range(at: 2))) ?? 1
+            let col = Int(nsText.substring(with: match.range(at: 3))) ?? 1
+            let kind = nsText.substring(with: match.range(at: 4))
+            let message = nsText.substring(with: match.range(at: 5))
+
+            let severity: ProblemsView.Problem.Severity = kind == "error" ? .error : .warning
+            let url = URL(fileURLWithPath: path)
+            bottomPanelVC.problemsView.addBuildDiagnostic(
+                url: url, line: line - 1, column: col - 1,
+                message: message, severity: severity,
+            )
+        }
+    }
+
     // MARK: - Find in Project (⌘⇧F)
 
     @objc func findInProject(_ sender: Any?) {
