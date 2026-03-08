@@ -247,6 +247,14 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             // Update window title, proxy icon, and native edited indicator
             if let window = view.window {
                 window.title = doc.fileName
+                let rootPath = project.rootURL.standardizedFileURL.path
+                let filePath = doc.url.standardizedFileURL.path
+                if filePath.hasPrefix(rootPath) {
+                    let relative = String(filePath.dropFirst(rootPath.count + 1))
+                    window.subtitle = relative
+                } else {
+                    window.subtitle = (doc.url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath
+                }
                 window.representedURL = doc.url
                 window.isDocumentEdited = doc.isModified
             }
@@ -260,6 +268,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
             if let window = view.window {
                 window.title = project.displayName
+                window.subtitle = (project.rootURL.path as NSString).abbreviatingWithTildeInPath
                 window.representedURL = nil
                 window.isDocumentEdited = false
             }
@@ -613,7 +622,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
         ts.beginEditing()
         for edit in sorted {
-            guard let nsRange = lspRangeToNSRange(edit.range, in: text) else { continue }
+            guard let nsRange = edit.range.toNSRange(in: text) else { continue }
             ts.replaceCharacters(in: nsRange, with: edit.newText)
         }
         ts.endEditing()
@@ -623,30 +632,6 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         if doc === project.tabManager.currentDocument {
             refreshEditor()
         }
-    }
-
-    private func lspRangeToNSRange(_ lspRange: LSPRange, in text: NSString) -> NSRange? {
-        guard text.length > 0 else { return nil }
-
-        var lineStart = 0
-        var currentLine = 0
-        while currentLine < lspRange.start.line && lineStart < text.length {
-            let lineRange = text.lineRange(for: NSRange(location: lineStart, length: 0))
-            lineStart = NSMaxRange(lineRange)
-            currentLine += 1
-        }
-        let startOffset = min(lineStart + lspRange.start.character, text.length)
-
-        var endLineStart = lineStart
-        while currentLine < lspRange.end.line && endLineStart < text.length {
-            let lineRange = text.lineRange(for: NSRange(location: endLineStart, length: 0))
-            endLineStart = NSMaxRange(lineRange)
-            currentLine += 1
-        }
-        let endOffset = min(endLineStart + lspRange.end.character, text.length)
-
-        guard startOffset <= endOffset else { return nil }
-        return NSRange(location: startOffset, length: endOffset - startOffset)
     }
 
     // MARK: - Navigation

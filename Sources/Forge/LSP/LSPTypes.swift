@@ -102,6 +102,29 @@ struct LSPPosition: Codable {
 struct LSPRange: Codable {
     let start: LSPPosition
     let end: LSPPosition
+
+    /// Convert an LSP range to an NSRange using the given text.
+    /// Uses O(n) scan — for hot paths, use ForgeEditorManager's cached version.
+    func toNSRange(in text: NSString) -> NSRange? {
+        guard text.length > 0 else { return nil }
+
+        func lineColumnToOffset(line: Int, column: Int) -> Int {
+            var currentLine = 0
+            var offset = 0
+            while currentLine < line && offset < text.length {
+                if text.character(at: offset) == 0x0A {
+                    currentLine += 1
+                }
+                offset += 1
+            }
+            return min(offset + column, text.length)
+        }
+
+        let startOffset = lineColumnToOffset(line: start.line, column: start.character)
+        let endOffset = lineColumnToOffset(line: end.line, column: end.character)
+        guard startOffset <= endOffset else { return nil }
+        return NSRange(location: startOffset, length: endOffset - startOffset)
+    }
 }
 
 struct LSPLocation: Codable {

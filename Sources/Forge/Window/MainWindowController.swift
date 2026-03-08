@@ -18,7 +18,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         )
 
         window.title = project.displayName
-        window.subtitle = project.rootURL.path
+        window.subtitle = (project.rootURL.path as NSString).abbreviatingWithTildeInPath
         window.minSize = NSSize(width: 600, height: 400)
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .visible
