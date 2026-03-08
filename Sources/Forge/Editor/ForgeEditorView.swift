@@ -100,6 +100,11 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Tracks whether completion was auto-triggered (vs explicit ⌃Space)
     private var completionPrefix: String = ""
 
+    /// Inline blame annotation label (shows git blame at end of current line)
+    private var blameLabel: NSTextField?
+    /// Last line for which blame was displayed (to avoid redundant updates)
+    private var lastBlameLine: Int = -1
+
     override init() {
         // Build the text system manually so we can use a custom layout manager
         let textStorage = NSTextStorage()
@@ -264,6 +269,10 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         rehighlight()
         gutterView.needsDisplay = true
         textView.needsDisplay = true
+
+        // Update inline blame visibility
+        lastBlameLine = -1
+        updateInlineBlame()
     }
 
     func displayDocument(_ doc: ForgeDocument) {
@@ -274,6 +283,10 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         }
 
         self.document = doc
+
+        // Reset inline blame when switching documents
+        lastBlameLine = -1
+        blameLabel?.isHidden = true
 
         // Handle binary files
         if doc.isBinary {
@@ -1703,6 +1716,114 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         currentLineRange = lineRange
 
         ts.endEditing()
+
+        // Update inline blame annotation
+        updateInlineBlame()
+    }
+
+    // MARK: - Inline Git Blame Annotation
+
+    private func updateInlineBlame() {
+        guard Preferences.shared.inlineBlame else {
+            blameLabel?.isHidden = true
+            return
+        }
+
+        let sel = textView.selectedRange()
+        let (line, _) = characterIndexToLineColumn(sel.location)
+
+        // Don't update if still on the same line
+        guard line != lastBlameLine else { return }
+        lastBlameLine = line
+
+        guard let blame = gutterView.blameInfo[line] else {
+            blameLabel?.isHidden = true
+            return
+        }
+
+        // Format: "author, time ago — commit message"
+        let timeAgo = Self.relativeTime(from: blame.date)
+        let text = "\(blame.author), \(timeAgo) — \(blame.summary)"
+
+        // Create label if needed
+        if blameLabel == nil {
+            let label = NSTextField(labelWithString: "")
+            label.font = NSFont.systemFont(ofSize: fontSize - 1, weight: .regular)
+            label.textColor = NSColor(white: 0.40, alpha: 1.0)
+            label.isBezeled = false
+            label.drawsBackground = false
+            label.isEditable = false
+            label.isSelectable = false
+            label.lineBreakMode = .byTruncatingTail
+            textView.addSubview(label)
+            blameLabel = label
+        }
+
+        guard let label = blameLabel else { return }
+        label.font = NSFont.systemFont(ofSize: fontSize - 1, weight: .regular)
+        label.stringValue = text
+        label.isHidden = false
+
+        // Position at the end of the current line text
+        positionBlameLabel(at: sel.location, label: label)
+    }
+
+    private func positionBlameLabel(at cursorLocation: Int, label: NSTextField) {
+        guard let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else { return }
+
+        let text = textView.string as NSString
+        guard text.length > 0 else { label.isHidden = true; return }
+
+        let lineRange = text.lineRange(for: NSRange(location: cursorLocation, length: 0))
+        // Find end of line content (before newline)
+        var lineEnd = NSMaxRange(lineRange)
+        if lineEnd > lineRange.location && lineEnd <= text.length {
+            let lastChar = text.character(at: lineEnd - 1)
+            if lastChar == 0x0A || lastChar == 0x0D {
+                lineEnd -= 1
+            }
+        }
+        lineEnd = max(lineEnd, lineRange.location)
+
+        // Get the rect for the end of line content
+        let glyphRange = layoutManager.glyphRange(forCharacterRange: NSRange(location: lineEnd, length: 0), actualCharacterRange: nil)
+        let lineRect = layoutManager.boundingRect(forGlyphRange: NSRange(location: max(0, glyphRange.location), length: 1), in: textContainer)
+
+        let inset = textView.textContainerInset
+        let origin = textView.textContainerOrigin
+
+        // Position label after line content with some padding
+        let x = lineRect.maxX + origin.x + inset.width + 16
+        let y = lineRect.origin.y + origin.y + inset.height
+
+        label.sizeToFit()
+        // Limit width so it doesn't extend way off screen
+        let maxWidth = max(200, textView.bounds.width - x - 20)
+        let labelWidth = min(label.frame.width, maxWidth)
+        label.frame = NSRect(x: x, y: y, width: labelWidth, height: lineRect.height)
+    }
+
+    /// Convert "YYYY-MM-DD" date string to relative time (e.g., "3 days ago", "2 months ago")
+    private static func relativeTime(from dateString: String) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let date = formatter.date(from: dateString) else { return dateString }
+
+        let interval = Date().timeIntervalSince(date)
+        let seconds = Int(interval)
+        let minutes = seconds / 60
+        let hours = minutes / 60
+        let days = hours / 24
+        let months = days / 30
+        let years = days / 365
+
+        if years > 0 { return years == 1 ? "1 year ago" : "\(years) years ago" }
+        if months > 0 { return months == 1 ? "1 month ago" : "\(months) months ago" }
+        if days > 0 { return days == 1 ? "yesterday" : "\(days) days ago" }
+        if hours > 0 { return hours == 1 ? "1 hour ago" : "\(hours) hours ago" }
+        if minutes > 0 { return minutes == 1 ? "1 minute ago" : "\(minutes) minutes ago" }
+        return "just now"
     }
 
     // MARK: - Jump to Definition (⌘-click)

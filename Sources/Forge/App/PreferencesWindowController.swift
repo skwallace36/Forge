@@ -5,7 +5,7 @@ class PreferencesWindowController: NSWindowController {
 
     init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 554),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 580),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -31,7 +31,7 @@ class PreferencesViewController: NSViewController {
     private let prefs = Preferences.shared
 
     override func loadView() {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 554))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 580))
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor(red: 0.15, green: 0.16, blue: 0.18, alpha: 1.0).cgColor
 
@@ -166,6 +166,13 @@ class PreferencesViewController: NSViewController {
         hoverCheck.state = prefs.hoverTooltips ? .on : .off
         hoverCheck.frame = NSRect(x: 20, y: y, width: 250, height: 20)
         container.addSubview(hoverCheck)
+        y -= 28
+
+        // Inline git blame
+        let blameCheck = NSButton(checkboxWithTitle: "Inline Git Blame", target: self, action: #selector(inlineBlameToggled(_:)))
+        blameCheck.state = prefs.inlineBlame ? .on : .off
+        blameCheck.frame = NSRect(x: 20, y: y, width: 250, height: 20)
+        container.addSubview(blameCheck)
         y -= 30
 
         // Column ruler
@@ -265,6 +272,10 @@ class PreferencesViewController: NSViewController {
 
     @objc private func hoverTooltipsToggled(_ sender: NSButton) {
         prefs.hoverTooltips = sender.state == .on
+    }
+
+    @objc private func inlineBlameToggled(_ sender: NSButton) {
+        prefs.inlineBlame = sender.state == .on
     }
 
     @objc private func rulerChanged(_ sender: NSPopUpButton) {
