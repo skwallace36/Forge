@@ -68,9 +68,9 @@ class StatusBar: NSView {
 
     func update(line: Int, column: Int, totalLines: Int, fileExtension: String?, selectionLength: Int = 0, detectedTabWidth: Int? = nil, detectedUseTabs: Bool? = nil) {
         if selectionLength > 0 {
-            lineColLabel.stringValue = "Ln \(line), Col \(column)  (\(selectionLength) selected)"
+            lineColLabel.stringValue = "Ln \(line), Col \(column)  (\(Self.formatCount(selectionLength)) sel)"
         } else {
-            lineColLabel.stringValue = "Ln \(line), Col \(column)  (\(totalLines) lines)"
+            lineColLabel.stringValue = "Ln \(line), Col \(column)  (\(Self.formatCount(totalLines)) lines)"
         }
 
         if let useTabs = detectedUseTabs, useTabs {
@@ -137,6 +137,19 @@ class StatusBar: NSView {
         case "txt": return "Plain Text"
         case "log": return "Log"
         default: return ext.uppercased()
+        }
+    }
+
+    /// Format a count for compact display: 1234 → "1,234", 1234567 → "1.2M"
+    private static func formatCount(_ n: Int) -> String {
+        if n >= 1_000_000 {
+            let m = Double(n) / 1_000_000
+            return String(format: "%.1fM", m)
+        } else if n >= 10_000 {
+            let k = Double(n) / 1000
+            return String(format: "%.1fK", k)
+        } else {
+            return "\(n)"
         }
     }
 

@@ -549,11 +549,10 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
     @objc private func openInTerminalAction(_ sender: NSMenuItem) {
         guard let node = sender.representedObject as? FileNode else { return }
         let dir = node.isDirectory ? node.url : node.url.deletingLastPathComponent()
-        let script = "tell application \"Terminal\" to do script \"cd \(dir.path.replacingOccurrences(of: "\"", with: "\\\""))\""
-        if let appleScript = NSAppleScript(source: script) {
-            var error: NSDictionary?
-            appleScript.executeAndReturnError(&error)
-        }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-a", "Terminal", dir.path]
+        try? process.run()
     }
 
     @objc private func duplicateAction(_ sender: NSMenuItem) {

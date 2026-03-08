@@ -284,6 +284,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         textView.string = doc.textStorage.string
         invalidateLineCache()
         updateLineCount()
+        minimapView?.invalidateCodeCache()
 
         // Apply font and foreground color
         textView.font = editorFont
@@ -551,26 +552,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     }
 
     private func notifyCursorPosition() {
-        let text = textView.string as NSString
         let sel = textView.selectedRange()
-        let loc = min(sel.location, text.length)
-
-        // Use lineRange to find current line start efficiently
-        let lineRange = text.lineRange(for: NSRange(location: loc, length: 0))
-        let column = loc - lineRange.location + 1
-
-        // Count line number by counting newlines before cursor
-        var line = 1
-        var searchRange = NSRange(location: 0, length: loc)
-        while searchRange.location < loc {
-            let found = text.range(of: "\n", options: [], range: searchRange)
-            if found.location == NSNotFound || found.location >= loc { break }
-            line += 1
-            searchRange.location = found.location + 1
-            searchRange.length = loc - searchRange.location
-        }
-
-        onCursorChange?(line, column, cachedTotalLines, sel.length)
+        let (zeroLine, zeroCol) = characterIndexToLineColumn(sel.location)
+        onCursorChange?(zeroLine + 1, zeroCol + 1, cachedTotalLines, sel.length)
     }
 
     private func rehighlight() {

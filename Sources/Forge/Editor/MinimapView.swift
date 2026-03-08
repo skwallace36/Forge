@@ -33,10 +33,24 @@ class MinimapView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
+        observePreferences()
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) not implemented")
+    }
+
+    private func observePreferences() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(preferencesDidChange),
+            name: .preferencesDidChange,
+            object: nil,
+        )
+    }
+
+    @objc private func preferencesDidChange() {
+        invalidateCodeCache()
     }
 
     /// Call this when text content changes to invalidate the cached minimap
@@ -161,19 +175,26 @@ class MinimapView: NSView {
 
         // Draw diagnostic markers on the right edge (part of the static content)
         if !diagnosticMarkers.isEmpty {
+            // Build line offsets once for all markers
+            let maxLine = diagnosticMarkers.max(by: { $0.line < $1.line })?.line ?? 0
+            var lineOffsets = [0]
+            for i in 0..<text.length where lineOffsets.count <= maxLine {
+                if text.character(at: i) == 0x0A {
+                    lineOffsets.append(i + 1)
+                }
+            }
+
             for marker in diagnosticMarkers {
                 let markerColor: NSColor = marker.severity == 1
                     ? NSColor(red: 0.99, green: 0.30, blue: 0.30, alpha: 0.85)
                     : NSColor(red: 0.99, green: 0.80, blue: 0.28, alpha: 0.85)
 
-                let lineY = lineYPosition(
-                    line: marker.line,
-                    scaleFactor: scaleFactor,
-                    text: text,
-                    layoutManager: layoutManager,
-                    textView: textView,
-                    textContainer: textContainer,
-                )
+                let charIdx = marker.line < lineOffsets.count ? lineOffsets[marker.line] : min(text.length - 1, 0)
+                guard charIdx >= 0 && charIdx < text.length else { continue }
+
+                let glyphIdx = layoutManager.glyphIndexForCharacter(at: charIdx)
+                let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIdx, effectiveRange: nil)
+                let lineY = (lineRect.origin.y + textView.textContainerInset.height) * scaleFactor
 
                 markerColor.setFill()
                 NSRect(x: bounds.width - 4, y: lineY, width: 3, height: max(2, 3 / scaleFactor)).fill()
@@ -184,24 +205,6 @@ class MinimapView: NSView {
         return image
     }
 
-    private func lineYPosition(line: Int, scaleFactor: CGFloat, text: NSString, layoutManager: NSLayoutManager, textView: NSTextView, textContainer: NSTextContainer) -> CGFloat {
-        // Find the character offset for the given line
-        var currentLine = 0
-        var offset = 0
-        while currentLine < line && offset < text.length {
-            if text.character(at: offset) == 0x0A {
-                currentLine += 1
-            }
-            offset += 1
-        }
-
-        let charIndex = min(offset, text.length - 1)
-        guard charIndex >= 0 else { return 0 }
-
-        let glyphIndex = layoutManager.glyphIndexForCharacter(at: charIndex)
-        let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
-        return (lineRect.origin.y + textView.textContainerInset.height) * scaleFactor
-    }
 
     // MARK: - Click to scroll
 

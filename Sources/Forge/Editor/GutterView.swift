@@ -25,6 +25,9 @@ class GutterView: NSView {
     /// Anchor line range for drag-to-select in gutter
     private var dragAnchorLineRange: NSRange?
 
+    /// Last line shown in tooltip, to avoid flickering from repeated updates
+    private var lastTooltipLine: Int? = nil
+
     override var isFlipped: Bool { true }
 
     override func updateTrackingAreas() {
@@ -43,11 +46,17 @@ class GutterView: NSView {
 
     override func mouseMoved(with event: NSEvent) {
         guard !diagnosticMessages.isEmpty else {
-            toolTip = nil
+            if lastTooltipLine != nil {
+                lastTooltipLine = nil
+                toolTip = nil
+            }
             return
         }
 
         let lineNum = lineNumberAtPoint(convert(event.locationInWindow, from: nil))
+        guard lineNum != lastTooltipLine else { return }
+        lastTooltipLine = lineNum
+
         if let line = lineNum, let message = diagnosticMessages[line] {
             toolTip = message
         } else {
