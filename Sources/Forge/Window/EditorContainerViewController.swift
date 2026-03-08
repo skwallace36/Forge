@@ -405,6 +405,14 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         }
     }
 
+    @objc func foldAtCursor(_ sender: Any?) {
+        editor.foldAtCursor(sender)
+    }
+
+    @objc func unfoldAtCursor(_ sender: Any?) {
+        editor.unfoldAtCursor(sender)
+    }
+
     @objc func goToLine(_ sender: Any?) {
         let alert = NSAlert()
         alert.messageText = "Go to Line"

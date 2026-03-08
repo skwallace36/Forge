@@ -2130,6 +2130,21 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         gutterView.foldableLines = foldable
     }
 
+    /// Fold/unfold at the current cursor line
+    @objc func foldAtCursor(_ sender: Any?) {
+        let (line, _) = characterIndexToLineColumn(textView.selectedRange().location)
+        if gutterView.foldableLines.contains(line) && !gutterView.foldedLines.contains(line) {
+            fold(at: line)
+        }
+    }
+
+    @objc func unfoldAtCursor(_ sender: Any?) {
+        let (line, _) = characterIndexToLineColumn(textView.selectedRange().location)
+        if gutterView.foldedLines.contains(line) {
+            unfold(at: line)
+        }
+    }
+
     /// Toggle fold/unfold at a given 0-indexed line
     func toggleFold(at line: Int) {
         if gutterView.foldedLines.contains(line) {

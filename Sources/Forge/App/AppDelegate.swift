@@ -209,6 +209,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         resetZoom.keyEquivalentModifierMask = [.command, .option]
         viewMenu.addItem(resetZoom)
 
+        viewMenu.addItem(.separator())
+
+        let foldItem = NSMenuItem(title: "Fold", action: #selector(EditorContainerViewController.foldAtCursor(_:)), keyEquivalent: String(Character(UnicodeScalar(NSLeftArrowFunctionKey)!)))
+        foldItem.keyEquivalentModifierMask = [.command, .option]
+        viewMenu.addItem(foldItem)
+
+        let unfoldItem = NSMenuItem(title: "Unfold", action: #selector(EditorContainerViewController.unfoldAtCursor(_:)), keyEquivalent: String(Character(UnicodeScalar(NSRightArrowFunctionKey)!)))
+        unfoldItem.keyEquivalentModifierMask = [.command, .option]
+        viewMenu.addItem(unfoldItem)
+
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
 
