@@ -31,12 +31,13 @@ class TabManager {
     private(set) var tabs: [Tab] = []
     private(set) var selectedIndex: Int = -1 {
         didSet {
-            if oldValue != selectedIndex && oldValue >= 0 {
-                previousSelectedIndex = oldValue
+            if oldValue != selectedIndex && oldValue >= 0 && oldValue < tabs.count {
+                previousSelectedURL = tabs[oldValue].url
             }
         }
     }
-    private var previousSelectedIndex: Int = -1
+    /// Track MRU by URL so it survives tab close/reorder
+    private var previousSelectedURL: URL?
     private var recentlyClosed: [ForgeDocument] = []
 
     var currentTab: Tab? {
@@ -141,8 +142,10 @@ class TabManager {
     /// Switch to the most recently used tab (Ctrl+Tab)
     func switchToMostRecent() {
         guard tabs.count > 1 else { return }
-        if previousSelectedIndex >= 0 && previousSelectedIndex < tabs.count && previousSelectedIndex != selectedIndex {
-            selectedIndex = previousSelectedIndex
+        if let url = previousSelectedURL,
+           let index = tabs.firstIndex(where: { $0.url == url }),
+           index != selectedIndex {
+            selectedIndex = index
         } else {
             selectPrevious()
         }

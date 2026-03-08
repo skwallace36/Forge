@@ -1776,21 +1776,15 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         if forward {
             // Find next diagnostic after current line
-            if let next = sorted.first(where: { $0.range.start.line > currentLine }) {
-                scrollToLine(next.range.start.line, column: next.range.start.character)
-            } else {
-                // Wrap to first
-                let first = sorted[0]
-                scrollToLine(first.range.start.line, column: first.range.start.character)
+            let target = sorted.first(where: { $0.range.start.line > currentLine }) ?? sorted.first
+            if let target = target {
+                scrollToLine(target.range.start.line, column: target.range.start.character)
             }
         } else {
             // Find previous diagnostic before current line
-            if let prev = sorted.last(where: { $0.range.start.line < currentLine }) {
-                scrollToLine(prev.range.start.line, column: prev.range.start.character)
-            } else {
-                // Wrap to last
-                let last = sorted[sorted.count - 1]
-                scrollToLine(last.range.start.line, column: last.range.start.character)
+            let target = sorted.last(where: { $0.range.start.line < currentLine }) ?? sorted.last
+            if let target = target {
+                scrollToLine(target.range.start.line, column: target.range.start.character)
             }
         }
     }

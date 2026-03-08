@@ -98,8 +98,7 @@ class ForgeDocument {
         var spaceCounts: [Int: Int] = [:]  // indent width → frequency
 
         for line in sampleLines {
-            guard !line.isEmpty else { continue }
-            let first = line.first!
+            guard let first = line.first else { continue }
             if first == "\t" {
                 tabCount += 1
             } else if first == " " {
