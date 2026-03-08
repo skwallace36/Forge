@@ -43,6 +43,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let fileMenuItem = NSMenuItem()
         let fileMenu = NSMenu(title: "File")
         fileMenu.addItem(withTitle: "Open…", action: #selector(openDocument(_:)), keyEquivalent: "o")
+
+        let openQuickly = NSMenuItem(title: "Open Quickly…", action: #selector(MainWindowController.showOpenQuickly(_:)), keyEquivalent: "O")
+        openQuickly.keyEquivalentModifierMask = [.command, .shift]
+        fileMenu.addItem(openQuickly)
+
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "Save", action: #selector(saveDocument(_:)), keyEquivalent: "s")
         fileMenu.addItem(.separator())

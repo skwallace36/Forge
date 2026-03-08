@@ -1,9 +1,10 @@
 import AppKit
 
-class MainWindowController: NSWindowController {
+class MainWindowController: NSWindowController, OpenQuicklyDelegate {
 
     let project: ForgeProject
     private var splitViewController: MainSplitViewController!
+    private var openQuicklyController: OpenQuicklyWindowController?
 
     init(project: ForgeProject) {
         self.project = project
@@ -73,6 +74,21 @@ class MainWindowController: NSWindowController {
     @objc func reopenLastTab(_ sender: Any?) {
         project.tabManager.reopenLast()
         splitViewController.editorAreaDidUpdate()
+    }
+
+    // MARK: - Open Quickly
+
+    @objc func showOpenQuickly(_ sender: Any?) {
+        guard let win = window else { return }
+        if openQuicklyController == nil {
+            openQuicklyController = OpenQuicklyWindowController(projectRoot: project.rootURL)
+            openQuicklyController?.delegate = self
+        }
+        openQuicklyController?.showInWindow(win)
+    }
+
+    func openQuickly(_ controller: OpenQuicklyWindowController, didSelectURL url: URL) {
+        openFile(url)
     }
 
     // MARK: - Initial file

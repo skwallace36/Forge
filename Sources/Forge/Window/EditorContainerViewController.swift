@@ -1,9 +1,10 @@
 import AppKit
 
-/// Container for the tab bar + editor view. Lives in the center pane.
+/// Container for the jump bar + tab bar + editor view. Lives in the center pane.
 class EditorContainerViewController: NSViewController, TabBarDelegate {
 
     let project: ForgeProject
+    private let jumpBar = JumpBar()
     private let tabBar = TabBar()
     private let editorView = ForgeEditorView()
     private let placeholderLabel = NSTextField(labelWithString: "Open a file to start editing")
@@ -22,6 +23,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor(red: 0.15, green: 0.16, blue: 0.18, alpha: 1.0).cgColor
 
+        // Jump bar (breadcrumb path)
+        jumpBar.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(jumpBar)
+
         // Tab bar
         tabBar.translatesAutoresizingMaskIntoConstraints = false
         tabBar.delegate = self
@@ -39,7 +44,12 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         container.addSubview(placeholderLabel)
 
         NSLayoutConstraint.activate([
-            tabBar.topAnchor.constraint(equalTo: container.topAnchor),
+            jumpBar.topAnchor.constraint(equalTo: container.topAnchor),
+            jumpBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            jumpBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            jumpBar.heightAnchor.constraint(equalToConstant: 24),
+
+            tabBar.topAnchor.constraint(equalTo: jumpBar.bottomAnchor),
             tabBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             tabBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             tabBar.heightAnchor.constraint(equalToConstant: 30),
@@ -69,9 +79,11 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             editorView.isHidden = false
             placeholderLabel.isHidden = true
             editorView.displayDocument(doc)
+            jumpBar.update(fileURL: doc.url, projectRoot: project.rootURL)
         } else {
             editorView.isHidden = true
             placeholderLabel.isHidden = false
+            jumpBar.update(fileURL: nil, projectRoot: nil)
         }
     }
 
