@@ -268,6 +268,19 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         }
     }
 
+    /// Collapse all expanded directories in the navigator
+    @objc func collapseAll(_ sender: Any? = nil) {
+        guard let root = rootNode else { return }
+        collapseAllChildren(root)
+    }
+
+    private func collapseAllChildren(_ node: FileNode) {
+        for child in node.children where child.isDirectory {
+            collapseAllChildren(child)
+            outlineView.collapseItem(child)
+        }
+    }
+
     private func filteredChildren(of node: FileNode) -> [FileNode] {
         guard !filterText.isEmpty else { return node.children }
         return node.children.filter { nodeMatchesFilter($0) }

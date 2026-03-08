@@ -966,12 +966,15 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         guard let replacement = replacementString, replacement.count == 1 else { return true }
 
         let closing: String?
+        let isQuotePair: Bool
         switch replacement {
-        case "(": closing = ")"
-        case "[": closing = "]"
-        case "{": closing = "}"
-        case "\"": closing = "\""
-        default: closing = nil
+        case "(": closing = ")"; isQuotePair = false
+        case "[": closing = "]"; isQuotePair = false
+        case "{": closing = "}"; isQuotePair = false
+        case "\"": closing = "\""; isQuotePair = true
+        case "'": closing = "'"; isQuotePair = true
+        case "`": closing = "`"; isQuotePair = true
+        default: closing = nil; isQuotePair = false
         }
 
         if let close = closing {
@@ -986,10 +989,11 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             }
 
             // For quotes, only auto-close if not already inside quotes (simple heuristic)
-            if replacement == "\"" {
+            if isQuotePair {
+                let quoteChar = UInt16(replacement.unicodeScalars.first!.value)
                 let text = textView.string as NSString
                 if affectedCharRange.location < text.length &&
-                   text.character(at: affectedCharRange.location) == UInt16(Character("\"").asciiValue!) {
+                   text.character(at: affectedCharRange.location) == quoteChar {
                     // Skip over the closing quote instead
                     textView.setSelectedRange(NSRange(location: affectedCharRange.location + 1, length: 0))
                     return false
@@ -1050,6 +1054,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             (UInt16(Character("[").asciiValue!), UInt16(Character("]").asciiValue!)),
             (UInt16(Character("{").asciiValue!), UInt16(Character("}").asciiValue!)),
             (UInt16(Character("\"").asciiValue!), UInt16(Character("\"").asciiValue!)),
+            (UInt16(Character("'").asciiValue!), UInt16(Character("'").asciiValue!)),
+            (UInt16(Character("`").asciiValue!), UInt16(Character("`").asciiValue!)),
         ]
 
         for (open, close) in pairs {

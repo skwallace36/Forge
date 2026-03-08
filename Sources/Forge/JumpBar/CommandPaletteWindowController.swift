@@ -133,6 +133,8 @@ class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate, N
                            action: #selector(EditorContainerViewController.findPrevious(_:)), target: nil),
 
             // Edit
+            PaletteCommand(title: "Collapse All (Navigator)", shortcut: "", category: "Navigate",
+                           action: #selector(NavigatorViewController.collapseAll(_:)), target: nil),
             PaletteCommand(title: "Select Line", shortcut: "", category: "Edit",
                            action: #selector(EditorContainerViewController.selectLine(_:)), target: nil),
             PaletteCommand(title: "Close Other Tabs", shortcut: "⌘⌥W", category: "File",
