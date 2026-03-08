@@ -8,11 +8,13 @@ class ForgeProject {
     let lspClient: LSPClient
     let navigationHistory = NavigationHistory()
     let buildSystem: BuildSystem
+    let gitStatus: GitStatusTracker
 
     init(rootURL: URL) {
         self.rootURL = rootURL
         self.lspClient = LSPClient(rootURL: rootURL)
         self.buildSystem = BuildSystem(projectRoot: rootURL)
+        self.gitStatus = GitStatusTracker(rootURL: rootURL)
 
         // Start LSP in background
         Task {

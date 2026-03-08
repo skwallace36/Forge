@@ -63,6 +63,13 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         loadFileTree()
         startFileWatcher()
         setupContextMenu()
+        refreshGitStatus()
+    }
+
+    private func refreshGitStatus() {
+        project.gitStatus.refresh { [weak self] in
+            self?.outlineView.reloadData()
+        }
     }
 
     private func setupContextMenu() {
@@ -74,6 +81,7 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
     private func startFileWatcher() {
         fileWatcher = FileSystemWatcher(path: project.rootURL.path, debounceInterval: 0.8) { [weak self] _ in
             self?.reloadFileTree()
+            self?.refreshGitStatus()
         }
         fileWatcher?.start()
     }
@@ -267,6 +275,26 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
 
         cell.textField?.stringValue = node.name
         cell.imageView?.image = node.icon
+
+        // Git status coloring
+        if let status = project.gitStatus.status(for: node.url) {
+            switch status {
+            case .modified:
+                cell.textField?.textColor = NSColor(red: 0.90, green: 0.75, blue: 0.30, alpha: 1.0)
+            case .added, .untracked:
+                cell.textField?.textColor = NSColor(red: 0.40, green: 0.80, blue: 0.40, alpha: 1.0)
+            case .deleted:
+                cell.textField?.textColor = NSColor(red: 0.90, green: 0.40, blue: 0.40, alpha: 1.0)
+            case .conflict:
+                cell.textField?.textColor = NSColor(red: 0.99, green: 0.30, blue: 0.30, alpha: 1.0)
+            case .renamed:
+                cell.textField?.textColor = NSColor(red: 0.50, green: 0.70, blue: 0.95, alpha: 1.0)
+            }
+        } else if node.isDirectory && project.gitStatus.hasChanges(under: node.url) {
+            cell.textField?.textColor = NSColor(red: 0.90, green: 0.75, blue: 0.30, alpha: 1.0)
+        } else {
+            cell.textField?.textColor = .labelColor
+        }
 
         return cell
     }
