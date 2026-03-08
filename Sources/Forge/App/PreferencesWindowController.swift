@@ -5,7 +5,7 @@ class PreferencesWindowController: NSWindowController {
 
     init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 440),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 470),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -31,11 +31,11 @@ class PreferencesViewController: NSViewController {
     private let prefs = Preferences.shared
 
     override func loadView() {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 440))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 470))
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor(red: 0.15, green: 0.16, blue: 0.18, alpha: 1.0).cgColor
 
-        var y: CGFloat = 406
+        var y: CGFloat = 436
 
         // Editor section
         let titleLabel = makeLabel("Editor", bold: true, size: 15)
@@ -131,6 +131,13 @@ class PreferencesViewController: NSViewController {
         wrapCheck.state = prefs.wordWrap ? .on : .off
         wrapCheck.frame = NSRect(x: 20, y: y, width: 200, height: 20)
         container.addSubview(wrapCheck)
+        y -= 28
+
+        // Show invisible characters
+        let invisiblesCheck = NSButton(checkboxWithTitle: "Show Invisible Characters", target: self, action: #selector(invisiblesToggled(_:)))
+        invisiblesCheck.state = prefs.showInvisibles ? .on : .off
+        invisiblesCheck.frame = NSRect(x: 20, y: y, width: 250, height: 20)
+        container.addSubview(invisiblesCheck)
         y -= 30
 
         // Column ruler
@@ -210,6 +217,10 @@ class PreferencesViewController: NSViewController {
 
     @objc private func wordWrapToggled(_ sender: NSButton) {
         prefs.wordWrap = sender.state == .on
+    }
+
+    @objc private func invisiblesToggled(_ sender: NSButton) {
+        prefs.showInvisibles = sender.state == .on
     }
 
     @objc private func rulerChanged(_ sender: NSPopUpButton) {
