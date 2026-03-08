@@ -16,6 +16,7 @@ class Preferences {
         static let showIndentGuides = "ForgeShowIndentGuides"
         static let trimTrailingWhitespace = "ForgeTrimTrailingWhitespace"
         static let ensureTrailingNewline = "ForgeEnsureTrailingNewline"
+        static let columnRuler = "ForgeColumnRuler"
     }
 
     // MARK: - Font
@@ -64,6 +65,15 @@ class Preferences {
         }
         set {
             defaults.set(newValue, forKey: Key.showIndentGuides)
+            NotificationCenter.default.post(name: .preferencesDidChange, object: nil)
+        }
+    }
+
+    /// Column ruler position (0 = disabled, common values: 80, 100, 120)
+    var columnRuler: Int {
+        get { defaults.integer(forKey: Key.columnRuler) }
+        set {
+            defaults.set(newValue, forKey: Key.columnRuler)
             NotificationCenter.default.post(name: .preferencesDidChange, object: nil)
         }
     }

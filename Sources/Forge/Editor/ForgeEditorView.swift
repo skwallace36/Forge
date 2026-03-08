@@ -137,8 +137,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         // Small left padding for text (gutter is beside the scroll view, not overlaying)
         textView.textContainerInset = NSSize(width: 4, height: 0)
 
-        // Configure indent guides
+        // Configure indent guides and column ruler
         forgeLayoutManager?.tabSpaces = tabWidth
+        forgeLayoutManager?.rulerColumn = Preferences.shared.columnRuler
     }
 
     private func configureGutter() {

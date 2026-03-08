@@ -4,12 +4,17 @@ import AppKit
 class ForgeLayoutManager: NSLayoutManager {
 
     var indentGuideColor = NSColor(white: 0.30, alpha: 0.35)
+    var columnRulerColor = NSColor(white: 0.22, alpha: 1.0)
     var tabSpaces: Int = 4
+    var rulerColumn: Int = 0 // 0 = disabled
 
     override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
         if Preferences.shared.showIndentGuides {
             drawIndentGuides(forGlyphRange: glyphsToShow, at: origin)
+        }
+        if rulerColumn > 0 {
+            drawColumnRuler(forGlyphRange: glyphsToShow, at: origin)
         }
     }
 
@@ -77,6 +82,30 @@ class ForgeLayoutManager: NSLayoutManager {
 
             lineStart = NSMaxRange(lineRange)
         }
+    }
+
+    private func drawColumnRuler(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+        guard let textStorage = textStorage,
+              let tv = firstTextView else { return }
+
+        let font = textStorage.length > 0
+            ? textStorage.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+                ?? NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+            : NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        let spaceWidth = NSAttributedString(
+            string: " ",
+            attributes: [.font: font]
+        ).size().width
+
+        let x = origin.x + CGFloat(rulerColumn) * spaceWidth + tv.textContainerInset.width
+        let visibleRect = tv.enclosingScrollView?.contentView.bounds ?? tv.bounds
+
+        columnRulerColor.setStroke()
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: x, y: visibleRect.origin.y))
+        path.line(to: NSPoint(x: x, y: visibleRect.origin.y + visibleRect.height))
+        path.lineWidth = 1.0
+        path.stroke()
     }
 
     private func textContainerInset() -> NSSize {
