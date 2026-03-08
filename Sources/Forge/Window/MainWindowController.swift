@@ -16,10 +16,11 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
             defer: false
         )
 
-        window.title = "Forge — \(project.displayName)"
+        window.title = project.displayName
+        window.subtitle = project.rootURL.path
         window.minSize = NSSize(width: 600, height: 400)
         window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
+        window.titleVisibility = .visible
         window.backgroundColor = NSColor(red: 0.15, green: 0.16, blue: 0.18, alpha: 1.0)
 
         // Dark appearance
@@ -217,7 +218,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
 
         // Update window title to remove "Edited" indicator
         if let window = window {
-            window.title = "Forge — \(doc.fileName)"
+            window.title = doc.fileName
         }
     }
 
@@ -228,7 +229,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         }
         splitViewController.editorAreaDidUpdate()
         if let doc = project.tabManager.currentDocument, let window = window {
-            window.title = "Forge — \(doc.fileName)"
+            window.title = doc.fileName
         }
     }
 

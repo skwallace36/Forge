@@ -200,7 +200,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             // Update window title with modified state
             if let window = view.window {
                 let modified = doc.isModified ? " — Edited" : ""
-                window.title = "Forge — \(doc.fileName)\(modified)"
+                window.title = "\(doc.fileName)\(modified)"
             }
         } else {
             editor.scrollView.isHidden = true
