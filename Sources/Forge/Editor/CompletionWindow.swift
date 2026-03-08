@@ -100,7 +100,7 @@ class CompletionWindow: NSPanel, NSTableViewDataSource, NSTableViewDelegate {
         items = []
     }
 
-    /// Filter the completion list by prefix (case-insensitive), ranked by match quality
+    /// Filter the completion list using fuzzy matching, ranked by match quality
     func filterItems(prefix: String) {
         guard !prefix.isEmpty else {
             items = allItems
@@ -109,25 +109,18 @@ class CompletionWindow: NSPanel, NSTableViewDataSource, NSTableViewDelegate {
             return
         }
 
-        let lowered = prefix.lowercased()
-
-        // Score each item: prefix match > case-insensitive prefix > contains
         struct Scored {
             let item: LSPCompletionItem
             let score: Int
         }
 
         let scored: [Scored] = allItems.compactMap { item in
-            let label = item.label
-            let labelLow = label.lowercased()
-            if label.hasPrefix(prefix) {
-                return Scored(item: item, score: 3)  // exact prefix
-            } else if labelLow.hasPrefix(lowered) {
-                return Scored(item: item, score: 2)  // case-insensitive prefix
-            } else if labelLow.contains(lowered) {
-                return Scored(item: item, score: 1)  // substring match
-            } else if item.insertText?.lowercased().contains(lowered) == true {
-                return Scored(item: item, score: 0)  // insertText match
+            // Try matching against the label first, then insertText
+            if let result = FuzzyMatch.match(pattern: prefix, candidate: item.label) {
+                return Scored(item: item, score: result.score)
+            } else if let insertText = item.insertText,
+                      let result = FuzzyMatch.match(pattern: prefix, candidate: insertText) {
+                return Scored(item: item, score: result.score - 50) // lower priority than label match
             }
             return nil
         }
