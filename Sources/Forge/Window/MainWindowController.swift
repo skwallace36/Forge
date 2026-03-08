@@ -350,6 +350,12 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         splitViewController.editorAreaDidUpdate()
     }
 
+    // MARK: - Focus Editor
+
+    @objc func focusEditor(_ sender: Any?) {
+        splitViewController.focusEditor()
+    }
+
     // MARK: - Open Quickly
 
     @objc func showOpenQuickly(_ sender: Any?) {

@@ -86,6 +86,18 @@ class MainSplitViewController: NSSplitViewController {
         editorContainerVC.scrollToLine(line, column: column)
     }
 
+    // MARK: - Focus Editor (Escape)
+
+    func focusEditor() {
+        // Collapse bottom panel if it's open
+        if splitViewItems.count > 1 && !splitViewItems[1].isCollapsed {
+            splitViewItems[1].animator().isCollapsed = true
+        }
+
+        // Focus the text view in the editor
+        editorContainerVC.focusEditor()
+    }
+
     // MARK: - Reveal in Navigator (⌘⇧J)
 
     @objc func revealInNavigator(_ sender: Any?) {

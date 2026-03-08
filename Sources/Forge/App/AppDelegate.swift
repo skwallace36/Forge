@@ -171,6 +171,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         navMenu.addItem(.separator())
 
+        let focusEditor = NSMenuItem(title: "Focus Editor", action: #selector(MainWindowController.focusEditor(_:)), keyEquivalent: String(Character(UnicodeScalar(27))))
+        focusEditor.keyEquivalentModifierMask = []
+        navMenu.addItem(focusEditor)
+
+        navMenu.addItem(.separator())
+
         let goBack = NSMenuItem(title: "Go Back", action: #selector(MainWindowController.goBack(_:)), keyEquivalent: String(Character(UnicodeScalar(NSLeftArrowFunctionKey)!)))
         goBack.keyEquivalentModifierMask = [.command, .control]
         navMenu.addItem(goBack)

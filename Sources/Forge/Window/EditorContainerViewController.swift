@@ -282,6 +282,12 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.scrollToLine(line, column: column)
     }
 
+    // MARK: - Focus
+
+    func focusEditor() {
+        view.window?.makeFirstResponder(editor.textView)
+    }
+
     // MARK: - Save support
 
     func syncDocumentContent() {

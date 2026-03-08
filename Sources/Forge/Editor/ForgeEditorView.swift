@@ -1297,6 +1297,24 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             return true
         }
 
+        // ⌃⇧K → delete line
+        if mods == [.control, .shift] && event.keyCode == 40 { // K key
+            deleteLine()
+            return true
+        }
+
+        // ⌘⇧↩ → insert line above
+        if mods == [.command, .shift] && event.keyCode == 36 { // Return
+            insertLineAbove()
+            return true
+        }
+
+        // ⌘↩ → insert line below
+        if mods == [.command] && event.keyCode == 36 { // Return
+            insertLineBelow()
+            return true
+        }
+
         // If completion window is showing, handle navigation keys
         guard let cw = completionWindow, cw.isShowing else { return false }
 
@@ -1394,6 +1412,79 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             // Move cursor to the duplicated line
             let newCursorPos = insertPoint + (sel.location - lineRange.location)
             textView.setSelectedRange(NSRange(location: newCursorPos, length: sel.length))
+        }
+    }
+
+    // MARK: - Delete Line (⌃⇧K)
+
+    private func deleteLine() {
+        guard let ts = textView.textStorage else { return }
+        let text = ts.string as NSString
+        let sel = textView.selectedRange()
+        let lineRange = text.lineRange(for: sel)
+
+        if textView.shouldChangeText(in: lineRange, replacementString: "") {
+            ts.deleteCharacters(in: lineRange)
+            textView.didChangeText()
+            textView.setSelectedRange(NSRange(location: min(lineRange.location, ts.length), length: 0))
+        }
+    }
+
+    // MARK: - Insert Line Above/Below
+
+    private func insertLineAbove() {
+        guard let ts = textView.textStorage else { return }
+        let text = ts.string as NSString
+        let sel = textView.selectedRange()
+        let lineRange = text.lineRange(for: sel)
+
+        // Extract leading whitespace from current line
+        let lineText = text.substring(with: lineRange)
+        var indent = ""
+        for ch in lineText {
+            if ch == " " || ch == "\t" { indent.append(ch) }
+            else { break }
+        }
+
+        let insertText = indent + "\n"
+        let insertPoint = lineRange.location
+
+        if textView.shouldChangeText(in: NSRange(location: insertPoint, length: 0), replacementString: insertText) {
+            ts.insert(NSAttributedString(string: insertText, attributes: [
+                .font: NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular),
+                .foregroundColor: theme.foreground,
+            ]), at: insertPoint)
+            textView.didChangeText()
+            // Place cursor at end of indent on the new line
+            textView.setSelectedRange(NSRange(location: insertPoint + indent.count, length: 0))
+        }
+    }
+
+    private func insertLineBelow() {
+        guard let ts = textView.textStorage else { return }
+        let text = ts.string as NSString
+        let sel = textView.selectedRange()
+        let lineRange = text.lineRange(for: sel)
+
+        // Extract leading whitespace from current line
+        let lineText = text.substring(with: lineRange)
+        var indent = ""
+        for ch in lineText {
+            if ch == " " || ch == "\t" { indent.append(ch) }
+            else { break }
+        }
+
+        let insertText = "\n" + indent
+        let insertPoint = NSMaxRange(lineRange) - (lineText.hasSuffix("\n") ? 1 : 0)
+
+        if textView.shouldChangeText(in: NSRange(location: insertPoint, length: 0), replacementString: insertText) {
+            ts.insert(NSAttributedString(string: insertText, attributes: [
+                .font: NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular),
+                .foregroundColor: theme.foreground,
+            ]), at: insertPoint)
+            textView.didChangeText()
+            // Place cursor at end of indent on the new line
+            textView.setSelectedRange(NSRange(location: insertPoint + insertText.count, length: 0))
         }
     }
 
