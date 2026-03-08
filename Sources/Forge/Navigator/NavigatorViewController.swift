@@ -377,6 +377,20 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
             copyRelativePathItem.target = self
             copyRelativePathItem.representedObject = node
             menu.addItem(copyRelativePathItem)
+
+            menu.addItem(.separator())
+
+            let openTerminalItem = NSMenuItem(title: "Open in Terminal", action: #selector(openInTerminalAction(_:)), keyEquivalent: "")
+            openTerminalItem.target = self
+            openTerminalItem.representedObject = node
+            menu.addItem(openTerminalItem)
+
+            if !node.isDirectory {
+                let duplicateItem = NSMenuItem(title: "Duplicate", action: #selector(duplicateAction(_:)), keyEquivalent: "")
+                duplicateItem.target = self
+                duplicateItem.representedObject = node
+                menu.addItem(duplicateItem)
+            }
         }
     }
 
@@ -446,6 +460,36 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
             : nodePath
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(relativePath, forType: .string)
+    }
+
+    @objc private func openInTerminalAction(_ sender: NSMenuItem) {
+        guard let node = sender.representedObject as? FileNode else { return }
+        let dir = node.isDirectory ? node.url : node.url.deletingLastPathComponent()
+        let script = "tell application \"Terminal\" to do script \"cd \(dir.path.replacingOccurrences(of: "\"", with: "\\\""))\""
+        if let appleScript = NSAppleScript(source: script) {
+            var error: NSDictionary?
+            appleScript.executeAndReturnError(&error)
+        }
+    }
+
+    @objc private func duplicateAction(_ sender: NSMenuItem) {
+        guard let node = sender.representedObject as? FileNode, !node.isDirectory else { return }
+        let dir = node.url.deletingLastPathComponent()
+        let name = node.url.deletingPathExtension().lastPathComponent
+        let ext = node.url.pathExtension
+
+        // Generate unique name: "file copy.ext", "file copy 2.ext", etc.
+        var copyName = ext.isEmpty ? "\(name) copy" : "\(name) copy.\(ext)"
+        var copyURL = dir.appendingPathComponent(copyName)
+        var counter = 2
+        while FileManager.default.fileExists(atPath: copyURL.path) {
+            copyName = ext.isEmpty ? "\(name) copy \(counter)" : "\(name) copy \(counter).\(ext)"
+            copyURL = dir.appendingPathComponent(copyName)
+            counter += 1
+        }
+
+        try? FileManager.default.copyItem(at: node.url, to: copyURL)
+        reloadFileTree()
     }
 
     private func promptForName(title: String, message: String, defaultValue: String = "", completion: @escaping (String) -> Void) {
