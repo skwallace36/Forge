@@ -218,6 +218,17 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         }
     }
 
+    func saveAllDocuments() {
+        splitViewController.syncDocumentContent()
+        for tab in project.tabManager.tabs where tab.isModified {
+            try? tab.document.save()
+        }
+        splitViewController.editorAreaDidUpdate()
+        if let doc = project.tabManager.currentDocument, let window = window {
+            window.title = "Forge — \(doc.fileName)"
+        }
+    }
+
     // MARK: - Tab actions
 
     @objc func closeCurrentTab(_ sender: Any?) {

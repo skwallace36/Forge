@@ -59,6 +59,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "Save", action: #selector(saveDocument(_:)), keyEquivalent: "s")
+
+        let saveAll = NSMenuItem(title: "Save All", action: #selector(saveAllDocuments(_:)), keyEquivalent: "s")
+        saveAll.keyEquivalentModifierMask = [.command, .option]
+        fileMenu.addItem(saveAll)
+
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "Close Tab", action: #selector(MainWindowController.closeCurrentTab(_:)), keyEquivalent: "w")
         fileMenuItem.submenu = fileMenu
@@ -221,5 +226,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func saveDocument(_ sender: Any?) {
         windowController?.saveCurrentDocument()
+    }
+
+    @objc private func saveAllDocuments(_ sender: Any?) {
+        windowController?.saveAllDocuments()
     }
 }
