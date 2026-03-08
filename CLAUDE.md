@@ -39,8 +39,9 @@ Edit: ⌃⇧K (delete line), ⌘↩ (insert line below), ⌘⇧↩ (insert line 
 Edit: ⌘L (go to line), ⌃⌘E (rename symbol), ⌘⌥S (save all)
 Build: ⌘B (build), ⌘R (run), ⌘⇧K (clean), ⌘. (stop)
 Search: ⌘F (find in file), ⌘⌥F (find & replace), ⌘⇧F (find in project w/ regex)
-View: ⌘+/⌘- (zoom in/out), ⌃⌘M (toggle minimap), ⌘, (settings)
+View: ⇧⌘P (command palette), ⌘+/⌘- (zoom in/out), ⌃⌘M (toggle minimap), ⌘, (settings)
 Mouse: ⌘-click (jump to definition), ⌥-click (Quick Help hover)
+Navigator: Enter (rename), Delete (trash)
 Escape: dismiss bottom panel and focus editor
 
 ## Implementation Phases
@@ -85,6 +86,12 @@ See PLAN.md for full phase breakdown. Short version:
 - Dynamic gutter width for large files (auto-expands for 10K+ lines)
 - Error alerts on failed file operations (create, rename, delete, duplicate)
 - Save prompts on Close Others/All/Right tab actions
+- Command Palette (⇧⌘P) — fuzzy-searchable access to 60+ commands
+- Build completion notifications (Glass/Basso sounds, dock bounce, subtitle progress)
+- Bracket pair colorization (6 cycling colors, configurable, UTF-16 optimized)
+- Copy Relative Path in tab context menu
+- Image preview for binary files (inline with dimensions)
+- Navigator keyboard shortcuts (Delete=trash, Enter=rename)
 
 ## Autonomous Development Mode
 
@@ -138,7 +145,7 @@ Sources/Forge/
 ├── Tabs/          — TabBar, TabManager
 ├── Navigator/     — NavigatorViewController (NSOutlineView), FileNode
 ├── Inspector/     — InspectorViewController (file info + Quick Help)
-├── JumpBar/       — JumpBar, OpenQuicklyWindowController
+├── JumpBar/       — JumpBar, OpenQuicklyWindowController, CommandPaletteWindowController
 ├── LSP/           — LSPClient, JSONRPCConnection, LSPTypes
 ├── Syntax/        — SyntaxHighlighter (tree-sitter), SimpleHighlighter (regex), Theme
 ├── Build/         — BuildSystem
