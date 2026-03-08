@@ -29,6 +29,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
     /// Called when user ⌘-clicks to jump to definition: (url, line, column)
     var onJumpToDefinition: ((URL, Int, Int) -> Void)?
 
+    /// Called when LSP rename produces edits for external files: (url, edits)
+    var onApplyEdits: ((URL, [LSPTextEdit]) -> Void)?
+
     let theme: Theme = .xcodeDefaultDark
     let fontSize: CGFloat = 13
     let gutterWidth: CGFloat = 44
@@ -428,6 +431,74 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
     private func notifyLSPChange() {
         guard let doc = document, let ts = textView.textStorage else { return }
         lspClient?.didChange(url: doc.url, text: ts.string)
+    }
+
+    // MARK: - Rename Symbol (⌃⌘E)
+
+    @objc func renameSymbol(_ sender: Any?) {
+        guard let doc = document, let lsp = lspClient else { return }
+
+        // Get the word under cursor
+        let text = textView.string as NSString
+        let cursor = textView.selectedRange().location
+        let wordRange = wordRangeAtIndex(cursor, in: text)
+        guard wordRange.length > 0 else { return }
+
+        let currentWord = text.substring(with: wordRange)
+        let (line, character) = characterIndexToLineColumn(cursor)
+
+        let alert = NSAlert()
+        alert.messageText = "Rename Symbol"
+        alert.informativeText = "Enter the new name for '\(currentWord)':"
+        alert.addButton(withTitle: "Rename")
+        alert.addButton(withTitle: "Cancel")
+
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        textField.stringValue = currentWord
+        alert.accessoryView = textField
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let newName = textField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty && newName != currentWord else { return }
+
+        Task { @MainActor in
+            do {
+                guard let workspaceEdit = try await lsp.rename(url: doc.url, line: line, character: character, newName: newName) else { return }
+
+                // Apply edits to the current document
+                if let edits = workspaceEdit.changes[doc.url] {
+                    applyTextEdits(edits)
+                }
+
+                // Notify about edits in other files
+                for (url, edits) in workspaceEdit.changes where url != doc.url {
+                    onApplyEdits?(url, edits)
+                }
+            } catch {
+                // Rename not supported or failed — silently ignore
+            }
+        }
+    }
+
+    private func applyTextEdits(_ edits: [LSPTextEdit]) {
+        guard let ts = textView.textStorage else { return }
+        let text = ts.string as NSString
+
+        // Sort edits in reverse order to avoid offset issues
+        let sortedEdits = edits.sorted { a, b in
+            if a.range.start.line != b.range.start.line {
+                return a.range.start.line > b.range.start.line
+            }
+            return a.range.start.character > b.range.start.character
+        }
+
+        for edit in sortedEdits {
+            guard let nsRange = lspRangeToNSRange(edit.range, in: text) else { continue }
+            if textView.shouldChangeText(in: nsRange, replacementString: edit.newText) {
+                ts.replaceCharacters(in: nsRange, with: edit.newText)
+                textView.didChangeText()
+            }
+        }
     }
 
     // MARK: - Undo Manager per Document

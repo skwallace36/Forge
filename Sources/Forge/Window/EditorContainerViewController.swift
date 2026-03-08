@@ -229,6 +229,27 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.reindentSelection(sender)
     }
 
+    @objc func renameSymbol(_ sender: Any?) {
+        editor.renameSymbol(sender)
+    }
+
+    @objc func goToLine(_ sender: Any?) {
+        let alert = NSAlert()
+        alert.messageText = "Go to Line"
+        alert.informativeText = "Enter a line number:"
+        alert.addButton(withTitle: "Go")
+        alert.addButton(withTitle: "Cancel")
+
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
+        textField.placeholderString = "Line number"
+        alert.accessoryView = textField
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard let lineNumber = Int(textField.stringValue.trimmingCharacters(in: .whitespaces)),
+              lineNumber > 0 else { return }
+        editor.scrollToLine(lineNumber - 1, column: 0) // convert to 0-based
+    }
+
     // MARK: - Navigation
 
     func scrollToLine(_ line: Int, column: Int) {

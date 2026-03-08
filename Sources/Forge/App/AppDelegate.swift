@@ -97,6 +97,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         reindentItem.keyEquivalentModifierMask = [.control]
         editMenu.addItem(reindentItem)
 
+        editMenu.addItem(.separator())
+
+        let goToLineItem = NSMenuItem(title: "Go to Line…", action: #selector(EditorContainerViewController.goToLine(_:)), keyEquivalent: "l")
+        editMenu.addItem(goToLineItem)
+
+        let renameItem = NSMenuItem(title: "Edit All in Scope", action: #selector(EditorContainerViewController.renameSymbol(_:)), keyEquivalent: "e")
+        renameItem.keyEquivalentModifierMask = [.command, .control]
+        editMenu.addItem(renameItem)
+
         editMenuItem.submenu = editMenu
         mainMenu.addItem(editMenuItem)
 

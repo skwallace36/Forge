@@ -137,3 +137,12 @@ struct LSPDocumentSymbol: Codable {
     let selectionRange: LSPRange
     let children: [LSPDocumentSymbol]?
 }
+
+struct LSPTextEdit: Codable {
+    let range: LSPRange
+    let newText: String
+}
+
+struct LSPWorkspaceEdit {
+    let changes: [URL: [LSPTextEdit]]
+}

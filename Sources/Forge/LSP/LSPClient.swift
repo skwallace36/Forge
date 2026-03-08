@@ -160,6 +160,49 @@ class LSPClient {
         return parseHoverResult(from: response)
     }
 
+    // MARK: - Rename
+
+    func rename(url: URL, line: Int, character: Int, newName: String) async throws -> LSPWorkspaceEdit? {
+        guard initialized, let conn = connection else { return nil }
+
+        let params: [String: Any] = [
+            "textDocument": ["uri": url.absoluteString],
+            "position": ["line": line, "character": character],
+            "newName": newName,
+        ]
+
+        let response = try await conn.sendRequest(method: "textDocument/rename", params: params)
+        return parseWorkspaceEdit(from: response)
+    }
+
+    private func parseWorkspaceEdit(from response: JSONRPCResponse) -> LSPWorkspaceEdit? {
+        guard let result = response.result?.value as? [String: Any],
+              let changesDict = result["changes"] as? [String: [[String: Any]]] else {
+            return nil
+        }
+
+        var changes: [URL: [LSPTextEdit]] = [:]
+        for (uri, editsArray) in changesDict {
+            guard let url = URL(string: uri) else { continue }
+            let edits: [LSPTextEdit] = editsArray.compactMap { editDict in
+                guard let rangeDict = editDict["range"] as? [String: Any],
+                      let startDict = rangeDict["start"] as? [String: Any],
+                      let endDict = rangeDict["end"] as? [String: Any],
+                      let sl = startDict["line"] as? Int, let sc = startDict["character"] as? Int,
+                      let el = endDict["line"] as? Int, let ec = endDict["character"] as? Int,
+                      let newText = editDict["newText"] as? String else { return nil }
+                return LSPTextEdit(
+                    range: LSPRange(start: LSPPosition(line: sl, character: sc),
+                                    end: LSPPosition(line: el, character: ec)),
+                    newText: newText
+                )
+            }
+            changes[url] = edits
+        }
+
+        return LSPWorkspaceEdit(changes: changes)
+    }
+
     // MARK: - Document Symbols
 
     func documentSymbols(url: URL) async throws -> [LSPDocumentSymbol] {
