@@ -273,8 +273,8 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
     }
 
     private func nodeMatchesFilter(_ node: FileNode) -> Bool {
-        // File matches if its name contains the filter text
-        if node.name.lowercased().contains(filterText) {
+        // File matches via fuzzy match against its name
+        if FuzzyMatch.match(pattern: filterText, candidate: node.name) != nil {
             return true
         }
         // Directory matches if any descendant matches

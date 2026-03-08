@@ -166,9 +166,11 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.onTextDidChange = { [weak self] in
             guard let self = self else { return }
             self.project.tabManager.promoteCurrentPreview()
-            // Refresh tab bar to update italic → regular font
+            // Refresh tab bar to update italic → regular font and modified dot
             let tm = self.project.tabManager
             self.tabBar.update(tabs: tm.tabs, selectedIndex: tm.selectedIndex, tabManager: tm)
+            // Update window close-button edited indicator
+            self.view.window?.isDocumentEdited = self.project.tabManager.currentDocument?.isModified ?? false
         }
 
         // Wire up jump bar symbol navigation
