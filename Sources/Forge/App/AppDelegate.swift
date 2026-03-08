@@ -136,6 +136,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "Save", action: #selector(saveDocument(_:)), keyEquivalent: "s")
 
+        let saveAs = NSMenuItem(title: "Save As…", action: #selector(MainWindowController.saveDocumentAs(_:)), keyEquivalent: "s")
+        saveAs.keyEquivalentModifierMask = [.command, .shift]
+        fileMenu.addItem(saveAs)
+
         let saveAll = NSMenuItem(title: "Save All", action: #selector(saveAllDocuments(_:)), keyEquivalent: "s")
         saveAll.keyEquivalentModifierMask = [.command, .option]
         fileMenu.addItem(saveAll)

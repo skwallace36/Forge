@@ -237,6 +237,29 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         }
     }
 
+    @objc func saveDocumentAs(_ sender: Any?) {
+        guard let doc = project.tabManager.currentDocument else { return }
+        splitViewController.syncDocumentContent()
+
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = doc.fileName
+        panel.directoryURL = doc.url.deletingLastPathComponent()
+        panel.canCreateDirectories = true
+
+        panel.beginSheetModal(for: window!) { response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                let text = doc.textStorage.string
+                try text.write(to: url, atomically: true, encoding: .utf8)
+                // Open the new file in a tab
+                self.openFile(url)
+            } catch {
+                let alert = NSAlert(error: error)
+                alert.runModal()
+            }
+        }
+    }
+
     func saveAllDocuments() {
         splitViewController.syncDocumentContent()
         for tab in project.tabManager.tabs where tab.isModified {
