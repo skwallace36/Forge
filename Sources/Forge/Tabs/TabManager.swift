@@ -29,7 +29,14 @@ class TabManager {
     }
 
     private(set) var tabs: [Tab] = []
-    private(set) var selectedIndex: Int = -1
+    private(set) var selectedIndex: Int = -1 {
+        didSet {
+            if oldValue != selectedIndex && oldValue >= 0 {
+                previousSelectedIndex = oldValue
+            }
+        }
+    }
+    private var previousSelectedIndex: Int = -1
     private var recentlyClosed: [ForgeDocument] = []
 
     var currentTab: Tab? {
@@ -129,6 +136,16 @@ class TabManager {
     func selectNext() {
         guard tabs.count > 1 else { return }
         selectedIndex = (selectedIndex + 1) % tabs.count
+    }
+
+    /// Switch to the most recently used tab (Ctrl+Tab)
+    func switchToMostRecent() {
+        guard tabs.count > 1 else { return }
+        if previousSelectedIndex >= 0 && previousSelectedIndex < tabs.count && previousSelectedIndex != selectedIndex {
+            selectedIndex = previousSelectedIndex
+        } else {
+            selectPrevious()
+        }
     }
 
     func select(at index: Int) {

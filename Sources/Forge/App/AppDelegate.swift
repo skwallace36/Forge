@@ -305,6 +305,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         revealInNav.keyEquivalentModifierMask = [.command, .shift]
         navMenu.addItem(revealInNav)
 
+        let switchRecent = NSMenuItem(title: "Switch to Recent Tab", action: #selector(MainWindowController.switchToMostRecentTab(_:)), keyEquivalent: "\t")
+        switchRecent.keyEquivalentModifierMask = [.control]
+        navMenu.addItem(switchRecent)
+
         navMenu.addItem(.separator())
 
         // ⌘1-9 for tab switching

@@ -350,6 +350,11 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         splitViewController.editorAreaDidUpdate()
     }
 
+    @objc func switchToMostRecentTab(_ sender: Any?) {
+        project.tabManager.switchToMostRecent()
+        splitViewController.editorAreaDidUpdate()
+    }
+
     // MARK: - Build
 
     @objc func buildProject(_ sender: Any?) {
