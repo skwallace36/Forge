@@ -14,6 +14,8 @@ class TabBar: NSView {
     private var selectedIndex: Int = -1
 
     private let tabHeight: CGFloat = 30
+    private let maxTabWidth: CGFloat = 180
+    private let minTabWidth: CGFloat = 80
     private let backgroundColor = NSColor(red: 0.12, green: 0.13, blue: 0.15, alpha: 1.0)
 
     override var isFlipped: Bool { true }
@@ -30,6 +32,13 @@ class TabBar: NSView {
         layer?.backgroundColor = backgroundColor.cgColor
     }
 
+    private var currentTabWidth: CGFloat {
+        guard !tabButtons.isEmpty else { return maxTabWidth }
+        let available = bounds.width
+        let idealWidth = available / CGFloat(tabButtons.count)
+        return min(maxTabWidth, max(minTabWidth, idealWidth))
+    }
+
     func update(tabs: [TabManager.Tab], selectedIndex: Int) {
         self.selectedIndex = selectedIndex
 
@@ -37,13 +46,10 @@ class TabBar: NSView {
         tabButtons.forEach { $0.removeFromSuperview() }
         tabButtons.removeAll()
 
-        var xOffset: CGFloat = 0
-
         for (index, tab) in tabs.enumerated() {
-            let button = TabButton(
-                frame: NSRect(x: xOffset, y: 0, width: tabWidth, height: tabHeight)
-            )
+            let button = TabButton(frame: .zero)
             button.title = tab.title
+            button.fileExtension = tab.document.fileExtension
             button.isSelected = (index == selectedIndex)
             button.isModified = tab.isModified
             button.index = index
@@ -52,13 +58,23 @@ class TabBar: NSView {
             button.closeAction = #selector(tabCloseClicked(_:))
             addSubview(button)
             tabButtons.append(button)
-            xOffset += tabWidth
         }
 
+        layoutTabs()
         needsDisplay = true
     }
 
-    private let tabWidth: CGFloat = 150
+    private func layoutTabs() {
+        let tabW = currentTabWidth
+        for (i, btn) in tabButtons.enumerated() {
+            btn.frame = NSRect(x: CGFloat(i) * tabW, y: 0, width: tabW, height: tabHeight)
+        }
+    }
+
+    override func layout() {
+        super.layout()
+        layoutTabs()
+    }
 
     @objc private func tabClicked(_ sender: TabButton) {
         delegate?.tabBar(self, didSelectTabAt: sender.index)
@@ -73,6 +89,7 @@ class TabBar: NSView {
         let startLocation = convert(event.locationInWindow, from: nil)
         let originalIndex = button.index
         var currentIndex = originalIndex
+        let tabW = currentTabWidth
 
         // Drag loop
         while true {
@@ -84,19 +101,17 @@ class TabBar: NSView {
             let deltaX = currentLocation.x - startLocation.x
 
             // Calculate which tab position the drag is over
-            let dragCenter = CGFloat(originalIndex) * tabWidth + tabWidth / 2 + deltaX
-            var targetIndex = Int(dragCenter / tabWidth)
+            let dragCenter = CGFloat(originalIndex) * tabW + tabW / 2 + deltaX
+            var targetIndex = Int(dragCenter / tabW)
             targetIndex = max(0, min(targetIndex, tabButtons.count - 1))
 
             if targetIndex != currentIndex {
-                // Swap buttons visually
                 let sourceButton = tabButtons.remove(at: currentIndex)
                 tabButtons.insert(sourceButton, at: targetIndex)
 
-                // Update indices
                 for (i, btn) in tabButtons.enumerated() {
                     btn.index = i
-                    btn.frame.origin.x = CGFloat(i) * tabWidth
+                    btn.frame.origin.x = CGFloat(i) * tabW
                 }
 
                 delegate?.tabBar(self, didMoveTabFrom: currentIndex, to: targetIndex)
@@ -104,12 +119,12 @@ class TabBar: NSView {
             }
 
             // Move the dragged button to follow the mouse
-            button.frame.origin.x = max(0, currentLocation.x - tabWidth / 2)
+            button.frame.origin.x = max(0, currentLocation.x - tabW / 2)
         }
 
         // Snap back to grid position
         for (i, btn) in tabButtons.enumerated() {
-            btn.frame.origin.x = CGFloat(i) * tabWidth
+            btn.frame.origin.x = CGFloat(i) * tabW
         }
     }
 
@@ -132,6 +147,7 @@ class TabBar: NSView {
 class TabButton: NSView {
 
     var title: String = "" { didSet { needsDisplay = true } }
+    var fileExtension: String = "" { didSet { needsDisplay = true } }
     var isSelected: Bool = false { didSet { needsDisplay = true } }
     var isModified: Bool = false { didSet { needsDisplay = true } }
     var index: Int = 0
@@ -195,6 +211,15 @@ class TabButton: NSView {
         }
     }
 
+    override func otherMouseDown(with event: NSEvent) {
+        // Middle-click to close tab
+        if event.buttonNumber == 2 {
+            if let target = target, let action = closeAction {
+                _ = target.perform(action, with: self)
+            }
+        }
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         // Background
         let bgColor: NSColor
@@ -212,38 +237,120 @@ class TabButton: NSView {
         NSColor(white: 0.2, alpha: 1.0).setFill()
         NSRect(x: bounds.width - 1, y: 4, width: 1, height: bounds.height - 8).fill()
 
-        // Title
-        let displayTitle = (isModified ? "● " : "") + title
-        let attrs: [NSAttributedString.Key: Any] = [
+        // File type icon
+        let iconStr = fileIcon(for: fileExtension)
+        let iconAttrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 11),
+            .foregroundColor: iconColor(for: fileExtension),
+        ]
+        let iconSize = (iconStr as NSString).size(withAttributes: iconAttrs)
+        let iconX: CGFloat = 8
+        (iconStr as NSString).draw(
+            at: NSPoint(x: iconX, y: (bounds.height - iconSize.height) / 2),
+            withAttributes: iconAttrs
+        )
+
+        // Title (with modified dot in close button area)
+        let titleAttrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 12, weight: isSelected ? .medium : .regular),
             .foregroundColor: isSelected ? selectedTextColor : textColor,
         ]
-        let titleStr = displayTitle as NSString
-        let size = titleStr.size(withAttributes: attrs)
-        let maxWidth = bounds.width - 30
+        let titleStr = title as NSString
+        let size = titleStr.size(withAttributes: titleAttrs)
+        let titleX: CGFloat = iconX + iconSize.width + 4
+        let maxWidth = bounds.width - titleX - 26
         let drawRect = NSRect(
-            x: 10,
+            x: titleX,
             y: (bounds.height - size.height) / 2,
             width: min(size.width, maxWidth),
-            height: size.height
+            height: size.height,
         )
-        titleStr.draw(with: drawRect, options: [.truncatesLastVisibleLine, .usesLineFragmentOrigin], attributes: attrs)
+        titleStr.draw(with: drawRect, options: [.truncatesLastVisibleLine, .usesLineFragmentOrigin], attributes: titleAttrs)
 
-        // Close button (×) on hover or selected
+        // Close/modified indicator
         if isHovered || isSelected {
-            let closeAttrs: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: 13, weight: .regular),
-                .foregroundColor: NSColor(white: 0.6, alpha: 1.0),
-            ]
-            let closeStr = "×" as NSString
-            let closeSize = closeStr.size(withAttributes: closeAttrs)
-            closeStr.draw(
-                at: NSPoint(
-                    x: bounds.width - closeSize.width - 8,
-                    y: (bounds.height - closeSize.height) / 2
-                ),
-                withAttributes: closeAttrs
+            if isModified {
+                // Show modified dot that's also clickable to close
+                let dotSize: CGFloat = 7
+                let dotRect = NSRect(
+                    x: bounds.width - dotSize - 10,
+                    y: (bounds.height - dotSize) / 2,
+                    width: dotSize,
+                    height: dotSize,
+                )
+                NSColor(white: 0.7, alpha: 1.0).setFill()
+                NSBezierPath(ovalIn: dotRect).fill()
+            } else {
+                let closeAttrs: [NSAttributedString.Key: Any] = [
+                    .font: NSFont.systemFont(ofSize: 13, weight: .regular),
+                    .foregroundColor: NSColor(white: 0.6, alpha: 1.0),
+                ]
+                let closeStr = "×" as NSString
+                let closeSize = closeStr.size(withAttributes: closeAttrs)
+                closeStr.draw(
+                    at: NSPoint(
+                        x: bounds.width - closeSize.width - 8,
+                        y: (bounds.height - closeSize.height) / 2
+                    ),
+                    withAttributes: closeAttrs
+                )
+            }
+        } else if isModified {
+            // When not hovered, show a small subtle dot
+            let dotSize: CGFloat = 6
+            let dotRect = NSRect(
+                x: bounds.width - dotSize - 10,
+                y: (bounds.height - dotSize) / 2,
+                width: dotSize,
+                height: dotSize,
             )
+            NSColor(white: 0.45, alpha: 1.0).setFill()
+            NSBezierPath(ovalIn: dotRect).fill()
+        }
+    }
+
+    // MARK: - File Icons
+
+    private func fileIcon(for ext: String) -> String {
+        switch ext.lowercased() {
+        case "swift": return "𝐒"
+        case "m", "mm": return "𝐌"
+        case "h", "hpp": return "𝐇"
+        case "c": return "𝐂"
+        case "cpp", "cc", "cxx": return "⊕"
+        case "js": return "𝐉"
+        case "ts", "tsx": return "𝐓"
+        case "py": return "𝐏"
+        case "rb": return "◆"
+        case "go": return "𝐆"
+        case "rs": return "𝐑"
+        case "json": return "{}"
+        case "yaml", "yml": return "⋮"
+        case "xml", "plist": return "⟨⟩"
+        case "html", "htm": return "◇"
+        case "css", "scss": return "#"
+        case "md", "markdown": return "¶"
+        case "sh", "bash", "zsh": return "⌘"
+        case "toml": return "≡"
+        case "txt": return "☰"
+        default: return "◻"
+        }
+    }
+
+    private func iconColor(for ext: String) -> NSColor {
+        switch ext.lowercased() {
+        case "swift": return NSColor(red: 0.95, green: 0.45, blue: 0.25, alpha: 1.0)
+        case "m", "mm", "h", "hpp": return NSColor(red: 0.40, green: 0.60, blue: 0.95, alpha: 1.0)
+        case "c", "cpp", "cc", "cxx": return NSColor(red: 0.40, green: 0.60, blue: 0.95, alpha: 1.0)
+        case "js": return NSColor(red: 0.95, green: 0.85, blue: 0.30, alpha: 1.0)
+        case "ts", "tsx": return NSColor(red: 0.20, green: 0.55, blue: 0.85, alpha: 1.0)
+        case "py": return NSColor(red: 0.30, green: 0.65, blue: 0.40, alpha: 1.0)
+        case "go": return NSColor(red: 0.30, green: 0.75, blue: 0.85, alpha: 1.0)
+        case "rs": return NSColor(red: 0.85, green: 0.50, blue: 0.30, alpha: 1.0)
+        case "json": return NSColor(red: 0.85, green: 0.75, blue: 0.30, alpha: 1.0)
+        case "html", "htm", "css", "scss": return NSColor(red: 0.85, green: 0.40, blue: 0.40, alpha: 1.0)
+        case "md", "markdown": return NSColor(red: 0.50, green: 0.70, blue: 0.90, alpha: 1.0)
+        default: return NSColor(white: 0.55, alpha: 1.0)
         }
     }
 }
