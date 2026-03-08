@@ -727,6 +727,12 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             }
         }
 
+        // ⌘D → duplicate line
+        if mods == [.command] && event.keyCode == 2 { // D key
+            duplicateLine()
+            return true
+        }
+
         // If completion window is showing, handle navigation keys
         guard let cw = completionWindow, cw.isShowing else { return false }
 
@@ -798,6 +804,32 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             // Adjust selection
             let offset = sel.location - lineRange.location + lineRange.location + nextLineRange.length
             textView.setSelectedRange(NSRange(location: offset, length: sel.length))
+        }
+    }
+
+    // MARK: - Duplicate Line
+
+    private func duplicateLine() {
+        guard let ts = textView.textStorage else { return }
+        let text = ts.string as NSString
+        let sel = textView.selectedRange()
+        let lineRange = text.lineRange(for: sel)
+        let lineText = text.substring(with: lineRange)
+
+        // Insert a copy after the current line
+        let insertPoint = NSMaxRange(lineRange)
+        let insertText = lineText.hasSuffix("\n") ? lineText : lineText + "\n"
+
+        if textView.shouldChangeText(in: NSRange(location: insertPoint, length: 0), replacementString: insertText) {
+            ts.insert(NSAttributedString(string: insertText, attributes: [
+                .font: NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular),
+                .foregroundColor: theme.foreground,
+            ]), at: insertPoint)
+            textView.didChangeText()
+
+            // Move cursor to the duplicated line
+            let newCursorPos = insertPoint + (sel.location - lineRange.location)
+            textView.setSelectedRange(NSRange(location: newCursorPos, length: sel.length))
         }
     }
 

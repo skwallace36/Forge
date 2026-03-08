@@ -144,6 +144,34 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     }
 
     func tabBar(_ tabBar: TabBar, didCloseTabAt index: Int) {
+        guard index >= 0 && index < project.tabManager.tabs.count else { return }
+        let doc = project.tabManager.tabs[index].document
+
+        if doc.isModified {
+            // Sync before checking
+            if index == project.tabManager.selectedIndex {
+                editor.syncDocumentContent()
+            }
+
+            let alert = NSAlert()
+            alert.messageText = "Do you want to save changes to \(doc.fileName)?"
+            alert.informativeText = "Your changes will be lost if you don't save them."
+            alert.addButton(withTitle: "Save")
+            alert.addButton(withTitle: "Don't Save")
+            alert.addButton(withTitle: "Cancel")
+            alert.alertStyle = .warning
+
+            let response = alert.runModal()
+            switch response {
+            case .alertFirstButtonReturn: // Save
+                try? doc.save()
+            case .alertSecondButtonReturn: // Don't Save
+                break
+            default: // Cancel
+                return
+            }
+        }
+
         project.tabManager.close(at: index)
         refreshEditor()
     }
