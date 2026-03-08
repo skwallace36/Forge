@@ -400,6 +400,42 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         ts.endEditing()
     }
 
+    /// Regex for TODO/FIXME/MARK/HACK/WARNING annotations in comments
+    private static let annotationRegex: NSRegularExpression? = {
+        try? NSRegularExpression(
+            pattern: #"\b(TODO|FIXME|HACK|WARNING|XXX)(\s*:|\b)"#,
+            options: []
+        )
+    }()
+
+    /// Highlight TODO/FIXME/MARK annotations with distinct colors
+    private func highlightAnnotations(in ts: NSTextStorage) {
+        guard let regex = Self.annotationRegex else { return }
+        let text = ts.string as NSString
+        let fullRange = NSRange(location: 0, length: text.length)
+
+        let matches = regex.matches(in: text as String, range: fullRange)
+        for match in matches {
+            let range = match.range
+            guard range.length > 0, NSMaxRange(range) <= ts.length else { continue }
+
+            let keyword = match.range(at: 1)
+            let word = text.substring(with: keyword)
+
+            let styleName: String
+            switch word {
+            case "FIXME", "HACK", "WARNING", "XXX":
+                styleName = "fixme"
+            default:
+                styleName = "todo"
+            }
+
+            if let attrs = theme.attributes(for: styleName, fontSize: fontSize) {
+                ts.addAttributes(attrs, range: range)
+            }
+        }
+    }
+
     private func diagnosticLineNumbers() -> Set<Int> {
         var lines = Set<Int>()
         for d in diagnostics {
@@ -529,6 +565,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             simple.highlight(ts)
         }
 
+        highlightAnnotations(in: ts)
         applyDiagnosticUnderlines()
         updateCurrentLineHighlight()
         textView.setSelectedRange(selectedRange)

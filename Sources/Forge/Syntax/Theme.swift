@@ -123,6 +123,10 @@ struct Theme {
             // Constants
             "constant":             Style(NSColor(red: 0.35, green: 0.84, blue: 0.76, alpha: 1.0)),
             "constant.builtin":     Style(NSColor(red: 0.99, green: 0.37, blue: 0.53, alpha: 1.0)),
+
+            // Annotations (TODO, FIXME, MARK, etc.)
+            "todo":                 Style(NSColor(red: 0.99, green: 0.80, blue: 0.28, alpha: 1.0), bold: true),
+            "fixme":                Style(NSColor(red: 0.99, green: 0.45, blue: 0.30, alpha: 1.0), bold: true),
         ]
     )
 }
