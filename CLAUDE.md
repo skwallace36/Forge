@@ -32,11 +32,14 @@ AppKit window with NSSplitView. Four panel positions:
 ## Keyboard Shortcuts (Xcode-compatible)
 
 Navigation: ⇧⌘O (Open Quickly), ⌘⇧J (reveal in navigator), ⌃⌘←/→ (back/forward)
-Tabs: ⌘⇧[ / ⌘⇧] (prev/next), ⌘W (close), ⌘⇧T (reopen)
+Navigation: ⌃⌘J (jump to definition), ⌃⇧A (quick actions), ⌃⇧M (matching bracket)
+Navigation: ⌃↑/⌃↓ (previous/next method), ⌘L (go to line)
+Tabs: ⌘⇧[ / ⌘⇧] (prev/next), ⌘W (close), ⌘⌥W (close others), ⌘⇧T (reopen)
 Panels: ⌘0 (navigator), ⌘⌥0 (inspector), ⌘⇧Y (bottom)
+Bottom: ⌃⌘1 (build log), ⌃⌘2 (problems), ⌃⌘3 (terminal), ⌃⌘4 (claude), ⌃⌘5 (search), ⌃⌘6 (source control)
 Edit: ⌘/ (toggle comment), ⌘⌥[/] (move line up/down), ⌃Space (completion), ⌃I (re-indent)
 Edit: ⌃⇧K (delete line), ⌘↩ (insert line below), ⌘⇧↩ (insert line above), ⌘D (duplicate line)
-Edit: ⌘L (go to line), ⌃⌘E (rename symbol), ⌘⌥S (save all)
+Edit: ⌃⌘E (rename symbol), ⌘⌥S (save all)
 Build: ⌘B (build), ⌘R (run), ⌘⇧K (clean), ⌘. (stop)
 Search: ⌘F (find in file), ⌘⌥F (find & replace), ⌘⇧F (find in project w/ regex)
 View: ⇧⌘P (command palette), ⌘+/⌘- (zoom in/out), ⌃⌘M (toggle minimap), ⌘, (settings)
@@ -113,6 +116,14 @@ See PLAN.md for full phase breakdown. Short version:
 - Close Other Tabs (⌘⌥W)
 - Select Line command
 - File templates for new files (Swift, Python, HTML, etc.)
+- Recent files in Open Quickly (shown when query is empty)
+- Jump to Definition shortcut (⌃⌘J) and ⌘-click
+- Completion documentation panel (side panel with LSP docs)
+- Quick Actions popup (⌃⇧A) for LSP code actions at cursor
+- Bottom panel tab shortcuts (⌃⌘1-6)
+- Minimap cursor position indicator
+- Jump to Matching Bracket (⌃⇧M)
+- Previous/Next Method navigation (⌃↑/⌃↓)
 
 ## Autonomous Development Mode
 
