@@ -32,6 +32,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
     /// Called when LSP rename produces edits for external files: (url, edits)
     var onApplyEdits: ((URL, [LSPTextEdit]) -> Void)?
 
+    /// Called when "Find All References" finds results: [(url, line, column)]
+    var onShowReferences: (([LSPLocation]) -> Void)?
+
     let theme: Theme = .xcodeDefaultDark
     let fontSize: CGFloat = 13
     let gutterWidth: CGFloat = 44
@@ -497,6 +500,23 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             if textView.shouldChangeText(in: nsRange, replacementString: edit.newText) {
                 ts.replaceCharacters(in: nsRange, with: edit.newText)
                 textView.didChangeText()
+            }
+        }
+    }
+
+    // MARK: - Find All References
+
+    @objc func findReferences(_ sender: Any?) {
+        guard let doc = document, let lsp = lspClient else { return }
+        let (line, character) = characterIndexToLineColumn(textView.selectedRange().location)
+
+        Task { @MainActor in
+            do {
+                let locations = try await lsp.references(url: doc.url, line: line, character: character)
+                guard !locations.isEmpty else { return }
+                self.onShowReferences?(locations)
+            } catch {
+                // Silently fail
             }
         }
     }

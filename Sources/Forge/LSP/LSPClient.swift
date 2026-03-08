@@ -160,6 +160,21 @@ class LSPClient {
         return parseHoverResult(from: response)
     }
 
+    // MARK: - References
+
+    func references(url: URL, line: Int, character: Int) async throws -> [LSPLocation] {
+        guard initialized, let conn = connection else { return [] }
+
+        let params: [String: Any] = [
+            "textDocument": ["uri": url.absoluteString],
+            "position": ["line": line, "character": character],
+            "context": ["includeDeclaration": true],
+        ]
+
+        let response = try await conn.sendRequest(method: "textDocument/references", params: params)
+        return parseLocations(from: response)
+    }
+
     // MARK: - Rename
 
     func rename(url: URL, line: Int, character: Int, newName: String) async throws -> LSPWorkspaceEdit? {

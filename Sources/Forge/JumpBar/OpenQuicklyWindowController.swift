@@ -179,11 +179,22 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
         if query.isEmpty {
             filteredResults = []
         } else {
+            let rootPath = projectRoot.standardizedFileURL.path
             filteredResults = allFiles.compactMap { url in
-                // Match against relative path or just filename
-                let displayPath = url.lastPathComponent
-                if let result = FuzzyMatch.match(pattern: query, candidate: displayPath) {
+                // Try matching against filename first (higher priority)
+                let fileName = url.lastPathComponent
+                if let result = FuzzyMatch.match(pattern: query, candidate: fileName) {
                     return (url: url, match: result)
+                }
+                // Fall back to matching against relative path
+                let filePath = url.standardizedFileURL.path
+                let relative = filePath.hasPrefix(rootPath)
+                    ? String(filePath.dropFirst(rootPath.count + 1))
+                    : filePath
+                if let result = FuzzyMatch.match(pattern: query, candidate: relative) {
+                    // Slightly lower score for path matches
+                    let adjustedResult = FuzzyMatch.Result(score: result.score - 10, matchedIndices: [])
+                    return (url: url, match: adjustedResult)
                 }
                 return nil
             }
