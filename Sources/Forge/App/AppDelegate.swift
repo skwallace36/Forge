@@ -425,7 +425,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = true
-        panel.allowedContentTypes = [.sourceCode, .plainText, .data]
 
         guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
 

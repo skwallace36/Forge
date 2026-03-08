@@ -248,11 +248,12 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         }
     }
 
-    /// Auto-save modified documents (called on app deactivation)
+    /// Auto-save modified documents (called on app deactivation and timer)
     func autoSaveAll() {
         splitViewController.syncDocumentContent()
         for tab in project.tabManager.tabs where tab.isModified {
             try? tab.document.save()
+            project.lspClient.didSave(url: tab.document.url)
         }
         // Don't refresh editor — just save silently
     }

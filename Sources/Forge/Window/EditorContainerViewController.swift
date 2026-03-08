@@ -269,6 +269,8 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     // MARK: - TabBarDelegate
 
     func tabBar(_ tabBar: TabBar, didSelectTabAt index: Int) {
+        // Sync current document before switching tabs
+        editor.syncDocumentContent()
         project.tabManager.select(at: index)
         refreshEditor()
     }
