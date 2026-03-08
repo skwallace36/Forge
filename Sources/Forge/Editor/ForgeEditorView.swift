@@ -1497,7 +1497,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
 
     private func selectAllOccurrences() {
         let text = textView.string as NSString
-        guard text.length > 0 else { return }
+        guard text.length > 0, let ts = textView.textStorage else { return }
 
         let sel = textView.selectedRange()
         let selectedText: String
@@ -1521,12 +1521,37 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             searchRange.length = text.length - searchRange.location
         }
 
-        // Select the first one and use insertionPointColor for the rest (NSTextView doesn't support multi-cursor)
-        // Instead, select the first match and let the user use Find & Replace for bulk changes
-        if let first = ranges.first {
-            textView.setSelectedRange(first)
-            textView.showFindIndicator(for: first)
+        guard !ranges.isEmpty else { return }
+
+        // Select the first occurrence
+        textView.setSelectedRange(ranges[0])
+
+        // Highlight all occurrences with a bright color
+        let highlightColor = NSColor(red: 0.45, green: 0.55, blue: 0.20, alpha: 0.5)
+        ts.beginEditing()
+        // Clear previous highlights
+        for range in occurrenceHighlightRanges {
+            if range.location + range.length <= ts.length {
+                ts.removeAttribute(.backgroundColor, range: range)
+            }
         }
+        occurrenceHighlightRanges.removeAll()
+
+        for range in ranges {
+            ts.addAttribute(.backgroundColor, value: highlightColor, range: range)
+            occurrenceHighlightRanges.append(range)
+        }
+        ts.endEditing()
+
+        // Populate the find pasteboard so ⌘G works to cycle through matches
+        let pb = NSPasteboard(name: .find)
+        pb.clearContents()
+        pb.setString(selectedText, forType: .string)
+
+        // Open the find bar pre-populated (tag 1 = show find panel)
+        let menuItem = NSMenuItem()
+        menuItem.tag = 1
+        textView.performFindPanelAction(menuItem)
     }
 
     // MARK: - Delete Line (⌃⇧K)
