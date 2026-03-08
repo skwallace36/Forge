@@ -21,18 +21,39 @@ class TabBar: NSView {
     private let minTabWidth: CGFloat = 80
     private let backgroundColor = NSColor(red: 0.12, green: 0.13, blue: 0.15, alpha: 1.0)
 
+    /// Scroll view for horizontal tab overflow
+    private let scrollView = NSScrollView()
+    /// Container view that holds tab buttons — wider than scrollView when tabs overflow
+    private let contentView = FlippedView()
+
     override var isFlipped: Bool { true }
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.backgroundColor = backgroundColor.cgColor
+        setupScrollView()
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
+        setupScrollView()
+    }
+
+    private func setupScrollView() {
         wantsLayer = true
         layer?.backgroundColor = backgroundColor.cgColor
+
+        scrollView.drawsBackground = false
+        scrollView.hasHorizontalScroller = false
+        scrollView.hasVerticalScroller = false
+        scrollView.horizontalScrollElasticity = .allowed
+        scrollView.verticalScrollElasticity = .none
+        scrollView.autoresizingMask = [.width, .height]
+
+        contentView.wantsLayer = true
+        contentView.layer?.backgroundColor = NSColor.clear.cgColor
+        scrollView.documentView = contentView
+
+        addSubview(scrollView)
     }
 
     private var currentTabWidth: CGFloat {
@@ -61,24 +82,49 @@ class TabBar: NSView {
             button.target = self
             button.selectAction = #selector(tabClicked(_:))
             button.closeAction = #selector(tabCloseClicked(_:))
-            addSubview(button)
+            contentView.addSubview(button)
             tabButtons.append(button)
         }
 
         layoutTabs()
+        scrollSelectedTabVisible()
         needsDisplay = true
     }
 
     private func layoutTabs() {
         let tabW = currentTabWidth
+        let totalWidth = CGFloat(tabButtons.count) * tabW
+        contentView.frame = NSRect(x: 0, y: 0, width: max(totalWidth, bounds.width), height: tabHeight)
         for (i, btn) in tabButtons.enumerated() {
             btn.frame = NSRect(x: CGFloat(i) * tabW, y: 0, width: tabW, height: tabHeight)
         }
     }
 
+    /// Scroll the selected tab into the visible area
+    private func scrollSelectedTabVisible() {
+        guard selectedIndex >= 0, selectedIndex < tabButtons.count else { return }
+        let button = tabButtons[selectedIndex]
+        contentView.scrollToVisible(button.frame)
+    }
+
     override func layout() {
         super.layout()
+        scrollView.frame = bounds
         layoutTabs()
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        // Convert vertical scroll to horizontal for the tab bar
+        if abs(event.deltaY) > abs(event.deltaX) {
+            let syntheticDelta = event.deltaY
+            let clipView = scrollView.contentView
+            var origin = clipView.bounds.origin
+            origin.x -= syntheticDelta * 3
+            origin.x = max(0, min(origin.x, contentView.frame.width - scrollView.frame.width))
+            clipView.setBoundsOrigin(origin)
+        } else {
+            scrollView.scrollWheel(with: event)
+        }
     }
 
     @objc private func tabClicked(_ sender: TabButton) {
@@ -91,7 +137,7 @@ class TabBar: NSView {
 
     /// Called during drag to reorder tabs visually and notify delegate
     func handleDrag(from button: TabButton, event: NSEvent) {
-        let startLocation = convert(event.locationInWindow, from: nil)
+        let startLocation = contentView.convert(event.locationInWindow, from: nil)
         let originalIndex = button.index
         var currentIndex = originalIndex
         let tabW = currentTabWidth
@@ -102,7 +148,7 @@ class TabBar: NSView {
 
             if nextEvent.type == .leftMouseUp { break }
 
-            let currentLocation = convert(nextEvent.locationInWindow, from: nil)
+            let currentLocation = contentView.convert(nextEvent.locationInWindow, from: nil)
             let deltaX = currentLocation.x - startLocation.x
 
             // Calculate which tab position the drag is over
@@ -282,10 +328,19 @@ class TabButton: NSView {
             _ = target.perform(action, with: self)
         }
 
-        // Start drag tracking
-        if let tabBar = superview as? TabBar {
+        // Start drag tracking — find the TabBar up the view hierarchy
+        if let tabBar = findTabBar() {
             tabBar.handleDrag(from: self, event: event)
         }
+    }
+
+    private func findTabBar() -> TabBar? {
+        var view = superview
+        while let v = view {
+            if let tabBar = v as? TabBar { return tabBar }
+            view = v.superview
+        }
+        return nil
     }
 
     override func otherMouseDown(with event: NSEvent) {
@@ -298,7 +353,7 @@ class TabButton: NSView {
     }
 
     override func rightMouseDown(with event: NSEvent) {
-        guard let tabBar = superview as? TabBar else { return }
+        guard let tabBar = findTabBar() else { return }
         tabBar.showContextMenu(for: self, event: event)
     }
 
@@ -447,4 +502,11 @@ class TabButton: NSView {
         default: return NSColor(white: 0.55, alpha: 1.0)
         }
     }
+}
+
+// MARK: - FlippedView
+
+/// Simple NSView subclass with flipped coordinate system for tab layout.
+private class FlippedView: NSView {
+    override var isFlipped: Bool { true }
 }

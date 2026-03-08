@@ -268,6 +268,8 @@ class SimpleHighlighter {
 
     private static func cFamilyRules() -> [HighlightRule] {
         return [
+            // Block comments (must come before line comments)
+            rule(#"/\*[\s\S]*?\*/"#, "comment"),
             // Line comments
             rule(#"//.*$"#, "comment", options: .anchorsMatchLines),
             // Preprocessor directives
@@ -293,6 +295,7 @@ class SimpleHighlighter {
 
     private static func javaRules() -> [HighlightRule] {
         return [
+            rule(#"/\*[\s\S]*?\*/"#, "comment"),
             rule(#"//.*$"#, "comment", options: .anchorsMatchLines),
             rule(#""[^"\\]*(?:\\.[^"\\]*)*""#, "string"),
             rule(#"'[^'\\]*(?:\\.[^'\\]*)*'"#, "string"),
@@ -308,6 +311,7 @@ class SimpleHighlighter {
 
     private static func kotlinRules() -> [HighlightRule] {
         return [
+            rule(#"/\*[\s\S]*?\*/"#, "comment"),
             rule(#"//.*$"#, "comment", options: .anchorsMatchLines),
             rule(#""[^"\\]*(?:\\.[^"\\]*)*""#, "string"),
             rule(#"'[^'\\]*(?:\\.[^'\\]*)*'"#, "string"),
@@ -322,6 +326,8 @@ class SimpleHighlighter {
 
     private static func genericRules() -> [HighlightRule] {
         return [
+            // Block comments
+            rule(#"/\*[\s\S]*?\*/"#, "comment"),
             // Line comments
             rule(#"//.*$"#, "comment", options: .anchorsMatchLines),
             rule(#"#.*$"#, "comment", options: .anchorsMatchLines),
