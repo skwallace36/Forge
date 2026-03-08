@@ -5,6 +5,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
     let project: ForgeProject
     private var splitViewController: MainSplitViewController!
     private var openQuicklyController: OpenQuicklyWindowController?
+    private var autoSaveTimer: Timer?
 
     init(project: ForgeProject) {
         self.project = project
@@ -52,6 +53,11 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         restoreOpenTabs()
         if project.tabManager.tabs.isEmpty {
             openInitialFile()
+        }
+
+        // Auto-save modified documents every 30 seconds
+        autoSaveTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            self?.autoSaveAll()
         }
     }
 
@@ -225,9 +231,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         project.lspClient.didSave(url: doc.url)
         splitViewController.editorAreaDidUpdate()
 
-        // Update window title to remove "Edited" indicator
         if let window = window {
-            window.title = doc.fileName
+            window.isDocumentEdited = false
         }
     }
 
@@ -238,8 +243,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
             project.lspClient.didSave(url: tab.document.url)
         }
         splitViewController.editorAreaDidUpdate()
-        if let doc = project.tabManager.currentDocument, let window = window {
-            window.title = doc.fileName
+        if let window = window {
+            window.isDocumentEdited = false
         }
     }
 
@@ -488,6 +493,8 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
     // MARK: - NSWindowDelegate — save state on close
 
     func windowWillClose(_ notification: Notification) {
+        autoSaveTimer?.invalidate()
+        autoSaveTimer = nil
         saveOpenTabs()
         (NSApp.delegate as? AppDelegate)?.windowControllerDidClose(self)
     }

@@ -239,10 +239,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
                 }
             }
 
-            // Update window title with modified state
+            // Update window title and native edited indicator
             if let window = view.window {
-                let modified = doc.isModified ? " — Edited" : ""
-                window.title = "\(doc.fileName)\(modified)"
+                window.title = doc.fileName
+                window.isDocumentEdited = doc.isModified
             }
         } else {
             editor.scrollView.isHidden = true
