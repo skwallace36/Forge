@@ -298,7 +298,12 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             for (lineIndex, lineText) in lines.enumerated() {
                 if found.count >= maxResults { break }
 
-                if let range = lineText.range(of: query, options: searchOptions) {
+                // Find all matches on this line
+                var searchStart = lineText.startIndex
+                while searchStart < lineText.endIndex {
+                    guard let range = lineText.range(of: query, options: searchOptions, range: searchStart..<lineText.endIndex) else {
+                        break
+                    }
                     let col = lineText.distance(from: lineText.startIndex, to: range.lowerBound) + 1
                     found.append(SearchResult(
                         url: url,
@@ -307,6 +312,8 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
                         lineText: lineText,
                         matchRange: range,
                     ))
+                    if found.count >= maxResults { break }
+                    searchStart = range.upperBound
                 }
             }
         }
