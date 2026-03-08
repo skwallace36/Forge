@@ -145,6 +145,11 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             self?.onSendToClaude?(code, fileName, line)
         }
 
+        // Wire up Find All References
+        editor.onShowReferences = { [weak self] locations in
+            self?.showReferencesMenu(locations)
+        }
+
         // Wire up jump bar symbol navigation
         jumpBar.onSymbolSelected = { [weak self] line, column in
             self?.editor.scrollToLine(line, column: column)
@@ -431,6 +436,53 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
     @objc func insertLineBelow(_ sender: Any?) {
         editor.insertLineBelow(sender)
+    }
+
+    @objc func findReferences(_ sender: Any?) {
+        editor.findReferences(sender)
+    }
+
+    private func showReferencesMenu(_ locations: [LSPLocation]) {
+        guard !locations.isEmpty else { return }
+
+        if locations.count == 1 {
+            // Single reference — jump directly
+            let loc = locations[0]
+            if let url = URL(string: loc.uri) {
+                windowController?.openFile(url, atLine: loc.range.start.line, column: loc.range.start.character)
+            }
+            return
+        }
+
+        let menu = NSMenu(title: "References")
+        for (i, loc) in locations.enumerated() {
+            guard let url = URL(string: loc.uri) else { continue }
+            let relativePath: String
+            let rootPath = project.rootURL.path + "/"
+            if url.path.hasPrefix(rootPath) {
+                relativePath = String(url.path.dropFirst(rootPath.count))
+            } else {
+                relativePath = url.lastPathComponent
+            }
+            let title = "\(relativePath):\(loc.range.start.line + 1)"
+            let item = NSMenuItem(title: title, action: #selector(referenceItemSelected(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = i
+            item.representedObject = loc
+            menu.addItem(item)
+        }
+
+        // Show at cursor location
+        let cursorRect = editor.textView.firstRect(forCharacterRange: editor.textView.selectedRange(), actualRange: nil)
+        let localPoint = view.window?.convertFromScreen(cursorRect).origin ?? .zero
+        let viewPoint = view.convert(localPoint, from: nil)
+        menu.popUp(positioning: nil, at: viewPoint, in: view)
+    }
+
+    @objc private func referenceItemSelected(_ sender: NSMenuItem) {
+        guard let loc = sender.representedObject as? LSPLocation,
+              let url = URL(string: loc.uri) else { return }
+        windowController?.openFile(url, atLine: loc.range.start.line, column: loc.range.start.character)
     }
 
     @objc func foldAtCursor(_ sender: Any?) {

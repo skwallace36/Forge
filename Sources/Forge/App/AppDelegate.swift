@@ -312,6 +312,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let goToLine = NSMenuItem(title: "Go to Line…", action: #selector(EditorContainerViewController.goToLine(_:)), keyEquivalent: "l")
         navMenu.addItem(goToLine)
 
+        let findRefs = NSMenuItem(title: "Find All References", action: #selector(EditorContainerViewController.findReferences(_:)), keyEquivalent: "")
+        navMenu.addItem(findRefs)
+
         let docSymbols = NSMenuItem(title: "Document Symbols", action: #selector(EditorContainerViewController.showDocumentSymbols(_:)), keyEquivalent: "6")
         docSymbols.keyEquivalentModifierMask = [.control]
         navMenu.addItem(docSymbols)
