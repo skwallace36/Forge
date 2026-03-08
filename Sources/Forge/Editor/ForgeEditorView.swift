@@ -610,9 +610,13 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         let text = ts.string as NSString
         let length = text.length
-        guard length > 0 else { return }
+        guard length > 0, length < 200_000 else { return } // Skip for very large files
 
-        // Track depth per bracket type
+        // Copy to a UTF-16 buffer for fast access (avoids per-character ObjC calls)
+        let buffer = UnsafeMutablePointer<unichar>.allocate(capacity: length)
+        defer { buffer.deallocate() }
+        text.getCharacters(buffer, range: NSRange(location: 0, length: length))
+
         var depth = 0
         var inString = false
         var inLineComment = false
@@ -622,7 +626,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         ts.beginEditing()
 
         while i < length {
-            let ch = text.character(at: i)
+            let ch = buffer[i]
 
             // Skip line comments
             if inLineComment {
@@ -635,7 +639,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
             // Skip block comments
             if inBlockComment {
-                if ch == 0x2A && i + 1 < length && text.character(at: i + 1) == 0x2F { // */
+                if ch == 0x2A && i + 1 < length && buffer[i + 1] == 0x2F { // */
                     inBlockComment = false
                     i += 2
                 } else {
@@ -646,7 +650,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
             // Check for comment start
             if ch == 0x2F && i + 1 < length { // /
-                let next = text.character(at: i + 1)
+                let next = buffer[i + 1]
                 if next == 0x2F { // //
                     inLineComment = true
                     i += 2
@@ -660,7 +664,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
             // Toggle string mode on unescaped quote
             if ch == 0x22 { // "
-                let escaped = i > 0 && text.character(at: i - 1) == 0x5C // backslash
+                let escaped = i > 0 && buffer[i - 1] == 0x5C // backslash
                 if !escaped {
                     inString = !inString
                 }
