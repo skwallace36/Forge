@@ -6,6 +6,8 @@ class GutterView: NSView {
     weak var textView: NSTextView?
     var theme: Theme?
     var diagnosticLines: Set<Int> = [] // 0-indexed line numbers with diagnostics
+    /// Diagnostic messages indexed by 0-indexed line number
+    var diagnosticMessages: [Int: String] = [:]
     var changedLines: [Int: String] = [:] // 0-indexed: "added" or "modified"
 
     /// Set of 0-indexed line numbers that start a foldable block (line ends with `{`)
@@ -18,6 +20,54 @@ class GutterView: NSView {
     var onFoldToggle: ((Int) -> Void)?
 
     override var isFlipped: Bool { true }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas {
+            removeTrackingArea(area)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseMoved, .activeInActiveApp, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        guard !diagnosticMessages.isEmpty else {
+            toolTip = nil
+            return
+        }
+
+        let lineNum = lineNumberAtPoint(convert(event.locationInWindow, from: nil))
+        if let line = lineNum, let message = diagnosticMessages[line] {
+            toolTip = message
+        } else {
+            toolTip = nil
+        }
+    }
+
+    private func lineNumberAtPoint(_ localPoint: NSPoint) -> Int? {
+        guard let textView = textView,
+              let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else { return nil }
+
+        let text = textView.string as NSString
+        guard text.length > 0 else { return nil }
+
+        let visibleRect = textView.enclosingScrollView?.contentView.bounds ?? .zero
+        let textViewY = localPoint.y + visibleRect.origin.y
+        let adjustedPoint = NSPoint(x: 0, y: textViewY - textView.textContainerInset.height)
+        let glyphIndex = layoutManager.glyphIndex(for: adjustedPoint, in: textContainer)
+        let charIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
+
+        guard charIndex < text.length else { return nil }
+
+        let preText = text.substring(with: NSRange(location: 0, length: charIndex))
+        return preText.components(separatedBy: "\n").count - 1
+    }
 
     override func mouseDown(with event: NSEvent) {
         guard let textView = textView,

@@ -348,6 +348,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         self.diagnostics = newDiagnostics
         applyDiagnosticUnderlines()
         gutterView.diagnosticLines = diagnosticLineNumbers()
+        gutterView.diagnosticMessages = diagnosticMessagesByLine()
         gutterView.needsDisplay = true
 
         // Update minimap diagnostic markers
@@ -390,6 +391,19 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             lines.insert(d.range.start.line)
         }
         return lines
+    }
+
+    private func diagnosticMessagesByLine() -> [Int: String] {
+        var messages: [Int: String] = [:]
+        for d in diagnostics {
+            let line = d.range.start.line
+            if let existing = messages[line] {
+                messages[line] = existing + "\n" + d.message
+            } else {
+                messages[line] = d.message
+            }
+        }
+        return messages
     }
 
     private func lspRangeToNSRange(_ lspRange: LSPRange, in text: NSString) -> NSRange? {
