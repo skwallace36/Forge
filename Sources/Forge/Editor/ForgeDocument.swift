@@ -16,6 +16,11 @@ class ForgeDocument {
     /// Last known modification date of the file on disk
     private(set) var lastModifiedDate: Date?
 
+    /// Detected indent style for this file (nil = use global preference)
+    private(set) var detectedTabWidth: Int?
+    /// Whether this file uses tabs (nil = use global preference)
+    private(set) var detectedUseTabs: Bool?
+
     init(url: URL) {
         self.url = url
         self.textStorage = NSTextStorage()
@@ -52,6 +57,60 @@ class ForgeDocument {
         textStorage.endEditing()
         isModified = false
         lastModifiedDate = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+        detectIndentStyle(text)
+    }
+
+    /// Analyze file content to detect indent style (tabs vs spaces, width)
+    private func detectIndentStyle(_ text: String) {
+        let lines = text.components(separatedBy: "\n")
+        let sampleLines = lines.prefix(200)
+
+        var tabCount = 0
+        var spaceCount = 0
+        var spaceCounts: [Int: Int] = [:]  // indent width → frequency
+
+        for line in sampleLines {
+            guard !line.isEmpty else { continue }
+            let first = line.first!
+            if first == "\t" {
+                tabCount += 1
+            } else if first == " " {
+                spaceCount += 1
+                // Count leading spaces
+                var spaces = 0
+                for ch in line {
+                    if ch == " " { spaces += 1 } else { break }
+                }
+                if spaces > 0 && spaces <= 16 {
+                    spaceCounts[spaces, default: 0] += 1
+                }
+            }
+        }
+
+        // Need at least 3 indented lines to make a detection
+        guard tabCount + spaceCount >= 3 else { return }
+
+        if tabCount > spaceCount {
+            detectedUseTabs = true
+            detectedTabWidth = nil
+        } else {
+            detectedUseTabs = false
+            // Find the most common smallest indent difference
+            // Look for common widths: 2, 4, 8
+            let candidates = [2, 4, 8]
+            var bestWidth = 4
+            var bestScore = 0
+            for width in candidates {
+                let score = spaceCounts.reduce(0) { sum, entry in
+                    entry.key % width == 0 ? sum + entry.value : sum
+                }
+                if score > bestScore {
+                    bestScore = score
+                    bestWidth = width
+                }
+            }
+            detectedTabWidth = bestWidth
+        }
     }
 
     /// Returns true if the file has been modified on disk since we last read it

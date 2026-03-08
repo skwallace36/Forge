@@ -48,7 +48,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     private(set) var fontSize: CGFloat = Preferences.shared.fontSize
     var editorFont: NSFont { Preferences.shared.editorFont(size: fontSize) }
     let gutterWidth: CGFloat = 44
-    var tabWidth: Int { Preferences.shared.tabWidth }
+    var tabWidth: Int { document?.detectedTabWidth ?? Preferences.shared.tabWidth }
     private var forgeLayoutManager: ForgeLayoutManager?
 
     /// Tracks the previously highlighted line range so we can clear it

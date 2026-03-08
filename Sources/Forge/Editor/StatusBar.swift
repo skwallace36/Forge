@@ -57,13 +57,19 @@ class StatusBar: NSView {
         ])
     }
 
-    func update(line: Int, column: Int, totalLines: Int, fileExtension: String?, selectionLength: Int = 0) {
+    func update(line: Int, column: Int, totalLines: Int, fileExtension: String?, selectionLength: Int = 0, detectedTabWidth: Int? = nil, detectedUseTabs: Bool? = nil) {
         if selectionLength > 0 {
             lineColLabel.stringValue = "Ln \(line), Col \(column)  (\(selectionLength) selected)"
         } else {
             lineColLabel.stringValue = "Ln \(line), Col \(column)  (\(totalLines) lines)"
         }
-        indentLabel.stringValue = "Spaces: \(Preferences.shared.tabWidth)"
+
+        if let useTabs = detectedUseTabs, useTabs {
+            indentLabel.stringValue = "Tab Size: \(Preferences.shared.tabWidth)"
+        } else {
+            let width = detectedTabWidth ?? Preferences.shared.tabWidth
+            indentLabel.stringValue = "Spaces: \(width)"
+        }
 
         if let ext = fileExtension {
             fileTypeLabel.stringValue = languageName(for: ext)

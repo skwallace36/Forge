@@ -132,8 +132,12 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         // Wire up cursor position to status bar
         editor.onCursorChange = { [weak self] line, column, totalLines, selectionLength in
             guard let self = self else { return }
-            let ext = self.project.tabManager.currentDocument?.fileExtension
-            self.statusBar.update(line: line, column: column, totalLines: totalLines, fileExtension: ext, selectionLength: selectionLength)
+            let doc = self.project.tabManager.currentDocument
+            self.statusBar.update(
+                line: line, column: column, totalLines: totalLines,
+                fileExtension: doc?.fileExtension, selectionLength: selectionLength,
+                detectedTabWidth: doc?.detectedTabWidth, detectedUseTabs: doc?.detectedUseTabs
+            )
         }
 
         // Wire up jump-to-definition
