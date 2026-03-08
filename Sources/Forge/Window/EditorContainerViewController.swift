@@ -9,7 +9,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     private let editor = ForgeEditorManager()
     private let minimap = MinimapView()
     private let statusBar = StatusBar()
-    private let placeholderLabel = NSTextField(labelWithString: "Open a file to start editing")
+    private let placeholderLabel = NSTextField(labelWithString: "Open a file to start editing\n\n⇧⌘O  Open Quickly\n⌘O    Open File\n⌘N    New File")
     private let binaryLabel = NSTextField(labelWithString: "")
 
     init(project: ForgeProject) {
@@ -53,9 +53,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
 
         // Placeholder
         placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
-        placeholderLabel.font = NSFont.systemFont(ofSize: 16, weight: .light)
-        placeholderLabel.textColor = NSColor(white: 0.4, alpha: 1.0)
+        placeholderLabel.font = NSFont.monospacedSystemFont(ofSize: 14, weight: .light)
+        placeholderLabel.textColor = NSColor(white: 0.35, alpha: 1.0)
         placeholderLabel.alignment = .center
+        placeholderLabel.maximumNumberOfLines = 0
         container.addSubview(placeholderLabel)
 
         // Binary file placeholder

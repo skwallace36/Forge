@@ -136,9 +136,19 @@ class MinimapView: NSView {
         // Center the viewport on the click position
         let scrollY = max(0, textY - visibleHeight / 2)
 
-        var newOrigin = scrollView.contentView.bounds.origin
-        newOrigin.y = scrollY
-        scrollView.contentView.scroll(to: newOrigin)
-        scrollView.reflectScrolledClipView(scrollView.contentView)
+        // Animate scroll for click, immediate for drag
+        if event.type == .leftMouseDown {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.15
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                scrollView.contentView.animator().setBoundsOrigin(NSPoint(x: 0, y: scrollY))
+            }
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+        } else {
+            var newOrigin = scrollView.contentView.bounds.origin
+            newOrigin.y = scrollY
+            scrollView.contentView.scroll(to: newOrigin)
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+        }
     }
 }
