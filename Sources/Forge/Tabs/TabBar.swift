@@ -87,6 +87,16 @@ class TabBar: NSView {
             button.isPreview = tab.isPreview
             button.isPinned = tab.isPinned
             button.index = index
+            // Show relative path as tooltip for disambiguation
+            if let root = projectRootURL {
+                let rootPath = root.path + "/"
+                let fullPath = tab.url.path
+                button.toolTip = fullPath.hasPrefix(rootPath)
+                    ? String(fullPath.dropFirst(rootPath.count))
+                    : fullPath
+            } else {
+                button.toolTip = tab.url.path
+            }
             button.target = self
             button.selectAction = #selector(tabClicked(_:))
             button.closeAction = #selector(tabCloseClicked(_:))
