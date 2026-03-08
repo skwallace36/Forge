@@ -140,6 +140,13 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             self?.windowController?.openFile(url, atLine: line, column: column)
         }
 
+        // Wire up multi-file edits (from LSP rename)
+        editor.onApplyEdits = { [weak self] url, edits in
+            guard let self = self else { return }
+            let doc = self.project.document(for: url)
+            self.applyTextEdits(edits, to: doc)
+        }
+
         // Wire up send to Claude
         editor.onSendToClaude = { [weak self] code, fileName, line in
             self?.onSendToClaude?(code, fileName, line)
@@ -549,6 +556,59 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         guard let currentDoc = project.tabManager.currentDocument,
               currentDoc.url == url else { return }
         editor.updateDiagnostics(diagnostics)
+    }
+
+    // MARK: - Apply Edits to External Documents
+
+    /// Apply LSP text edits to a document that may not be the currently displayed one.
+    private func applyTextEdits(_ edits: [LSPTextEdit], to doc: ForgeDocument) {
+        let ts = doc.textStorage
+        let text = ts.string as NSString
+
+        // Sort in reverse to avoid offset invalidation
+        let sorted = edits.sorted { a, b in
+            if a.range.start.line != b.range.start.line {
+                return a.range.start.line > b.range.start.line
+            }
+            return a.range.start.character > b.range.start.character
+        }
+
+        ts.beginEditing()
+        for edit in sorted {
+            guard let nsRange = lspRangeToNSRange(edit.range, in: text) else { continue }
+            ts.replaceCharacters(in: nsRange, with: edit.newText)
+        }
+        ts.endEditing()
+        doc.isModified = true
+
+        // If this is the currently displayed document, refresh the editor
+        if doc === project.tabManager.currentDocument {
+            refreshEditor()
+        }
+    }
+
+    private func lspRangeToNSRange(_ lspRange: LSPRange, in text: NSString) -> NSRange? {
+        guard text.length > 0 else { return nil }
+
+        var lineStart = 0
+        var currentLine = 0
+        while currentLine < lspRange.start.line && lineStart < text.length {
+            let lineRange = text.lineRange(for: NSRange(location: lineStart, length: 0))
+            lineStart = NSMaxRange(lineRange)
+            currentLine += 1
+        }
+        let startOffset = min(lineStart + lspRange.start.character, text.length)
+
+        var endLineStart = lineStart
+        while currentLine < lspRange.end.line && endLineStart < text.length {
+            let lineRange = text.lineRange(for: NSRange(location: endLineStart, length: 0))
+            endLineStart = NSMaxRange(lineRange)
+            currentLine += 1
+        }
+        let endOffset = min(endLineStart + lspRange.end.character, text.length)
+
+        guard startOffset <= endOffset else { return nil }
+        return NSRange(location: startOffset, length: endOffset - startOffset)
     }
 
     // MARK: - Navigation
