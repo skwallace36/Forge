@@ -168,6 +168,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         toggleBottom.keyEquivalentModifierMask = [.command, .shift]
         viewMenu.addItem(toggleBottom)
 
+        let showSC = NSMenuItem(title: "Source Control", action: #selector(MainSplitViewController.showSourceControlAction(_:)), keyEquivalent: "2")
+        showSC.keyEquivalentModifierMask = [.command, .control]
+        viewMenu.addItem(showSC)
+
         viewMenu.addItem(.separator())
 
         let toggleMinimap = NSMenuItem(title: "Toggle Minimap", action: #selector(EditorContainerViewController.toggleMinimap(_:)), keyEquivalent: "M")

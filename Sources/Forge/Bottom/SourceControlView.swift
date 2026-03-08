@@ -4,7 +4,7 @@ protocol SourceControlViewDelegate: AnyObject {
     func sourceControlView(_ view: SourceControlView, didSelectFile url: URL)
 }
 
-/// Shows git changed files in the bottom panel with status indicators and inline diff.
+/// Shows git changed files in the bottom panel with status indicators, inline diff, and commit UI.
 class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
     weak var delegate: SourceControlViewDelegate?
@@ -13,11 +13,14 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     private let fileListScrollView = NSScrollView()
     private let statusLabel = NSTextField(labelWithString: "")
     private let refreshButton = NSButton(title: "Refresh", target: nil, action: nil)
+    private let stageAllButton = NSButton(title: "Stage All", target: nil, action: nil)
+    private let commitField = NSTextField()
+    private let commitButton = NSButton(title: "Commit", target: nil, action: nil)
     private let diffView: DiffTextView
     private let diffScrollView: NSScrollView
     private let splitView = NSSplitView()
 
-    private var changedFiles: [(path: String, status: GitStatusTracker.FileStatus)] = []
+    private var changedFiles: [(path: String, status: GitStatusTracker.FileStatus, staged: Bool)] = []
     private var projectRoot: URL?
 
     private let bgColor = NSColor(red: 0.11, green: 0.12, blue: 0.14, alpha: 1.0)
@@ -59,6 +62,31 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         refreshButton.action = #selector(refreshClicked)
         addSubview(refreshButton)
 
+        // Stage All button
+        stageAllButton.translatesAutoresizingMaskIntoConstraints = false
+        stageAllButton.bezelStyle = .accessoryBarAction
+        stageAllButton.target = self
+        stageAllButton.action = #selector(stageAllClicked)
+        addSubview(stageAllButton)
+
+        // Commit message field
+        commitField.translatesAutoresizingMaskIntoConstraints = false
+        commitField.placeholderString = "Commit message…"
+        commitField.font = NSFont.systemFont(ofSize: 12)
+        commitField.focusRingType = .none
+        commitField.backgroundColor = NSColor(red: 0.15, green: 0.16, blue: 0.18, alpha: 1.0)
+        commitField.textColor = NSColor(white: 0.85, alpha: 1.0)
+        commitField.isBordered = true
+        commitField.bezelStyle = .roundedBezel
+        addSubview(commitField)
+
+        // Commit button
+        commitButton.translatesAutoresizingMaskIntoConstraints = false
+        commitButton.bezelStyle = .accessoryBarAction
+        commitButton.target = self
+        commitButton.action = #selector(commitClicked)
+        addSubview(commitButton)
+
         // File list table
         fileListScrollView.translatesAutoresizingMaskIntoConstraints = false
         fileListScrollView.hasVerticalScroller = true
@@ -77,6 +105,11 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         tableView.doubleAction = #selector(tableDoubleClicked)
         tableView.action = #selector(tableClicked)
         tableView.target = self
+
+        // Enable right-click context menu
+        let menu = NSMenu()
+        menu.delegate = self
+        tableView.menu = menu
 
         fileListScrollView.documentView = tableView
 
@@ -106,9 +139,21 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             statusLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
 
             refreshButton.centerYAnchor.constraint(equalTo: statusLabel.centerYAnchor),
-            refreshButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            refreshButton.trailingAnchor.constraint(equalTo: stageAllButton.leadingAnchor, constant: -6),
 
-            splitView.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 6),
+            stageAllButton.centerYAnchor.constraint(equalTo: statusLabel.centerYAnchor),
+            stageAllButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+
+            commitField.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 4),
+            commitField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            commitField.trailingAnchor.constraint(equalTo: commitButton.leadingAnchor, constant: -6),
+            commitField.heightAnchor.constraint(equalToConstant: 24),
+
+            commitButton.centerYAnchor.constraint(equalTo: commitField.centerYAnchor),
+            commitButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            commitButton.widthAnchor.constraint(equalToConstant: 70),
+
+            splitView.topAnchor.constraint(equalTo: commitField.bottomAnchor, constant: 4),
             splitView.leadingAnchor.constraint(equalTo: leadingAnchor),
             splitView.trailingAnchor.constraint(equalTo: trailingAnchor),
             splitView.bottomAnchor.constraint(equalTo: bottomAnchor),
@@ -130,11 +175,11 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
     func refresh(gitStatus: GitStatusTracker) {
         gitStatus.refresh { [weak self] in
-            self?.updateFromTracker(gitStatus)
+            self?.reloadFiles()
         }
     }
 
-    private func updateFromTracker(_ tracker: GitStatusTracker) {
+    private func reloadFiles() {
         guard let root = projectRoot else { return }
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -142,28 +187,56 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             DispatchQueue.main.async {
                 self?.changedFiles = files
                 self?.tableView.reloadData()
-                if files.isEmpty {
-                    self?.statusLabel.stringValue = "No changes"
-                    self?.diffView.clear()
-                } else {
-                    self?.statusLabel.stringValue = "\(files.count) changed file\(files.count == 1 ? "" : "s")"
-                }
+                self?.updateStatusLabel()
             }
         }
     }
 
+    private func updateStatusLabel() {
+        if changedFiles.isEmpty {
+            statusLabel.stringValue = "No changes"
+            diffView.clear()
+        } else {
+            let staged = changedFiles.filter { $0.staged }.count
+            let unstaged = changedFiles.count - staged
+            var parts: [String] = []
+            if staged > 0 { parts.append("\(staged) staged") }
+            if unstaged > 0 { parts.append("\(unstaged) unstaged") }
+            statusLabel.stringValue = "\(changedFiles.count) changed — \(parts.joined(separator: ", "))"
+        }
+    }
+
     @objc private func refreshClicked() {
+        reloadFiles()
+    }
+
+    @objc private func stageAllClicked() {
         guard let root = projectRoot else { return }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let files = Self.fetchChangedFiles(root: root)
+            Self.runGit(["add", "-A"], root: root)
             DispatchQueue.main.async {
-                self?.changedFiles = files
-                self?.tableView.reloadData()
-                if files.isEmpty {
-                    self?.statusLabel.stringValue = "No changes"
-                    self?.diffView.clear()
+                self?.reloadFiles()
+            }
+        }
+    }
+
+    @objc private func commitClicked() {
+        let message = commitField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !message.isEmpty else {
+            commitField.becomeFirstResponder()
+            NSSound.beep()
+            return
+        }
+        guard let root = projectRoot else { return }
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let success = Self.runGit(["commit", "-m", message], root: root)
+            DispatchQueue.main.async {
+                if success {
+                    self?.commitField.stringValue = ""
+                    self?.reloadFiles()
                 } else {
-                    self?.statusLabel.stringValue = "\(files.count) changed file\(files.count == 1 ? "" : "s")"
+                    NSSound.beep()
                 }
             }
         }
@@ -173,7 +246,7 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         let row = tableView.selectedRow
         guard row >= 0 && row < changedFiles.count, let root = projectRoot else { return }
         let file = changedFiles[row]
-        loadDiff(for: file.path, status: file.status, root: root)
+        loadDiff(for: file.path, status: file.status, staged: file.staged, root: root)
     }
 
     @objc private func tableDoubleClicked() {
@@ -184,19 +257,20 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         delegate?.sourceControlView(self, didSelectFile: url)
     }
 
-    private func loadDiff(for path: String, status: GitStatusTracker.FileStatus, root: URL) {
+    private func loadDiff(for path: String, status: GitStatusTracker.FileStatus, staged: Bool, root: URL) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let diff: String
             if status == .untracked {
-                // For untracked files, show file contents as all-added
                 let url = root.appendingPathComponent(path)
                 if let content = try? String(contentsOf: url, encoding: .utf8) {
-                    diff = content.components(separatedBy: "\n").map { "+ \($0)" }.joined(separator: "\n")
+                    diff = content.components(separatedBy: "\n").map { "+\($0)" }.joined(separator: "\n")
                 } else {
                     diff = "(Cannot read file)"
                 }
+            } else if staged {
+                diff = Self.fetchDiff(args: ["diff", "--cached", "--", path], root: root)
             } else {
-                diff = Self.fetchDiff(for: path, root: root)
+                diff = Self.fetchDiff(args: ["diff", "--", path], root: root)
             }
             DispatchQueue.main.async {
                 self?.diffView.showDiff(diff)
@@ -204,11 +278,76 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         }
     }
 
-    private static func fetchDiff(for path: String, root: URL) -> String {
+    // MARK: - Git Operations
+
+    private func stageFile(at row: Int) {
+        guard row >= 0 && row < changedFiles.count, let root = projectRoot else { return }
+        let file = changedFiles[row]
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            Self.runGit(["add", "--", file.path], root: root)
+            DispatchQueue.main.async {
+                self?.reloadFiles()
+            }
+        }
+    }
+
+    private func unstageFile(at row: Int) {
+        guard row >= 0 && row < changedFiles.count, let root = projectRoot else { return }
+        let file = changedFiles[row]
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            Self.runGit(["reset", "HEAD", "--", file.path], root: root)
+            DispatchQueue.main.async {
+                self?.reloadFiles()
+            }
+        }
+    }
+
+    private func discardChanges(at row: Int) {
+        guard row >= 0 && row < changedFiles.count, let root = projectRoot else { return }
+        let file = changedFiles[row]
+
+        // Confirm before discarding
+        let alert = NSAlert()
+        alert.messageText = "Discard changes to \(file.path)?"
+        alert.informativeText = "This cannot be undone."
+        alert.addButton(withTitle: "Discard")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            if file.status == .untracked {
+                // Remove untracked file
+                let url = root.appendingPathComponent(file.path)
+                try? FileManager.default.removeItem(at: url)
+            } else {
+                Self.runGit(["checkout", "--", file.path], root: root)
+            }
+            DispatchQueue.main.async {
+                self?.reloadFiles()
+            }
+        }
+    }
+
+    @discardableResult
+    private static func runGit(_ args: [String], root: URL) -> Bool {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        task.arguments = args
+        task.currentDirectoryURL = root
+        task.standardOutput = FileHandle.nullDevice
+        task.standardError = FileHandle.nullDevice
+        do { try task.run() } catch { return false }
+        task.waitUntilExit()
+        return task.terminationStatus == 0
+    }
+
+    private static func fetchDiff(args: [String], root: URL) -> String {
         let task = Process()
         let pipe = Pipe()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        task.arguments = ["diff", "HEAD", "--", path]
+        task.arguments = args
         task.currentDirectoryURL = root
         task.standardOutput = pipe
         task.standardError = FileHandle.nullDevice
@@ -221,7 +360,7 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         return String(data: data, encoding: .utf8) ?? "(Binary file or encoding error)"
     }
 
-    private static func fetchChangedFiles(root: URL) -> [(path: String, status: GitStatusTracker.FileStatus)] {
+    private static func fetchChangedFiles(root: URL) -> [(path: String, status: GitStatusTracker.FileStatus, staged: Bool)] {
         let task = Process()
         let pipe = Pipe()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/git")
@@ -238,7 +377,7 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         guard task.terminationStatus == 0,
               let output = String(data: data, encoding: .utf8) else { return [] }
 
-        var result: [(path: String, status: GitStatusTracker.FileStatus)] = []
+        var result: [(path: String, status: GitStatusTracker.FileStatus, staged: Bool)] = []
 
         for line in output.components(separatedBy: "\n") {
             guard line.count >= 4 else { continue }
@@ -255,7 +394,7 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             let status: GitStatusTracker.FileStatus
             if x == "?" || y == "?" {
                 status = .untracked
-            } else if x == "A" {
+            } else if x == "A" || y == "A" {
                 status = .added
             } else if x == "D" || y == "D" {
                 status = .deleted
@@ -267,7 +406,10 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
                 status = .modified
             }
 
-            result.append((path: path, status: status))
+            // Staged if the index (x) column shows a change
+            let staged = x != " " && x != "?"
+
+            result.append((path: path, status: status, staged: staged))
         }
 
         return result.sorted { $0.path < $1.path }
@@ -300,6 +442,13 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             statusField.tag = 200
             cell.addSubview(statusField)
 
+            let stagedIndicator = NSTextField(labelWithString: "")
+            stagedIndicator.translatesAutoresizingMaskIntoConstraints = false
+            stagedIndicator.font = NSFont.systemFont(ofSize: 9, weight: .medium)
+            stagedIndicator.alignment = .center
+            stagedIndicator.tag = 201
+            cell.addSubview(stagedIndicator)
+
             let textField = NSTextField(labelWithString: "")
             textField.translatesAutoresizingMaskIntoConstraints = false
             textField.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
@@ -309,7 +458,10 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             cell.textField = textField
 
             NSLayoutConstraint.activate([
-                statusField.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 8),
+                stagedIndicator.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+                stagedIndicator.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+                stagedIndicator.widthAnchor.constraint(equalToConstant: 10),
+                statusField.leadingAnchor.constraint(equalTo: stagedIndicator.trailingAnchor, constant: 2),
                 statusField.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
                 statusField.widthAnchor.constraint(equalToConstant: 16),
                 textField.leadingAnchor.constraint(equalTo: statusField.trailingAnchor, constant: 6),
@@ -319,6 +471,16 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         }
 
         cell.textField?.stringValue = file.path
+
+        // Staged indicator
+        if let stagedField = cell.viewWithTag(201) as? NSTextField {
+            if file.staged {
+                stagedField.stringValue = "\u{25CF}" // filled circle
+                stagedField.textColor = NSColor(red: 0.40, green: 0.80, blue: 0.40, alpha: 1.0)
+            } else {
+                stagedField.stringValue = ""
+            }
+        }
 
         if let statusField = cell.viewWithTag(200) as? NSTextField {
             switch file.status {
@@ -350,6 +512,75 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         }
 
         return cell
+    }
+}
+
+// MARK: - Context Menu
+
+extension SourceControlView: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+
+        let row = tableView.clickedRow
+        guard row >= 0 && row < changedFiles.count else { return }
+        let file = changedFiles[row]
+
+        if file.staged {
+            let unstage = NSMenuItem(title: "Unstage", action: #selector(contextUnstage(_:)), keyEquivalent: "")
+            unstage.target = self
+            unstage.tag = row
+            menu.addItem(unstage)
+        } else {
+            let stage = NSMenuItem(title: "Stage", action: #selector(contextStage(_:)), keyEquivalent: "")
+            stage.target = self
+            stage.tag = row
+            menu.addItem(stage)
+        }
+
+        menu.addItem(.separator())
+
+        let discard = NSMenuItem(title: "Discard Changes…", action: #selector(contextDiscard(_:)), keyEquivalent: "")
+        discard.target = self
+        discard.tag = row
+        menu.addItem(discard)
+
+        menu.addItem(.separator())
+
+        let openFile = NSMenuItem(title: "Open File", action: #selector(contextOpenFile(_:)), keyEquivalent: "")
+        openFile.target = self
+        openFile.tag = row
+        menu.addItem(openFile)
+
+        let reveal = NSMenuItem(title: "Reveal in Finder", action: #selector(contextReveal(_:)), keyEquivalent: "")
+        reveal.target = self
+        reveal.tag = row
+        menu.addItem(reveal)
+    }
+
+    @objc private func contextStage(_ sender: NSMenuItem) {
+        stageFile(at: sender.tag)
+    }
+
+    @objc private func contextUnstage(_ sender: NSMenuItem) {
+        unstageFile(at: sender.tag)
+    }
+
+    @objc private func contextDiscard(_ sender: NSMenuItem) {
+        discardChanges(at: sender.tag)
+    }
+
+    @objc private func contextOpenFile(_ sender: NSMenuItem) {
+        let row = sender.tag
+        guard row >= 0 && row < changedFiles.count, let root = projectRoot else { return }
+        let url = root.appendingPathComponent(changedFiles[row].path)
+        delegate?.sourceControlView(self, didSelectFile: url)
+    }
+
+    @objc private func contextReveal(_ sender: NSMenuItem) {
+        let row = sender.tag
+        guard row >= 0 && row < changedFiles.count, let root = projectRoot else { return }
+        let url = root.appendingPathComponent(changedFiles[row].path)
+        NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 }
 

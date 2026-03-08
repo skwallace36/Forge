@@ -172,6 +172,10 @@ class MainSplitViewController: NSSplitViewController {
 
     // MARK: - Source Control
 
+    @objc func showSourceControlAction(_ sender: Any?) {
+        showSourceControl()
+    }
+
     func showSourceControl() {
         showBottomPanel()
         bottomPanelVC.sourceControlView.refresh(gitStatus: project.gitStatus)
