@@ -95,6 +95,13 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
 
         // Reload from disk
         let newRoot = FileNode(url: project.rootURL, isDirectory: true)
+        newRoot.projectRoot = project.rootURL
+
+        let gitignoreURL = project.rootURL.appendingPathComponent(".gitignore")
+        if FileManager.default.fileExists(atPath: gitignoreURL.path) {
+            newRoot.gitignore = GitignoreParser(gitignoreURL: gitignoreURL)
+        }
+
         newRoot.loadChildren()
         rootNode = newRoot
 
@@ -143,6 +150,14 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
 
     private func loadFileTree() {
         rootNode = FileNode(url: project.rootURL, isDirectory: true)
+        rootNode?.projectRoot = project.rootURL
+
+        // Load .gitignore if it exists
+        let gitignoreURL = project.rootURL.appendingPathComponent(".gitignore")
+        if FileManager.default.fileExists(atPath: gitignoreURL.path) {
+            rootNode?.gitignore = GitignoreParser(gitignoreURL: gitignoreURL)
+        }
+
         rootNode?.loadChildren()
 
         // Pre-load children of key directories before telling the outline view

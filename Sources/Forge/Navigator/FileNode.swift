@@ -6,6 +6,10 @@ class FileNode {
     let isDirectory: Bool
     var children: [FileNode] = []
     private var childrenLoaded = false
+    /// Root-level gitignore parser, shared by all nodes in the tree
+    var gitignore: GitignoreParser?
+    /// The project root URL, for computing relative paths
+    var projectRoot: URL?
 
     // Hidden files/dirs to skip
     private static let hiddenPrefixes: Set<String> = [
@@ -125,11 +129,28 @@ class FileNode {
                 if FileNode.hiddenPrefixes.contains(where: { name.hasPrefix($0) }) { return false }
                 if FileNode.hiddenNames.contains(name) { return false }
                 if FileNode.hiddenExtensions.contains(url.pathExtension.lowercased()) { return false }
+
+                // Check .gitignore
+                if let gitignore = gitignore, let root = projectRoot {
+                    let rootPath = root.standardizedFileURL.path
+                    let filePath = url.standardizedFileURL.path
+                    if filePath.hasPrefix(rootPath) {
+                        let relative = String(filePath.dropFirst(rootPath.count + 1))
+                        let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+                        if gitignore.isIgnored(relativePath: relative, isDirectory: isDir) {
+                            return false
+                        }
+                    }
+                }
+
                 return true
             }
             .map { childURL in
                 let isDir = (try? childURL.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-                return FileNode(url: childURL, isDirectory: isDir)
+                let node = FileNode(url: childURL, isDirectory: isDir)
+                node.gitignore = self.gitignore
+                node.projectRoot = self.projectRoot
+                return node
             }
             .sorted { a, b in
                 // Directories first, then alphabetical

@@ -50,7 +50,7 @@ class StatusBar: NSView {
     }
 
     func update(line: Int, column: Int, totalLines: Int, fileExtension: String?) {
-        lineColLabel.stringValue = "Ln \(line), Col \(column)"
+        lineColLabel.stringValue = "Ln \(line), Col \(column)  (\(totalLines) lines)"
 
         if let ext = fileExtension {
             fileTypeLabel.stringValue = languageName(for: ext)
@@ -65,8 +65,27 @@ class StatusBar: NSView {
         case "json": return "JSON"
         case "md", "markdown": return "Markdown"
         case "py": return "Python"
-        case "js": return "JavaScript"
-        case "ts": return "TypeScript"
+        case "js", "jsx": return "JavaScript"
+        case "ts", "tsx": return "TypeScript"
+        case "html", "htm": return "HTML"
+        case "css": return "CSS"
+        case "scss": return "SCSS"
+        case "yml", "yaml": return "YAML"
+        case "xml": return "XML"
+        case "sh", "bash": return "Shell"
+        case "zsh": return "Zsh"
+        case "rb": return "Ruby"
+        case "go": return "Go"
+        case "rs": return "Rust"
+        case "c": return "C"
+        case "cpp", "cc", "cxx": return "C++"
+        case "h", "hpp": return "Header"
+        case "m": return "Objective-C"
+        case "mm": return "Objective-C++"
+        case "toml": return "TOML"
+        case "plist": return "Plist"
+        case "txt": return "Plain Text"
+        case "log": return "Log"
         default: return ext.uppercased()
         }
     }
