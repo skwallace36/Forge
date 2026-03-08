@@ -186,6 +186,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         navMenu.addItem(.separator())
 
+        // ⌘1-9 for tab switching
+        for i in 1...9 {
+            let tabItem = NSMenuItem(title: "Select Tab \(i)", action: #selector(MainWindowController.selectTabByNumber(_:)), keyEquivalent: "\(i)")
+            tabItem.tag = i
+            navMenu.addItem(tabItem)
+        }
+
+        navMenu.addItem(.separator())
+
         let focusEditor = NSMenuItem(title: "Focus Editor", action: #selector(MainWindowController.focusEditor(_:)), keyEquivalent: String(Character(UnicodeScalar(27))))
         focusEditor.keyEquivalentModifierMask = []
         navMenu.addItem(focusEditor)

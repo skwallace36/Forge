@@ -318,6 +318,14 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         splitViewController.editorAreaDidUpdate()
     }
 
+    @objc func selectTabByNumber(_ sender: NSMenuItem) {
+        let tabNumber = sender.tag // 1-based
+        let index = tabNumber - 1
+        guard index >= 0 && index < project.tabManager.tabs.count else { return }
+        project.tabManager.select(at: index)
+        splitViewController.editorAreaDidUpdate()
+    }
+
     @objc func reopenLastTab(_ sender: Any?) {
         project.tabManager.reopenLast()
         splitViewController.editorAreaDidUpdate()
