@@ -138,6 +138,25 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             self?.windowController?.openFile(url, atLine: line, column: column)
         }
 
+        // Wire up jump bar symbol navigation
+        jumpBar.onSymbolSelected = { [weak self] line, column in
+            self?.editor.scrollToLine(line, column: column)
+        }
+
+        jumpBar.onRequestSymbols = { [weak self] completion in
+            guard let self = self,
+                  let doc = self.project.tabManager.currentDocument else {
+                completion([])
+                return
+            }
+            Task {
+                let symbols = (try? await self.project.lspClient.documentSymbols(url: doc.url)) ?? []
+                await MainActor.run {
+                    completion(symbols)
+                }
+            }
+        }
+
         refreshEditor()
     }
 

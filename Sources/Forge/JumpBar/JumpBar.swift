@@ -1,7 +1,14 @@
 import AppKit
 
 /// Breadcrumb path bar above the editor — shows project > folder > file path.
+/// Clicking the filename shows document symbols for quick navigation.
 class JumpBar: NSView {
+
+    /// Called when user selects a symbol: (line, column) — 0-based
+    var onSymbolSelected: ((Int, Int) -> Void)?
+
+    /// Called to fetch document symbols asynchronously
+    var onRequestSymbols: ((@escaping ([LSPDocumentSymbol]) -> Void) -> Void)?
 
     private var pathComponents: [String] = []
     private var labels: [NSTextField] = []
@@ -70,9 +77,86 @@ class JumpBar: NSView {
 
             let label = makeLabel(component, color: isLast ? activeTextColor : textColor, bold: isLast)
             label.frame.origin = NSPoint(x: xOffset, y: (barHeight - label.frame.height) / 2)
-            addSubview(label)
-            labels.append(label)
-            xOffset += label.frame.width + 4
+
+            // Make the last label clickable for symbol navigation
+            if isLast {
+                let button = ClickableLabel(frame: label.frame)
+                button.stringValue = component
+                button.font = label.font
+                button.textColor = label.textColor
+                button.isBezeled = false
+                button.drawsBackground = false
+                button.isEditable = false
+                button.isSelectable = false
+                button.target = self
+                button.action = #selector(fileNameClicked(_:))
+                button.sizeToFit()
+                button.frame.origin = label.frame.origin
+                addSubview(button)
+                labels.append(button)
+                xOffset += button.frame.width + 4
+            } else {
+                addSubview(label)
+                labels.append(label)
+                xOffset += label.frame.width + 4
+            }
+        }
+    }
+
+    @objc private func fileNameClicked(_ sender: NSTextField) {
+        guard let requestSymbols = onRequestSymbols else { return }
+
+        requestSymbols { [weak self] symbols in
+            guard let self = self, !symbols.isEmpty else { return }
+            self.showSymbolMenu(symbols, relativeTo: sender)
+        }
+    }
+
+    private func showSymbolMenu(_ symbols: [LSPDocumentSymbol], relativeTo view: NSView) {
+        let menu = NSMenu()
+
+        func addSymbols(_ syms: [LSPDocumentSymbol], indent: Int) {
+            for sym in syms {
+                let prefix = String(repeating: "  ", count: indent)
+                let icon = symbolIcon(for: sym.kind)
+                let title = "\(prefix)\(icon) \(sym.name)"
+                let item = NSMenuItem(title: title, action: #selector(symbolSelected(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = sym
+                menu.addItem(item)
+
+                if let children = sym.children, !children.isEmpty {
+                    addSymbols(children, indent: indent + 1)
+                }
+            }
+        }
+
+        addSymbols(symbols, indent: 0)
+
+        let location = NSPoint(x: view.frame.origin.x, y: view.frame.maxY + 2)
+        menu.popUp(positioning: nil, at: location, in: self)
+    }
+
+    @objc private func symbolSelected(_ sender: NSMenuItem) {
+        guard let symbol = sender.representedObject as? LSPDocumentSymbol else { return }
+        onSymbolSelected?(symbol.selectionRange.start.line, symbol.selectionRange.start.character)
+    }
+
+    private func symbolIcon(for kind: Int) -> String {
+        // LSP SymbolKind values
+        switch kind {
+        case 5: return "C"   // Class
+        case 6: return "M"   // Method
+        case 9: return "C"   // Constructor
+        case 10: return "E"  // Enum
+        case 11: return "I"  // Interface/Protocol
+        case 12: return "F"  // Function
+        case 13: return "V"  // Variable
+        case 14: return "K"  // Constant
+        case 23: return "S"  // Struct
+        case 8: return "P"   // Property/Field
+        case 22: return "E"  // Enum Member
+        default: return "•"
         }
     }
 
@@ -95,5 +179,16 @@ class JumpBar: NSView {
         // Bottom border
         NSColor(white: 0.2, alpha: 1.0).setFill()
         NSRect(x: 0, y: bounds.height - 1, width: bounds.width, height: 1).fill()
+    }
+}
+
+/// NSTextField subclass that handles clicks
+private class ClickableLabel: NSTextField {
+    override func mouseDown(with event: NSEvent) {
+        sendAction(action, to: target)
+    }
+
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: .pointingHand)
     }
 }
