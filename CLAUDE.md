@@ -33,7 +33,7 @@ AppKit window with NSSplitView. Four panel positions:
 
 Navigation: ⇧⌘O (Open Quickly), ⌘⇧J (reveal in navigator), ⌃⌘←/→ (back/forward)
 Tabs: ⌘⇧[ / ⌘⇧] (prev/next), ⌘W (close), ⌘⇧T (reopen)
-Panels: ⌘0 (navigator), ⌘⇧Y (bottom)
+Panels: ⌘0 (navigator), ⌘⌥0 (inspector), ⌘⇧Y (bottom)
 Edit: ⌘/ (toggle comment), ⌘⌥[/] (move line up/down), ⌃Space (completion), ⌃I (re-indent)
 Edit: ⌃⇧K (delete line), ⌘↩ (insert line below), ⌘⇧↩ (insert line above), ⌘D (duplicate line)
 Edit: ⌘L (go to line), ⌃⌘E (rename symbol), ⌘⌥S (save all)
@@ -79,6 +79,12 @@ See PLAN.md for full phase breakdown. Short version:
 - Find in Project: regex toggle, case sensitivity, match highlighting
 - Save All (⌘⌥S)
 - Font size zoom persisted across sessions
+- Right inspector panel (⌘⌥0) — file info + LSP Quick Help
+- Select Enclosing Brackets (context menu + ⌃⇧⌘→)
+- Fuzzy matching in completion popup (camelCase matching)
+- Dynamic gutter width for large files (auto-expands for 10K+ lines)
+- Error alerts on failed file operations (create, rename, delete, duplicate)
+- Save prompts on Close Others/All/Right tab actions
 
 ## Autonomous Development Mode
 
@@ -131,6 +137,7 @@ Sources/Forge/
 ├── Editor/        — ForgeEditorManager, ForgeLayoutManager, GutterView, MinimapView, ForgeDocument, StatusBar, CompletionWindow
 ├── Tabs/          — TabBar, TabManager
 ├── Navigator/     — NavigatorViewController (NSOutlineView), FileNode
+├── Inspector/     — InspectorViewController (file info + Quick Help)
 ├── JumpBar/       — JumpBar, OpenQuicklyWindowController
 ├── LSP/           — LSPClient, JSONRPCConnection, LSPTypes
 ├── Syntax/        — SyntaxHighlighter (tree-sitter), SimpleHighlighter (regex), Theme
