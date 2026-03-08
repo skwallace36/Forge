@@ -317,6 +317,14 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         prefs.wordWrap = !prefs.wordWrap
     }
 
+    // MARK: - Invisible Characters Toggle
+
+    @objc func toggleInvisibles(_ sender: Any?) {
+        let prefs = Preferences.shared
+        prefs.showInvisibles = !prefs.showInvisibles
+        editor.textView.needsDisplay = true
+    }
+
     // MARK: - Toggle Comment (forwarded to editor manager)
 
     @objc func toggleComment(_ sender: Any?) {

@@ -15,6 +15,7 @@ class Preferences {
         static let tabWidth = "ForgeTabWidth"
         static let showMinimap = "ForgeShowMinimap"
         static let showIndentGuides = "ForgeShowIndentGuides"
+        static let showInvisibles = "ForgeShowInvisibles"
         static let trimTrailingWhitespace = "ForgeTrimTrailingWhitespace"
         static let ensureTrailingNewline = "ForgeEnsureTrailingNewline"
         static let columnRuler = "ForgeColumnRuler"
@@ -85,6 +86,14 @@ class Preferences {
         }
         set {
             defaults.set(newValue, forKey: Key.showIndentGuides)
+            NotificationCenter.default.post(name: .preferencesDidChange, object: nil)
+        }
+    }
+
+    var showInvisibles: Bool {
+        get { defaults.bool(forKey: Key.showInvisibles) }
+        set {
+            defaults.set(newValue, forKey: Key.showInvisibles)
             NotificationCenter.default.post(name: .preferencesDidChange, object: nil)
         }
     }

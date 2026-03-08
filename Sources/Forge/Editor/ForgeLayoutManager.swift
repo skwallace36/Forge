@@ -5,6 +5,7 @@ class ForgeLayoutManager: NSLayoutManager {
 
     var indentGuideColor = NSColor(white: 0.30, alpha: 0.35)
     var columnRulerColor = NSColor(white: 0.22, alpha: 1.0)
+    var invisibleColor = NSColor(white: 0.35, alpha: 0.5)
     var tabSpaces: Int = 4
     var rulerColumn: Int = 0 // 0 = disabled
 
@@ -111,5 +112,67 @@ class ForgeLayoutManager: NSLayoutManager {
     private func textContainerInset() -> NSSize {
         guard let tv = firstTextView else { return .zero }
         return tv.textContainerInset
+    }
+
+    // MARK: - Invisible Characters
+
+    override func drawGlyphs(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+        super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin)
+
+        guard Preferences.shared.showInvisibles else { return }
+        drawInvisibles(forGlyphRange: glyphsToShow, at: origin)
+    }
+
+    private func drawInvisibles(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+        guard let textStorage = textStorage,
+              let tc = textContainers.first else { return }
+
+        let text = textStorage.string as NSString
+        let charRange = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
+        let inset = textContainerInset()
+
+        let font = textStorage.length > 0
+            ? textStorage.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+                ?? NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+            : NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+
+        let spaceAttrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: invisibleColor,
+        ]
+
+        let dotStr = "\u{00B7}" as NSString    // middle dot for spaces
+        let arrowStr = "\u{2192}" as NSString  // right arrow for tabs
+        let returnStr = "\u{00AC}" as NSString // not sign for newlines
+
+        for charIdx in charRange.location..<min(NSMaxRange(charRange), text.length) {
+            let ch = text.character(at: charIdx)
+            let drawStr: NSString?
+
+            switch ch {
+            case 0x20: // space
+                drawStr = dotStr
+            case 0x09: // tab
+                drawStr = arrowStr
+            case 0x0A: // newline
+                drawStr = returnStr
+            default:
+                continue
+            }
+
+            guard let str = drawStr else { continue }
+
+            let glyphIdx = glyphIndexForCharacter(at: charIdx)
+            guard glyphIdx != NSNotFound else { continue }
+
+            let lineRect = lineFragmentRect(forGlyphAt: glyphIdx, effectiveRange: nil)
+            let glyphLocation = location(forGlyphAt: glyphIdx)
+
+            let point = NSPoint(
+                x: origin.x + lineRect.origin.x + glyphLocation.x + inset.width,
+                y: origin.y + lineRect.origin.y + inset.height,
+            )
+            str.draw(at: point, withAttributes: spaceAttrs)
+        }
     }
 }

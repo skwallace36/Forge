@@ -256,6 +256,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         toggleWordWrap.keyEquivalentModifierMask = [.command, .option]
         viewMenu.addItem(toggleWordWrap)
 
+        let toggleInvisibles = NSMenuItem(title: "Toggle Invisible Characters", action: #selector(EditorContainerViewController.toggleInvisibles(_:)), keyEquivalent: "i")
+        toggleInvisibles.keyEquivalentModifierMask = [.command, .option]
+        viewMenu.addItem(toggleInvisibles)
+
         viewMenu.addItem(.separator())
 
         let zoomIn = NSMenuItem(title: "Zoom In", action: #selector(EditorContainerViewController.increaseFontSize(_:)), keyEquivalent: "+")
