@@ -7,9 +7,13 @@ class LSPClient {
     private let rootURL: URL
     private var initialized = false
     private var openDocumentVersions: [URL: Int] = [:]
+    private var isRestarting = false
 
     /// Callback for diagnostics published by the server
     var onDiagnostics: ((URL, [LSPDiagnostic]) -> Void)?
+
+    /// Called when LSP restarts so the editor can re-open documents
+    var onRestarted: (() -> Void)?
 
     init(rootURL: URL) {
         self.rootURL = rootURL
@@ -38,6 +42,11 @@ class LSPClient {
         // Handle server notifications
         conn.onNotification = { [weak self] method, params in
             self?.handleNotification(method: method, params: params)
+        }
+
+        // Handle unexpected termination
+        conn.onTermination = { [weak self] in
+            self?.handleCrash()
         }
 
         try conn.start()
@@ -80,11 +89,12 @@ class LSPClient {
     }
 
     func stop() {
+        initialized = false
+        connection?.onTermination = nil // prevent crash handler during intentional stop
         connection?.sendNotification(method: "shutdown", params: nil)
         connection?.sendNotification(method: "exit", params: nil)
         connection?.stop()
         connection = nil
-        initialized = false
     }
 
     // MARK: - Document Lifecycle
@@ -543,6 +553,37 @@ class LSPClient {
         }
 
         return result.compactMap(parseSymbol)
+    }
+
+    // MARK: - Crash Recovery
+
+    private func handleCrash() {
+        guard initialized, !isRestarting else { return }
+        initialized = false
+        connection = nil
+
+        NSLog("sourcekit-lsp crashed, restarting in 2 seconds...")
+
+        isRestarting = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            self?.attemptRestart()
+        }
+    }
+
+    private func attemptRestart() {
+        Task {
+            do {
+                try await start()
+                isRestarting = false
+                NSLog("sourcekit-lsp restarted successfully")
+                await MainActor.run {
+                    onRestarted?()
+                }
+            } catch {
+                isRestarting = false
+                NSLog("sourcekit-lsp restart failed: \(error)")
+            }
+        }
     }
 
     deinit {

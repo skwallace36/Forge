@@ -212,9 +212,15 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
     @objc private func preferencesDidChange(_ notification: Notification) {
         let prefs = Preferences.shared
+        fontSize = prefs.fontSize
+        textView.font = editorFont
         applyWordWrap(prefs.wordWrap)
         forgeLayoutManager?.tabSpaces = prefs.tabWidth
         forgeLayoutManager?.rulerColumn = prefs.columnRuler
+
+        // Re-highlight with updated font
+        rehighlight()
+        gutterView.needsDisplay = true
         textView.needsDisplay = true
     }
 

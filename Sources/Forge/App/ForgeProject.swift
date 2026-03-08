@@ -16,12 +16,20 @@ class ForgeProject {
         self.buildSystem = BuildSystem(projectRoot: rootURL)
         self.gitStatus = GitStatusTracker(rootURL: rootURL)
 
+        // Re-open documents with LSP after a crash restart
+        lspClient.onRestarted = { [weak self] in
+            guard let self = self else { return }
+            for (url, doc) in self.openDocuments where url.pathExtension == "swift" {
+                self.lspClient.didOpen(url: url, text: doc.textStorage.string)
+            }
+        }
+
         // Start LSP in background
         Task {
             do {
                 try await lspClient.start()
             } catch {
-                print("LSP failed to start: \(error)")
+                NSLog("LSP failed to start: \(error)")
             }
         }
     }

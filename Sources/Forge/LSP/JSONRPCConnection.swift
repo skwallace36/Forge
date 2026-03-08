@@ -14,6 +14,9 @@ class JSONRPCConnection {
     private var readBuffer = Data()
     private let queue = DispatchQueue(label: "forge.jsonrpc", qos: .userInitiated)
 
+    /// Called when the LSP process terminates unexpectedly
+    var onTermination: (() -> Void)?
+
     var onNotification: ((String, [String: Any]) -> Void)? {
         get { notificationHandler }
         set { notificationHandler = newValue }
@@ -45,6 +48,11 @@ class JSONRPCConnection {
     }
 
     func start() throws {
+        process.terminationHandler = { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.onTermination?()
+            }
+        }
         try process.run()
         startReading()
     }
