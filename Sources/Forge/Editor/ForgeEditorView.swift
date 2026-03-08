@@ -39,6 +39,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
     private(set) var fontSize: CGFloat = 13
     let gutterWidth: CGFloat = 44
     let tabWidth: Int = 4
+    private var forgeLayoutManager: ForgeLayoutManager?
 
     /// Tracks the previously highlighted line range so we can clear it
     private var currentLineRange: NSRange?
@@ -65,11 +66,24 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
     private var completionPrefix: String = ""
 
     override init() {
-        let sv = NSTextView.scrollableTextView()
-        let tv = sv.documentView as! NSTextView
+        // Build the text system manually so we can use a custom layout manager
+        let textStorage = NSTextStorage()
+        let layoutManager = ForgeLayoutManager()
+        textStorage.addLayoutManager(layoutManager)
+
+        let textContainer = NSTextContainer()
+        textContainer.widthTracksTextView = false
+        textContainer.size = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        layoutManager.addTextContainer(textContainer)
+
+        let tv = NSTextView(frame: .zero, textContainer: textContainer)
+        let sv = NSScrollView()
+        sv.documentView = tv
+        tv.autoresizingMask = [.width, .height]
 
         self.scrollView = sv
         self.textView = tv
+        self.forgeLayoutManager = layoutManager
 
         super.init()
 
@@ -111,8 +125,6 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
 
         // Disable line wrapping — scroll horizontally
         textView.isHorizontallyResizable = true
-        textView.textContainer?.widthTracksTextView = false
-        textView.textContainer?.size = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
 
         // Editor font & colors from theme
@@ -124,6 +136,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
 
         // Small left padding for text (gutter is beside the scroll view, not overlaying)
         textView.textContainerInset = NSSize(width: 4, height: 0)
+
+        // Configure indent guides
+        forgeLayoutManager?.tabSpaces = tabWidth
     }
 
     private func configureGutter() {

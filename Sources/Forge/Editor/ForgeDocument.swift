@@ -69,8 +69,26 @@ class ForgeDocument {
     }
 
     func save() throws {
-        let text = textStorage.string
+        var text = textStorage.string
+
+        // Trim trailing whitespace from each line
+        let lines = text.components(separatedBy: "\n")
+        let trimmed = lines.map { line in
+            var s = line
+            while s.hasSuffix(" ") || s.hasSuffix("\t") {
+                s.removeLast()
+            }
+            return s
+        }
+        text = trimmed.joined(separator: "\n")
+
+        // Ensure file ends with a single newline
+        if !text.isEmpty && !text.hasSuffix("\n") {
+            text.append("\n")
+        }
+
         try text.write(to: url, atomically: true, encoding: .utf8)
         isModified = false
+        lastModifiedDate = Date()
     }
 }

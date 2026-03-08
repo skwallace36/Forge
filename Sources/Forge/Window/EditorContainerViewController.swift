@@ -225,6 +225,15 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         refreshEditor()
     }
 
+    // MARK: - Minimap Toggle
+
+    private var minimapVisible = true
+
+    @objc func toggleMinimap(_ sender: Any?) {
+        minimapVisible = !minimapVisible
+        minimap.isHidden = !minimapVisible
+    }
+
     // MARK: - Toggle Comment (forwarded to editor manager)
 
     @objc func toggleComment(_ sender: Any?) {

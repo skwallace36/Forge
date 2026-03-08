@@ -127,6 +127,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         viewMenu.addItem(.separator())
 
+        let toggleMinimap = NSMenuItem(title: "Toggle Minimap", action: #selector(EditorContainerViewController.toggleMinimap(_:)), keyEquivalent: "M")
+        toggleMinimap.keyEquivalentModifierMask = [.command, .control]
+        viewMenu.addItem(toggleMinimap)
+
+        viewMenu.addItem(.separator())
+
         let zoomIn = NSMenuItem(title: "Zoom In", action: #selector(EditorContainerViewController.increaseFontSize(_:)), keyEquivalent: "+")
         viewMenu.addItem(zoomIn)
 
