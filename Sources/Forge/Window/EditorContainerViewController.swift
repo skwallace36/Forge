@@ -960,6 +960,11 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         guard let currentDoc = project.tabManager.currentDocument,
               currentDoc.url == url else { return }
         editor.updateDiagnostics(diagnostics)
+
+        // Update status bar diagnostic count
+        let errors = diagnostics.filter { $0.severity == 1 }.count
+        let warnings = diagnostics.filter { $0.severity == 2 }.count
+        statusBar.updateDiagnosticCount(errors: errors, warnings: warnings)
     }
 
     // MARK: - Apply Edits to External Documents

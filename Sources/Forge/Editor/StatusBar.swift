@@ -9,6 +9,7 @@ class StatusBar: NSView {
     private let lineEndingLabel = NSTextField(labelWithString: "LF")
     private let indentLabel = NSTextField(labelWithString: "Spaces: 4")
     private let branchLabel = NSTextField(labelWithString: "")
+    private let diagnosticLabel = NSTextField(labelWithString: "")
 
     private let bgColor = NSColor(red: 0.13, green: 0.14, blue: 0.16, alpha: 1.0)
     private let textColor = NSColor(white: 0.55, alpha: 1.0)
@@ -32,7 +33,7 @@ class StatusBar: NSView {
         let monoFont = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         let textFont = NSFont.systemFont(ofSize: 11, weight: .regular)
 
-        let allLabels = [lineColLabel, fileTypeLabel, encodingLabel, lineEndingLabel, indentLabel, branchLabel]
+        let allLabels = [lineColLabel, fileTypeLabel, encodingLabel, lineEndingLabel, indentLabel, branchLabel, diagnosticLabel]
         for label in allLabels {
             label.textColor = textColor
             label.translatesAutoresizingMaskIntoConstraints = false
@@ -44,6 +45,7 @@ class StatusBar: NSView {
         lineEndingLabel.font = textFont
         fileTypeLabel.font = textFont
         branchLabel.font = textFont
+        diagnosticLabel.font = textFont
 
         NSLayoutConstraint.activate([
             lineColLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
@@ -51,6 +53,9 @@ class StatusBar: NSView {
 
             indentLabel.leadingAnchor.constraint(equalTo: lineColLabel.trailingAnchor, constant: 20),
             indentLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+            diagnosticLabel.leadingAnchor.constraint(equalTo: indentLabel.trailingAnchor, constant: 20),
+            diagnosticLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
 
             encodingLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
             encodingLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -97,6 +102,20 @@ class StatusBar: NSView {
 
     func setLineEnding(_ ending: String) {
         lineEndingLabel.stringValue = ending
+    }
+
+    func updateDiagnosticCount(errors: Int, warnings: Int) {
+        if errors == 0 && warnings == 0 {
+            diagnosticLabel.stringValue = ""
+        } else {
+            var parts: [String] = []
+            if errors > 0 { parts.append("\u{26D4} \(errors)") }
+            if warnings > 0 { parts.append("\u{26A0}\u{FE0F} \(warnings)") }
+            diagnosticLabel.stringValue = parts.joined(separator: "  ")
+            diagnosticLabel.textColor = errors > 0
+                ? NSColor(red: 0.95, green: 0.40, blue: 0.40, alpha: 1.0)
+                : NSColor(red: 0.90, green: 0.80, blue: 0.30, alpha: 1.0)
+        }
     }
 
     func updateBranch(_ branchName: String?) {
