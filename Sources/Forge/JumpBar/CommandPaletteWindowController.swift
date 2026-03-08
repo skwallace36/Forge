@@ -253,6 +253,8 @@ class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate, N
                            action: #selector(MainSplitViewController.showBottomTab5(_:)), target: nil),
             PaletteCommand(title: "Show Source Control", shortcut: "⌃⌘6", category: "View",
                            action: #selector(MainSplitViewController.showBottomTab6(_:)), target: nil),
+            PaletteCommand(title: "Toggle Markdown Preview", shortcut: "⌘⇧P", category: "View",
+                           action: #selector(EditorContainerViewController.toggleMarkdownPreview(_:)), target: nil),
 
             // Navigate
             PaletteCommand(title: "Previous Tab", shortcut: "⌘⇧[", category: "Navigate",
