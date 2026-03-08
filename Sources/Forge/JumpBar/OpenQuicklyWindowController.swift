@@ -179,8 +179,10 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
     }
 
     func dismiss() {
-        window?.parent?.removeChildWindow(window!)
-        window?.orderOut(nil)
+        if let panel = window {
+            panel.parent?.removeChildWindow(panel)
+            panel.orderOut(nil)
+        }
     }
 
     // MARK: - Search

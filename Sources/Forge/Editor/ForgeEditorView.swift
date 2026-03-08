@@ -87,7 +87,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         textContainer.size = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         layoutManager.addTextContainer(textContainer)
 
-        let tv = NSTextView(frame: .zero, textContainer: textContainer)
+        let tv = ForgeTextView(frame: .zero, textContainer: textContainer)
         let sv = NSScrollView()
         sv.documentView = tv
         tv.autoresizingMask = [.width, .height]
@@ -2310,5 +2310,78 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         gutterView.foldedLines.remove(line)
         updateFoldableLines()
         gutterView.needsDisplay = true
+    }
+}
+
+// MARK: - ForgeTextView (smart paste)
+
+/// NSTextView subclass that provides smart paste with automatic indentation adjustment.
+class ForgeTextView: NSTextView {
+
+    override func paste(_ sender: Any?) {
+        guard let pb = NSPasteboard.general.string(forType: .string),
+              pb.contains("\n") else {
+            // Single-line paste — use default behavior
+            super.paste(sender)
+            return
+        }
+
+        // Get the indentation at the current cursor line
+        let text = string as NSString
+        let cursor = selectedRange().location
+        let lineRange = text.lineRange(for: NSRange(location: cursor, length: 0))
+        let lineText = text.substring(with: NSRange(location: lineRange.location, length: cursor - lineRange.location))
+
+        var targetIndent = ""
+        for ch in lineText {
+            if ch == " " || ch == "\t" {
+                targetIndent.append(ch)
+            } else {
+                break
+            }
+        }
+
+        // Find the minimum indentation of the pasted text (ignoring empty lines)
+        let lines = pb.components(separatedBy: "\n")
+        let nonEmptyLines = lines.dropFirst().filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        var minIndent = Int.max
+        for line in nonEmptyLines {
+            var count = 0
+            for ch in line {
+                if ch == " " { count += 1 }
+                else if ch == "\t" { count += Preferences.shared.tabWidth }
+                else { break }
+            }
+            minIndent = min(minIndent, count)
+        }
+        if minIndent == Int.max { minIndent = 0 }
+
+        // Re-indent: replace pasted text's minimum indent with target indent
+        var result = lines[0] // First line stays as-is (inserts at cursor position)
+        for line in lines.dropFirst() {
+            result += "\n"
+            if line.trimmingCharacters(in: .whitespaces).isEmpty {
+                result += line
+            } else {
+                // Strip the common indent
+                var stripped = line
+                var removed = 0
+                while removed < minIndent && !stripped.isEmpty {
+                    let first = stripped.first!
+                    if first == " " {
+                        stripped.removeFirst()
+                        removed += 1
+                    } else if first == "\t" {
+                        stripped.removeFirst()
+                        removed += Preferences.shared.tabWidth
+                    } else {
+                        break
+                    }
+                }
+                result += targetIndent + stripped
+            }
+        }
+
+        insertText(result, replacementRange: selectedRange())
     }
 }
