@@ -35,9 +35,13 @@ Navigation: ⇧⌘O (Open Quickly), ⌘⇧J (reveal in navigator), ⌃⌘←/→
 Tabs: ⌘⇧[ / ⌘⇧] (prev/next), ⌘W (close), ⌘⇧T (reopen)
 Panels: ⌘0 (navigator), ⌘⇧Y (bottom)
 Edit: ⌘/ (toggle comment), ⌘⌥[/] (move line up/down), ⌃Space (completion), ⌃I (re-indent)
+Edit: ⌃⇧K (delete line), ⌘↩ (insert line below), ⌘⇧↩ (insert line above), ⌘D (duplicate line)
+Edit: ⌘L (go to line), ⌃⌘E (rename symbol), ⌘⌥S (save all)
 Build: ⌘B (build), ⌘R (run), ⌘⇧K (clean), ⌘. (stop)
-Search: ⌘F (find in file), ⌘⌥F (find & replace), ⌘⇧F (find in project)
+Search: ⌘F (find in file), ⌘⌥F (find & replace), ⌘⇧F (find in project w/ regex)
+View: ⌘+/⌘- (zoom in/out), ⌃⌘M (toggle minimap), ⌘, (settings)
 Mouse: ⌘-click (jump to definition), ⌥-click (Quick Help hover)
+Escape: dismiss bottom panel and focus editor
 
 ## Implementation Phases
 
@@ -54,18 +58,27 @@ See PLAN.md for full phase breakdown. Short version:
 7. Pepper / Hub integration
 
 ### Editor Polish (done)
-- Minimap code overview
+- Minimap code overview (toggleable ⌃⌘M)
 - Occurrence highlighting (word under cursor)
 - Bracket matching
-- Tab drag-to-reorder
+- Tab drag-to-reorder, middle-click to close, dynamic width, file type icons
 - Gutter click-to-select-line
 - Binary file detection
 - External file change detection
 - Large file performance (skip highlighting > 1MB)
 - Window state persistence (frame + open tabs)
-- Find & Replace (⌘⌥F), Re-indent (⌃I)
-- Navigator context menu (New File, Rename, Delete, Reveal in Finder)
+- Find & Replace (⌘⌥F), Re-indent (⌃I), Delete line (⌃⇧K)
+- Insert line above/below (⌘⇧↩/⌘↩), Duplicate line (⌘D)
+- Navigator context menu (New File, Rename, Delete, Reveal in Finder, Copy Path)
 - 30+ file type icons
+- Indent guides (vertical lines at indentation levels)
+- Column ruler (configurable: 80, 100, 120 columns)
+- Preferences window (⌘,) — font, tab width, view options, save behavior
+- Auto-save on app deactivation
+- Trailing whitespace trim and trailing newline on save
+- Find in Project: regex toggle, case sensitivity, match highlighting
+- Save All (⌘⌥S)
+- Font size zoom persisted across sessions
 
 ## Autonomous Development Mode
 
@@ -113,9 +126,9 @@ When Stuart says "keep going", "continue", "start phase N", or similar — work 
 
 ```
 Sources/Forge/
-├── App/           — AppDelegate, ForgeProject
+├── App/           — AppDelegate, ForgeProject, Preferences, PreferencesWindowController
 ├── Window/        — MainWindowController, MainSplitViewController, EditorContainerViewController
-├── Editor/        — ForgeEditorManager, GutterView, MinimapView, ForgeDocument, StatusBar, CompletionWindow
+├── Editor/        — ForgeEditorManager, ForgeLayoutManager, GutterView, MinimapView, ForgeDocument, StatusBar, CompletionWindow
 ├── Tabs/          — TabBar, TabManager
 ├── Navigator/     — NavigatorViewController (NSOutlineView), FileNode
 ├── JumpBar/       — JumpBar, OpenQuicklyWindowController
