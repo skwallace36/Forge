@@ -13,14 +13,16 @@ protocol SearchResultsViewDelegate: AnyObject {
     func searchResultsView(_ view: SearchResultsView, didSelectResult result: SearchResult)
 }
 
-/// Displays search results in the bottom panel with clickable file:line entries.
+/// Displays search results in the bottom panel with clickable file:line entries and replace support.
 class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
     weak var delegate: SearchResultsViewDelegate?
 
     private let searchField = NSSearchField()
+    private let replaceField = NSTextField()
     private let regexToggle = NSButton(checkboxWithTitle: "Regex", target: nil, action: nil)
     private let caseSensitiveToggle = NSButton(checkboxWithTitle: "Aa", target: nil, action: nil)
+    private let replaceButton = NSButton(title: "Replace All", target: nil, action: nil)
     private let tableView = NSTableView()
     private let scrollView = NSScrollView()
     private let statusLabel = NSTextField(labelWithString: "")
@@ -57,6 +59,23 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         searchField.sendsSearchStringImmediately = true
         searchField.sendsWholeSearchString = false
         addSubview(searchField)
+
+        // Replace field
+        replaceField.translatesAutoresizingMaskIntoConstraints = false
+        replaceField.placeholderString = "Replace with…"
+        replaceField.font = NSFont.systemFont(ofSize: 13)
+        replaceField.focusRingType = .none
+        replaceField.bezelStyle = .roundedBezel
+        replaceField.backgroundColor = NSColor(red: 0.15, green: 0.16, blue: 0.18, alpha: 1.0)
+        replaceField.textColor = NSColor(white: 0.85, alpha: 1.0)
+        addSubview(replaceField)
+
+        // Replace button
+        replaceButton.translatesAutoresizingMaskIntoConstraints = false
+        replaceButton.bezelStyle = .accessoryBarAction
+        replaceButton.target = self
+        replaceButton.action = #selector(replaceAllClicked)
+        addSubview(replaceButton)
 
         // Toggles
         regexToggle.translatesAutoresizingMaskIntoConstraints = false
@@ -102,10 +121,19 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             searchField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             searchField.heightAnchor.constraint(equalToConstant: 24),
 
-            regexToggle.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 3),
+            replaceField.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 3),
+            replaceField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            replaceField.trailingAnchor.constraint(equalTo: replaceButton.leadingAnchor, constant: -6),
+            replaceField.heightAnchor.constraint(equalToConstant: 24),
+
+            replaceButton.centerYAnchor.constraint(equalTo: replaceField.centerYAnchor),
+            replaceButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            replaceButton.widthAnchor.constraint(equalToConstant: 80),
+
+            regexToggle.topAnchor.constraint(equalTo: replaceField.bottomAnchor, constant: 3),
             regexToggle.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
 
-            caseSensitiveToggle.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 3),
+            caseSensitiveToggle.topAnchor.constraint(equalTo: replaceField.bottomAnchor, constant: 3),
             caseSensitiveToggle.leadingAnchor.constraint(equalTo: regexToggle.trailingAnchor, constant: 12),
 
             statusLabel.centerYAnchor.constraint(equalTo: regexToggle.centerYAnchor),
@@ -127,7 +155,6 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     }
 
     @objc private func toggleChanged(_ sender: NSButton) {
-        // Re-run search with new settings
         searchFieldChanged(searchField)
     }
 
@@ -147,6 +174,77 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         }
         searchWorkItem = work
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.2, execute: work)
+    }
+
+    @objc private func replaceAllClicked() {
+        let searchText = searchField.stringValue
+        let replaceText = replaceField.stringValue
+        guard !searchText.isEmpty, !results.isEmpty else { return }
+
+        let isRegex = regexToggle.state == .on
+        let isCaseSensitive = caseSensitiveToggle.state == .on
+
+        // Confirm before replacing
+        let alert = NSAlert()
+        alert.messageText = "Replace All"
+        alert.informativeText = "Replace \(results.count) occurrences of \"\(searchText)\" with \"\(replaceText)\"?"
+        alert.addButton(withTitle: "Replace All")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let count = Self.performReplaceAll(
+                searchText: searchText,
+                replaceText: replaceText,
+                isRegex: isRegex,
+                isCaseSensitive: isCaseSensitive,
+                results: self?.results ?? [],
+            )
+            DispatchQueue.main.async {
+                self?.statusLabel.stringValue = "Replaced \(count) occurrences"
+                // Re-run search to show updated results
+                self?.searchFieldChanged(self?.searchField ?? NSSearchField())
+            }
+        }
+    }
+
+    private static func performReplaceAll(
+        searchText: String,
+        replaceText: String,
+        isRegex: Bool,
+        isCaseSensitive: Bool,
+        results: [SearchResult]
+    ) -> Int {
+        // Group results by file
+        var fileGroups: [URL: [SearchResult]] = [:]
+        for result in results {
+            fileGroups[result.url, default: []].append(result)
+        }
+
+        var totalReplacements = 0
+        let searchOptions: String.CompareOptions = isCaseSensitive
+            ? (isRegex ? .regularExpression : .literal)
+            : (isRegex ? [.regularExpression, .caseInsensitive] : .caseInsensitive)
+
+        for (url, _) in fileGroups {
+            guard var content = try? String(contentsOf: url, encoding: .utf8) else { continue }
+
+            var count = 0
+            while let range = content.range(of: searchText, options: searchOptions) {
+                content.replaceSubrange(range, with: replaceText)
+                count += 1
+                if count > 10000 { break } // safety limit
+            }
+
+            if count > 0 {
+                try? content.write(to: url, atomically: true, encoding: .utf8)
+                totalReplacements += count
+            }
+        }
+
+        return totalReplacements
     }
 
     private func performSearch(query: String) {
@@ -175,7 +273,6 @@ class SearchResultsView: NSView, NSTableViewDataSource, NSTableViewDelegate {
             options: [.skipsHiddenFiles]
         ) else { return }
 
-        // Build search options
         let searchOptions: String.CompareOptions = isCaseSensitive
             ? (isRegex ? .regularExpression : .literal)
             : (isRegex ? [.regularExpression, .caseInsensitive] : .caseInsensitive)
