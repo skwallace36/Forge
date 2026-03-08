@@ -165,6 +165,12 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             editor.displayDocument(doc)
             jumpBar.update(fileURL: doc.url, projectRoot: project.rootURL)
             statusBar.update(line: 1, column: 1, totalLines: 1, fileExtension: doc.fileExtension)
+
+            // Update window title with modified state
+            if let window = view.window {
+                let modified = doc.isModified ? " — Edited" : ""
+                window.title = "Forge — \(doc.fileName)\(modified)"
+            }
         } else {
             editor.scrollView.isHidden = true
             editor.gutterView.isHidden = true

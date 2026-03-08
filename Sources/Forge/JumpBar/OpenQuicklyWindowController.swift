@@ -17,7 +17,10 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
     private var filteredResults: [(url: URL, match: FuzzyMatch.Result)] = []
     private var indexingTask: Task<Void, Never>?
 
+    private let projectRoot: URL
+
     init(projectRoot: URL) {
+        self.projectRoot = projectRoot
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 600, height: 400),
             styleMask: [.titled, .resizable, .fullSizeContentView],
@@ -74,7 +77,7 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
         tableView.addTableColumn(column)
         tableView.headerView = nil
         tableView.backgroundColor = .clear
-        tableView.rowHeight = 28
+        tableView.rowHeight = 40
         tableView.style = .plain
         tableView.dataSource = self
         tableView.delegate = self
@@ -243,6 +246,7 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
 
         let result = filteredResults[row]
         let cellID = NSUserInterfaceItemIdentifier("OpenQuicklyCell")
+        let pathTag = 100
 
         let cell: NSTableCellView
         if let existing = tableView.makeView(withIdentifier: cellID, owner: self) as? NSTableCellView {
@@ -264,6 +268,14 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
             cell.addSubview(textField)
             cell.textField = textField
 
+            let pathLabel = NSTextField(labelWithString: "")
+            pathLabel.translatesAutoresizingMaskIntoConstraints = false
+            pathLabel.font = NSFont.systemFont(ofSize: 11)
+            pathLabel.textColor = NSColor(white: 0.45, alpha: 1.0)
+            pathLabel.lineBreakMode = .byTruncatingHead
+            pathLabel.tag = pathTag
+            cell.addSubview(pathLabel)
+
             NSLayoutConstraint.activate([
                 imageView.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 8),
                 imageView.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
@@ -271,13 +283,15 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
                 imageView.heightAnchor.constraint(equalToConstant: 16),
                 textField.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 6),
                 textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -8),
-                textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+                textField.topAnchor.constraint(equalTo: cell.topAnchor, constant: 3),
+                pathLabel.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 6),
+                pathLabel.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -8),
+                pathLabel.topAnchor.constraint(equalTo: textField.bottomAnchor, constant: 1),
             ])
         }
 
         let url = result.url
         cell.imageView?.image = NSWorkspace.shared.icon(forFile: url.path)
-        cell.textField?.stringValue = url.lastPathComponent
 
         // Build attributed string with highlighted match characters
         let fileName = url.lastPathComponent
@@ -294,6 +308,18 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
             }
         }
         cell.textField?.attributedStringValue = attrStr
+
+        // Show relative path
+        if let pathLabel = cell.viewWithTag(pathTag) as? NSTextField {
+            let rootPath = projectRoot.standardizedFileURL.path
+            let filePath = url.deletingLastPathComponent().standardizedFileURL.path
+            if filePath.hasPrefix(rootPath) {
+                let relative = String(filePath.dropFirst(rootPath.count))
+                pathLabel.stringValue = relative.hasPrefix("/") ? String(relative.dropFirst()) : relative
+            } else {
+                pathLabel.stringValue = filePath
+            }
+        }
 
         return cell
     }
