@@ -52,16 +52,50 @@ class FileNode {
             return ("doc.text", NSColor(red: 0.55, green: 0.75, blue: 0.95, alpha: 1.0))
         case "py":
             return ("chevron.left.forwardslash.chevron.right", NSColor(red: 0.30, green: 0.70, blue: 0.90, alpha: 1.0))
-        case "js", "ts", "jsx", "tsx":
+        case "js", "jsx":
             return ("chevron.left.forwardslash.chevron.right", NSColor(red: 0.95, green: 0.85, blue: 0.30, alpha: 1.0))
+        case "ts", "tsx":
+            return ("chevron.left.forwardslash.chevron.right", NSColor(red: 0.30, green: 0.55, blue: 0.90, alpha: 1.0))
         case "yml", "yaml":
             return ("doc.text", NSColor(red: 0.70, green: 0.70, blue: 0.70, alpha: 1.0))
         case "resolved":
             return ("lock.fill", NSColor(red: 0.60, green: 0.60, blue: 0.60, alpha: 1.0))
-        case "h":
+        case "h", "hpp":
             return ("h.square", NSColor(red: 0.60, green: 0.80, blue: 0.40, alpha: 1.0))
-        case "c", "m", "mm", "cpp":
+        case "c", "m", "mm", "cpp", "cc", "cxx":
             return ("c.square", NSColor(red: 0.50, green: 0.70, blue: 0.95, alpha: 1.0))
+        case "html", "htm":
+            return ("chevron.left.forwardslash.chevron.right", NSColor(red: 0.90, green: 0.45, blue: 0.25, alpha: 1.0))
+        case "css", "scss", "less":
+            return ("paintbrush", NSColor(red: 0.35, green: 0.55, blue: 0.95, alpha: 1.0))
+        case "xml", "plist":
+            return ("chevron.left.forwardslash.chevron.right", NSColor(red: 0.70, green: 0.70, blue: 0.70, alpha: 1.0))
+        case "sh", "bash", "zsh", "fish":
+            return ("terminal", NSColor(red: 0.50, green: 0.80, blue: 0.50, alpha: 1.0))
+        case "rb":
+            return ("chevron.left.forwardslash.chevron.right", NSColor(red: 0.85, green: 0.25, blue: 0.25, alpha: 1.0))
+        case "go":
+            return ("chevron.left.forwardslash.chevron.right", NSColor(red: 0.30, green: 0.75, blue: 0.85, alpha: 1.0))
+        case "rs":
+            return ("chevron.left.forwardslash.chevron.right", NSColor(red: 0.85, green: 0.45, blue: 0.20, alpha: 1.0))
+        case "toml":
+            return ("doc.text", NSColor(red: 0.65, green: 0.65, blue: 0.65, alpha: 1.0))
+        case "txt", "text", "log":
+            return ("doc.text", NSColor(red: 0.60, green: 0.60, blue: 0.65, alpha: 1.0))
+        case "png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "bmp", "tiff":
+            return ("photo", NSColor(red: 0.55, green: 0.75, blue: 0.35, alpha: 1.0))
+        case "pdf":
+            return ("doc.richtext", NSColor(red: 0.90, green: 0.30, blue: 0.30, alpha: 1.0))
+        case "zip", "tar", "gz", "bz2", "xz", "7z", "rar":
+            return ("doc.zipper", NSColor(red: 0.60, green: 0.60, blue: 0.60, alpha: 1.0))
+        case "entitlements":
+            return ("lock.shield", NSColor(red: 0.90, green: 0.70, blue: 0.30, alpha: 1.0))
+        case "gitignore", "gitattributes", "gitmodules":
+            return ("arrow.triangle.branch", NSColor(red: 0.90, green: 0.45, blue: 0.25, alpha: 1.0))
+        case "dockerfile":
+            return ("shippingbox", NSColor(red: 0.30, green: 0.60, blue: 0.90, alpha: 1.0))
+        case "makefile", "cmake":
+            return ("gearshape", NSColor(red: 0.65, green: 0.65, blue: 0.65, alpha: 1.0))
         default:
             return ("doc", NSColor(red: 0.60, green: 0.60, blue: 0.65, alpha: 1.0))
         }

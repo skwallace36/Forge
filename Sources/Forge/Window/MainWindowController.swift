@@ -25,22 +25,31 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         // Dark appearance
         window.appearance = NSAppearance(named: .darkAqua)
 
+        // Window frame autosave
+        window.setFrameAutosaveName("ForgeMainWindow-\(project.rootURL.lastPathComponent)")
+
         super.init(window: window)
         window.delegate = self
 
         splitViewController = MainSplitViewController(project: project, windowController: self)
         window.contentViewController = splitViewController
 
-        let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1800, height: 1100)
-        let windowWidth = max(1440, screenFrame.width * 0.80)
-        let windowHeight = max(900, screenFrame.height * 0.80)
-        let origin = NSPoint(
-            x: screenFrame.origin.x + (screenFrame.width - windowWidth) / 2,
-            y: screenFrame.origin.y + (screenFrame.height - windowHeight) / 2,
-        )
-        window.setFrame(NSRect(x: origin.x, y: origin.y, width: windowWidth, height: windowHeight), display: true)
+        // Only set default frame if no saved frame was restored
+        if !window.setFrameUsingName(window.frameAutosaveName) {
+            let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1800, height: 1100)
+            let windowWidth = max(1440, screenFrame.width * 0.80)
+            let windowHeight = max(900, screenFrame.height * 0.80)
+            let origin = NSPoint(
+                x: screenFrame.origin.x + (screenFrame.width - windowWidth) / 2,
+                y: screenFrame.origin.y + (screenFrame.height - windowHeight) / 2,
+            )
+            window.setFrame(NSRect(x: origin.x, y: origin.y, width: windowWidth, height: windowHeight), display: true)
+        }
 
-        openInitialFile()
+        restoreOpenTabs()
+        if project.tabManager.tabs.isEmpty {
+            openInitialFile()
+        }
     }
 
     required init?(coder: NSCoder) {
@@ -257,6 +266,47 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
 
     func openQuickly(_ controller: OpenQuicklyWindowController, didSelectURL url: URL) {
         openFile(url)
+    }
+
+    // MARK: - Tab State Persistence
+
+    private var tabStateKey: String {
+        "ForgeOpenTabs-\(project.rootURL.path.hashValue)"
+    }
+
+    func saveOpenTabs() {
+        let urls = project.tabManager.tabs.map { $0.url.path }
+        let selectedIndex = project.tabManager.selectedIndex
+        let state: [String: Any] = [
+            "files": urls,
+            "selected": selectedIndex,
+        ]
+        UserDefaults.standard.set(state, forKey: tabStateKey)
+    }
+
+    private func restoreOpenTabs() {
+        guard let state = UserDefaults.standard.dictionary(forKey: tabStateKey),
+              let files = state["files"] as? [String],
+              let selected = state["selected"] as? Int else { return }
+
+        for path in files {
+            let url = URL(fileURLWithPath: path)
+            guard FileManager.default.fileExists(atPath: path) else { continue }
+            let doc = project.document(for: url)
+            project.tabManager.openOrFocus(document: doc)
+        }
+
+        if selected >= 0 && selected < project.tabManager.tabs.count {
+            project.tabManager.select(at: selected)
+        }
+
+        splitViewController.editorAreaDidUpdate()
+    }
+
+    // MARK: - NSWindowDelegate — save state on close
+
+    func windowWillClose(_ notification: Notification) {
+        saveOpenTabs()
     }
 
     // MARK: - Initial file
