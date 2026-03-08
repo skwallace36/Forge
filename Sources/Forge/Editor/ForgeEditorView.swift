@@ -20,8 +20,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
     /// Current diagnostics for this document
     private(set) var diagnostics: [LSPDiagnostic] = []
 
-    /// Called when cursor position changes: (line, column, totalLines)
-    var onCursorChange: ((Int, Int, Int) -> Void)?
+    /// Called when cursor position changes: (line, column, totalLines, selectionLength)
+    var onCursorChange: ((Int, Int, Int, Int) -> Void)?
 
     /// Minimap view (set externally, updated on scroll/edit)
     weak var minimapView: MinimapView?
@@ -413,7 +413,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
 
     private func notifyCursorPosition() {
         let text = textView.string as NSString
-        let loc = min(textView.selectedRange().location, text.length)
+        let sel = textView.selectedRange()
+        let loc = min(sel.location, text.length)
 
         // Count line and column
         var line = 1
@@ -427,7 +428,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         let column = loc - lastLineStart + 1
         let totalLines = text.components(separatedBy: "\n").count
 
-        onCursorChange?(line, column, totalLines)
+        onCursorChange?(line, column, totalLines, sel.length)
     }
 
     private func rehighlight() {
@@ -1316,6 +1317,18 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             return true
         }
 
+        // ⌃J → join lines
+        if mods == [.control] && event.keyCode == 38 { // J key
+            joinLines()
+            return true
+        }
+
+        // ⌘⇧L → select all occurrences of word
+        if mods == [.command, .shift] && event.keyCode == 37 { // L key
+            selectAllOccurrences()
+            return true
+        }
+
         // If completion window is showing, handle navigation keys
         guard let cw = completionWindow, cw.isShowing else { return false }
 
@@ -1413,6 +1426,75 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             // Move cursor to the duplicated line
             let newCursorPos = insertPoint + (sel.location - lineRange.location)
             textView.setSelectedRange(NSRange(location: newCursorPos, length: sel.length))
+        }
+    }
+
+    // MARK: - Join Lines (⌃J)
+
+    private func joinLines() {
+        guard let ts = textView.textStorage else { return }
+        let text = ts.string as NSString
+        let sel = textView.selectedRange()
+        let lineRange = text.lineRange(for: sel)
+
+        // Find the end of current line (before newline)
+        let lineEnd = NSMaxRange(lineRange)
+        guard lineEnd <= text.length else { return }
+
+        // The current line includes the trailing newline
+        let lineText = text.substring(with: lineRange)
+        guard lineText.hasSuffix("\n"), lineEnd < text.length else { return }
+
+        // Get the next line's leading whitespace to remove
+        let nextLineRange = text.lineRange(for: NSRange(location: lineEnd, length: 0))
+        let nextLineText = text.substring(with: nextLineRange)
+        let trimmedNext = nextLineText.trimmingCharacters(in: .whitespaces)
+
+        // Replace: current line (minus newline) + space + next line (trimmed)
+        let currentWithoutNewline = String(lineText.dropLast())
+        let joined = currentWithoutNewline + " " + trimmedNext
+        let replaceRange = NSRange(location: lineRange.location, length: lineRange.length + nextLineRange.length)
+
+        if textView.shouldChangeText(in: replaceRange, replacementString: joined) {
+            ts.replaceCharacters(in: replaceRange, with: joined)
+            textView.didChangeText()
+            textView.setSelectedRange(NSRange(location: lineRange.location + currentWithoutNewline.count, length: 0))
+        }
+    }
+
+    // MARK: - Select All Occurrences (⌘⇧L)
+
+    private func selectAllOccurrences() {
+        let text = textView.string as NSString
+        guard text.length > 0 else { return }
+
+        let sel = textView.selectedRange()
+        let selectedText: String
+
+        if sel.length > 0 {
+            selectedText = text.substring(with: sel)
+        } else {
+            let wordRange = wordRangeAtIndex(min(sel.location, text.length), in: text)
+            guard wordRange.length > 0 else { return }
+            selectedText = text.substring(with: wordRange)
+        }
+
+        // Find all occurrences
+        var ranges: [NSRange] = []
+        var searchRange = NSRange(location: 0, length: text.length)
+        while searchRange.location < text.length {
+            let found = text.range(of: selectedText, options: .literal, range: searchRange)
+            guard found.location != NSNotFound else { break }
+            ranges.append(found)
+            searchRange.location = NSMaxRange(found)
+            searchRange.length = text.length - searchRange.location
+        }
+
+        // Select the first one and use insertionPointColor for the rest (NSTextView doesn't support multi-cursor)
+        // Instead, select the first match and let the user use Find & Replace for bulk changes
+        if let first = ranges.first {
+            textView.setSelectedRange(first)
+            textView.showFindIndicator(for: first)
         }
     }
 
