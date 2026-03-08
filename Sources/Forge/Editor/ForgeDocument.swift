@@ -13,6 +13,8 @@ class ForgeDocument {
     var savedSelectionRange: NSRange?
     /// Remembered scroll position for this document
     var savedScrollPosition: NSPoint?
+    /// Last known modification date of the file on disk
+    private(set) var lastModifiedDate: Date?
 
     init(url: URL) {
         self.url = url
@@ -49,6 +51,21 @@ class ForgeDocument {
         textStorage.replaceCharacters(in: NSRange(location: 0, length: textStorage.length), with: text)
         textStorage.endEditing()
         isModified = false
+        lastModifiedDate = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+    }
+
+    /// Returns true if the file has been modified on disk since we last read it
+    func hasChangedOnDisk() -> Bool {
+        guard let lastMod = lastModifiedDate,
+              let currentMod = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date else {
+            return false
+        }
+        return currentMod > lastMod
+    }
+
+    /// File size in bytes
+    var fileSize: Int {
+        (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int ?? 0
     }
 
     func save() throws {

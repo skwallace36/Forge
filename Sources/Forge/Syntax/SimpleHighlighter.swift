@@ -57,6 +57,22 @@ class SimpleHighlighter {
             return yamlRules()
         case "python", "py":
             return pythonRules()
+        case "js", "jsx", "ts", "tsx":
+            return jsRules()
+        case "html", "xml":
+            return htmlRules()
+        case "css":
+            return cssRules()
+        case "sh", "bash", "zsh":
+            return shellRules()
+        case "rb":
+            return rubyRules()
+        case "go":
+            return goRules()
+        case "rs":
+            return rustRules()
+        case "toml":
+            return tomlRules()
         default:
             return genericRules()
         }
@@ -138,6 +154,109 @@ class SimpleHighlighter {
             rule(#"(?<=def\s)\w+"#, "function"),
             // Class definitions
             rule(#"(?<=class\s)\w+"#, "type"),
+        ]
+    }
+
+    private static func jsRules() -> [HighlightRule] {
+        return [
+            rule(#"//.*$"#, "comment", options: .anchorsMatchLines),
+            rule(#"/\*[\s\S]*?\*/"#, "comment"),
+            rule(#"`[^`]*`"#, "string"),
+            rule(#""[^"\\]*(?:\\.[^"\\]*)*""#, "string"),
+            rule(#"'[^'\\]*(?:\\.[^'\\]*)*'"#, "string"),
+            rule(#"\b(?:const|let|var|function|return|if|else|for|while|do|break|continue|switch|case|default|throw|try|catch|finally|class|extends|import|export|from|new|this|super|async|await|yield|of|in|typeof|instanceof|void|delete|null|undefined|true|false|static|get|set|constructor)\b"#, "keyword"),
+            rule(#"\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b"#, "number"),
+            rule(#"(?<=function\s)\w+"#, "function"),
+            rule(#"(?<=class\s)\w+"#, "type"),
+            rule(#"=>"#, "keyword"),
+        ]
+    }
+
+    private static func htmlRules() -> [HighlightRule] {
+        return [
+            rule(#"<!--[\s\S]*?-->"#, "comment"),
+            rule(#"</?[\w-]+"#, "keyword"),
+            rule(#"/?\s*>"#, "keyword"),
+            rule(#"\b[\w-]+(?=\s*=)"#, "variable.parameter"),
+            rule(#""[^"]*""#, "string"),
+            rule(#"'[^']*'"#, "string"),
+        ]
+    }
+
+    private static func cssRules() -> [HighlightRule] {
+        return [
+            rule(#"/\*[\s\S]*?\*/"#, "comment"),
+            rule(#"[.#][\w-]+"#, "function"),
+            rule(#"[\w-]+(?=\s*:)"#, "keyword"),
+            rule(#""[^"]*""#, "string"),
+            rule(#"'[^']*'"#, "string"),
+            rule(#"\b\d+(?:\.\d+)?(?:px|em|rem|%|vh|vw|pt|deg|s|ms)?\b"#, "number"),
+            rule(#"#[0-9a-fA-F]{3,8}\b"#, "number"),
+            rule(#"@[\w-]+"#, "attribute"),
+        ]
+    }
+
+    private static func shellRules() -> [HighlightRule] {
+        return [
+            rule(#"#.*$"#, "comment", options: .anchorsMatchLines),
+            rule(#""[^"\\]*(?:\\.[^"\\]*)*""#, "string"),
+            rule(#"'[^']*'"#, "string"),
+            rule(#"\b(?:if|then|else|elif|fi|for|while|do|done|case|esac|in|function|return|local|export|source|exit|break|continue|shift|eval|exec|set|unset|readonly|declare|typeset)\b"#, "keyword"),
+            rule(#"\$\{?[\w@#?*!]+\}?"#, "variable.parameter"),
+            rule(#"\b\d+\b"#, "number"),
+        ]
+    }
+
+    private static func rubyRules() -> [HighlightRule] {
+        return [
+            rule(#"#.*$"#, "comment", options: .anchorsMatchLines),
+            rule(#""[^"\\]*(?:\\.[^"\\]*)*""#, "string"),
+            rule(#"'[^'\\]*(?:\\.[^'\\]*)*'"#, "string"),
+            rule(#"\b(?:def|end|class|module|if|elsif|else|unless|while|until|for|do|begin|rescue|ensure|raise|return|yield|block_given\?|require|include|extend|attr_accessor|attr_reader|attr_writer|self|super|nil|true|false|and|or|not|in|then|when|case|lambda|proc)\b"#, "keyword"),
+            rule(#"\b\d+(?:\.\d+)?\b"#, "number"),
+            rule(#"@\w+"#, "variable.parameter"),
+            rule(#":\w+"#, "string"),
+            rule(#"(?<=def\s)\w+"#, "function"),
+            rule(#"(?<=class\s)\w+"#, "type"),
+        ]
+    }
+
+    private static func goRules() -> [HighlightRule] {
+        return [
+            rule(#"//.*$"#, "comment", options: .anchorsMatchLines),
+            rule(#"/\*[\s\S]*?\*/"#, "comment"),
+            rule(#""[^"\\]*(?:\\.[^"\\]*)*""#, "string"),
+            rule(#"`[^`]*`"#, "string"),
+            rule(#"\b(?:func|return|if|else|for|range|switch|case|default|break|continue|go|select|chan|defer|fallthrough|goto|map|struct|interface|package|import|var|const|type|nil|true|false|iota|make|new|len|cap|append|delete|copy|close|panic|recover)\b"#, "keyword"),
+            rule(#"\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b"#, "number"),
+            rule(#"(?<=func\s)\w+"#, "function"),
+            rule(#"(?<=type\s)\w+"#, "type"),
+        ]
+    }
+
+    private static func rustRules() -> [HighlightRule] {
+        return [
+            rule(#"//.*$"#, "comment", options: .anchorsMatchLines),
+            rule(#"/\*[\s\S]*?\*/"#, "comment"),
+            rule(#""[^"\\]*(?:\\.[^"\\]*)*""#, "string"),
+            rule(#"\b(?:fn|let|mut|const|static|struct|enum|impl|trait|pub|mod|use|crate|self|super|as|where|if|else|match|for|while|loop|break|continue|return|async|await|move|unsafe|extern|type|ref|in|true|false|Some|None|Ok|Err|Self)\b"#, "keyword"),
+            rule(#"\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?(?:_\d+)*(?:u8|u16|u32|u64|u128|usize|i8|i16|i32|i64|i128|isize|f32|f64)?\b"#, "number"),
+            rule(#"#\[[\w(,\s=")]*\]"#, "attribute"),
+            rule(#"(?<=fn\s)\w+"#, "function"),
+            rule(#"(?<=struct\s)\w+"#, "type"),
+            rule(#"(?<=enum\s)\w+"#, "type"),
+        ]
+    }
+
+    private static func tomlRules() -> [HighlightRule] {
+        return [
+            rule(#"#.*$"#, "comment", options: .anchorsMatchLines),
+            rule(#"\[[\w.-]+\]"#, "keyword"),
+            rule(#"[\w.-]+(?=\s*=)"#, "variable.parameter"),
+            rule(#""[^"]*""#, "string"),
+            rule(#"'[^']*'"#, "string"),
+            rule(#"\b\d+(?:\.\d+)?\b"#, "number"),
+            rule(#"\b(?:true|false)\b"#, "keyword"),
         ]
     }
 

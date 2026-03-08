@@ -160,6 +160,25 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
 
         textView.isEditable = true
 
+        // Check if file changed on disk
+        if doc.hasChangedOnDisk() {
+            if doc.isModified {
+                // File modified both in editor and on disk — ask user
+                let alert = NSAlert()
+                alert.messageText = "\(doc.fileName) has been modified externally."
+                alert.informativeText = "Do you want to reload from disk? Your unsaved changes will be lost."
+                alert.addButton(withTitle: "Reload")
+                alert.addButton(withTitle: "Keep Mine")
+                alert.alertStyle = .warning
+                if alert.runModal() == .alertFirstButtonReturn {
+                    doc.loadFromDisk()
+                }
+            } else {
+                // No local changes — silently reload
+                doc.loadFromDisk()
+            }
+        }
+
         // Set text content
         textView.string = doc.textStorage.string
 
@@ -177,9 +196,14 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
             ts.endEditing()
         }
 
-        // Syntax highlighting
+        // Syntax highlighting — skip for large files (> 1MB) for performance
         let ext = doc.fileExtension.lowercased()
-        if ext == "swift" {
+        let isLargeFile = doc.fileSize > 1_000_000
+
+        if isLargeFile {
+            highlighter = nil
+            simpleHighlighter = nil
+        } else if ext == "swift" {
             highlighter = SyntaxHighlighter(theme: theme, fontSize: fontSize)
             simpleHighlighter = nil
             highlighter?.parse(textView.string)
@@ -189,7 +213,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate {
         } else {
             highlighter = nil
             let supportedExts = ["json", "md", "markdown", "yml", "yaml", "py", "python",
-                                 "js", "ts", "c", "h", "cpp", "m"]
+                                 "js", "ts", "c", "h", "cpp", "m", "mm", "css", "html",
+                                 "xml", "sh", "bash", "zsh", "rb", "go", "rs", "toml"]
             if supportedExts.contains(ext) {
                 simpleHighlighter = SimpleHighlighter(theme: theme, fontSize: fontSize, language: ext)
                 if let ts = textView.textStorage {
