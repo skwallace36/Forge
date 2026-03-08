@@ -1,0 +1,92 @@
+import AppKit
+
+class MainSplitViewController: NSSplitViewController {
+
+    let project: ForgeProject
+    weak var windowController: MainWindowController?
+
+    // Child view controllers
+    private var navigatorVC: NavigatorViewController!
+    private var editorContainerVC: EditorContainerViewController!
+    private var bottomPanelVC: BottomPanelViewController!
+
+    init(project: ForgeProject, windowController: MainWindowController) {
+        self.project = project
+        self.windowController = windowController
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) not implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        view.wantsLayer = true
+
+        // We use a vertical split: top area (which itself is a horizontal split) + bottom panel
+        // But NSSplitView can only split one axis. So we nest:
+        // Outer: vertical (top, bottom)
+        //   Top: horizontal (navigator, editor)
+
+        // Create child controllers
+        navigatorVC = NavigatorViewController(project: project, windowController: windowController)
+        editorContainerVC = EditorContainerViewController(project: project)
+        bottomPanelVC = BottomPanelViewController()
+
+        // Inner horizontal split for navigator + editor
+        let horizontalSplit = NSSplitViewController()
+        horizontalSplit.splitView.isVertical = true
+
+        let navItem = NSSplitViewItem(sidebarWithViewController: navigatorVC)
+        navItem.minimumThickness = 180
+        navItem.maximumThickness = 400
+        navItem.canCollapse = true
+        navItem.holdingPriority = .defaultLow + 1
+        horizontalSplit.addSplitViewItem(navItem)
+
+        let editorItem = NSSplitViewItem(contentListWithViewController: editorContainerVC)
+        editorItem.minimumThickness = 300
+        horizontalSplit.addSplitViewItem(editorItem)
+
+        // Outer vertical split: horizontal area + bottom panel
+        splitView.isVertical = false
+
+        let topItem = NSSplitViewItem(viewController: horizontalSplit)
+        topItem.minimumThickness = 200
+        addSplitViewItem(topItem)
+
+        let bottomItem = NSSplitViewItem(viewController: bottomPanelVC)
+        bottomItem.minimumThickness = 100
+        bottomItem.maximumThickness = 500
+        bottomItem.canCollapse = true
+        bottomItem.isCollapsed = true
+        bottomItem.holdingPriority = .defaultLow + 2
+        addSplitViewItem(bottomItem)
+
+        splitView.dividerStyle = .thin
+    }
+
+    func editorAreaDidUpdate() {
+        editorContainerVC.refreshEditor()
+    }
+
+    // MARK: - Panel toggles
+
+    @objc func toggleNavigator(_ sender: Any?) {
+        guard splitViewItems.count > 0 else { return }
+        // The navigator is inside the first split view item's view controller (which is the horizontal split)
+        if let horizontalSplit = splitViewItems[0].viewController as? NSSplitViewController,
+           horizontalSplit.splitViewItems.count > 0 {
+            let navItem = horizontalSplit.splitViewItems[0]
+            navItem.animator().isCollapsed = !navItem.isCollapsed
+        }
+    }
+
+    @objc func toggleBottomPanel(_ sender: Any?) {
+        guard splitViewItems.count > 1 else { return }
+        let bottomItem = splitViewItems[1]
+        bottomItem.animator().isCollapsed = !bottomItem.isCollapsed
+    }
+}

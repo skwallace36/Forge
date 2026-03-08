@@ -1,0 +1,153 @@
+import AppKit
+
+class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutlineViewDelegate {
+
+    private let project: ForgeProject
+    private weak var windowController: MainWindowController?
+    private var outlineView: NSOutlineView!
+    private var scrollView: NSScrollView!
+    private var rootNode: FileNode?
+
+    init(project: ForgeProject, windowController: MainWindowController?) {
+        self.project = project
+        self.windowController = windowController
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) not implemented")
+    }
+
+    override func loadView() {
+        let container = NSView()
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor(red: 0.13, green: 0.14, blue: 0.16, alpha: 1.0).cgColor
+
+        scrollView = NSScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.hasVerticalScroller = true
+        scrollView.drawsBackground = false
+        scrollView.autohidesScrollers = true
+
+        outlineView = NSOutlineView()
+        outlineView.headerView = nil
+        outlineView.backgroundColor = .clear
+        outlineView.indentationPerLevel = 16
+        outlineView.rowHeight = 22
+        outlineView.style = .sourceList
+
+        let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("NameColumn"))
+        column.isEditable = false
+        outlineView.addTableColumn(column)
+        outlineView.outlineTableColumn = column
+
+        outlineView.dataSource = self
+        outlineView.delegate = self
+
+        scrollView.documentView = outlineView
+        container.addSubview(scrollView)
+
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: container.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+
+        self.view = container
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        loadFileTree()
+    }
+
+    private func loadFileTree() {
+        rootNode = FileNode(url: project.rootURL, isDirectory: true)
+        rootNode?.loadChildren()
+        outlineView.reloadData()
+        // Expand root
+        outlineView.expandItem(rootNode)
+    }
+
+    // MARK: - NSOutlineViewDataSource
+
+    func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
+        if item == nil {
+            return rootNode?.children.count ?? 0
+        }
+        guard let node = item as? FileNode else { return 0 }
+        return node.children.count
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
+        if item == nil {
+            return rootNode!.children[index]
+        }
+        let node = item as! FileNode
+        return node.children[index]
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
+        guard let node = item as? FileNode else { return false }
+        return node.isDirectory
+    }
+
+    // MARK: - NSOutlineViewDelegate
+
+    func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
+        guard let node = item as? FileNode else { return nil }
+
+        let cellID = NSUserInterfaceItemIdentifier("FileCell")
+        let cell: NSTableCellView
+        if let existing = outlineView.makeView(withIdentifier: cellID, owner: self) as? NSTableCellView {
+            cell = existing
+        } else {
+            cell = NSTableCellView()
+            cell.identifier = cellID
+
+            let imageView = NSImageView()
+            imageView.translatesAutoresizingMaskIntoConstraints = false
+            cell.addSubview(imageView)
+            cell.imageView = imageView
+
+            let textField = NSTextField(labelWithString: "")
+            textField.translatesAutoresizingMaskIntoConstraints = false
+            textField.font = NSFont.systemFont(ofSize: 13)
+            textField.textColor = .labelColor
+            textField.lineBreakMode = .byTruncatingTail
+            cell.addSubview(textField)
+            cell.textField = textField
+
+            NSLayoutConstraint.activate([
+                imageView.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
+                imageView.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+                imageView.widthAnchor.constraint(equalToConstant: 16),
+                imageView.heightAnchor.constraint(equalToConstant: 16),
+                textField.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 4),
+                textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
+                textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            ])
+        }
+
+        cell.textField?.stringValue = node.name
+        cell.imageView?.image = node.icon
+
+        return cell
+    }
+
+    func outlineViewSelectionDidChange(_ notification: Notification) {
+        let row = outlineView.selectedRow
+        guard row >= 0, let node = outlineView.item(atRow: row) as? FileNode else { return }
+
+        if !node.isDirectory {
+            windowController?.openFile(node.url)
+        }
+    }
+
+    func outlineViewItemDidExpand(_ notification: Notification) {
+        guard let node = notification.userInfo?["NSObject"] as? FileNode else { return }
+        node.loadChildren()
+        outlineView.reloadItem(node, reloadChildren: true)
+    }
+}
