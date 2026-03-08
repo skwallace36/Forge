@@ -87,4 +87,22 @@ class MainSplitViewController: NSSplitViewController {
         let bottomItem = splitViewItems[1]
         bottomItem.animator().isCollapsed = !bottomItem.isCollapsed
     }
+
+    // MARK: - Build log
+
+    func showBottomPanel() {
+        guard splitViewItems.count > 1 else { return }
+        let bottomItem = splitViewItems[1]
+        if bottomItem.isCollapsed {
+            bottomItem.animator().isCollapsed = false
+        }
+    }
+
+    func appendBuildOutput(_ text: String) {
+        bottomPanelVC.appendBuildOutput(text)
+    }
+
+    func clearBuildLog() {
+        bottomPanelVC.clearBuildLog()
+    }
 }

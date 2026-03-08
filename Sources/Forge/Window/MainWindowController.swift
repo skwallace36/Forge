@@ -83,6 +83,30 @@ class MainWindowController: NSWindowController, OpenQuicklyDelegate {
         splitViewController.editorAreaDidUpdate()
     }
 
+    // MARK: - Build
+
+    @objc func buildProject(_ sender: Any?) {
+        splitViewController.showBottomPanel()
+        splitViewController.clearBuildLog()
+
+        let buildSystem = project.buildSystem
+        buildSystem.onOutput = { [weak self] text in
+            self?.splitViewController.appendBuildOutput(text)
+        }
+        buildSystem.onComplete = { [weak self] success in
+            let msg = success ? "Build succeeded.\n" : "Build failed.\n"
+            self?.splitViewController.appendBuildOutput(msg)
+        }
+
+        splitViewController.appendBuildOutput("Building \(project.displayName)...\n\n")
+        buildSystem.build()
+    }
+
+    @objc func stopBuild(_ sender: Any?) {
+        project.buildSystem.cancel()
+        splitViewController.appendBuildOutput("\nBuild cancelled.\n")
+    }
+
     // MARK: - Navigation History
 
     @objc func goBack(_ sender: Any?) {

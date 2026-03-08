@@ -128,6 +128,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         navMenuItem.submenu = navMenu
         mainMenu.addItem(navMenuItem)
 
+        // Product menu (Build)
+        let productMenuItem = NSMenuItem()
+        let productMenu = NSMenu(title: "Product")
+
+        productMenu.addItem(withTitle: "Build", action: #selector(MainWindowController.buildProject(_:)), keyEquivalent: "b")
+
+        let stopItem = NSMenuItem(title: "Stop", action: #selector(MainWindowController.stopBuild(_:)), keyEquivalent: ".")
+        productMenu.addItem(stopItem)
+
+        productMenuItem.submenu = productMenu
+        mainMenu.addItem(productMenuItem)
+
         // Window menu
         let windowMenuItem = NSMenuItem()
         let windowMenu = NSMenu(title: "Window")

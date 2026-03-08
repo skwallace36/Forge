@@ -7,10 +7,12 @@ class ForgeProject {
     let tabManager = TabManager()
     let lspClient: LSPClient
     let navigationHistory = NavigationHistory()
+    let buildSystem: BuildSystem
 
     init(rootURL: URL) {
         self.rootURL = rootURL
         self.lspClient = LSPClient(rootURL: rootURL)
+        self.buildSystem = BuildSystem(projectRoot: rootURL)
 
         // Start LSP in background
         Task {
