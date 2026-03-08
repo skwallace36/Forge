@@ -204,12 +204,17 @@ class MinimapView: NSView {
             let xOffset = CGFloat(leadingSpaces) * 2.5 * scaleFactor + 6
             let lineWidth = min(CGFloat(contentLength) * 2.5 * scaleFactor, bounds.width - xOffset - 4)
 
-            // Use a very faint color — check for comments/strings
+            // Sample the dominant foreground color from the line's text storage
             let lineColor: NSColor
-            if trimmed.hasPrefix("//") || trimmed.hasPrefix("#") {
-                lineColor = NSColor(red: 0.35, green: 0.55, blue: 0.35, alpha: 0.5)
-            } else if trimmed.hasPrefix("\"") || trimmed.hasPrefix("'") {
-                lineColor = NSColor(red: 0.75, green: 0.40, blue: 0.35, alpha: 0.5)
+            if let ts = textView.textStorage {
+                // Sample color from the first non-whitespace character of the line
+                let firstNonWS = lineRange.location + leadingSpaces
+                if firstNonWS < NSMaxRange(lineRange) && firstNonWS < ts.length {
+                    let fg = ts.attribute(.foregroundColor, at: firstNonWS, effectiveRange: nil) as? NSColor
+                    lineColor = (fg ?? NSColor.white).withAlphaComponent(0.45)
+                } else {
+                    lineColor = NSColor(white: 0.55, alpha: 0.4)
+                }
             } else {
                 lineColor = NSColor(white: 0.55, alpha: 0.4)
             }
