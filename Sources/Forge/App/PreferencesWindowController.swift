@@ -5,7 +5,7 @@ class PreferencesWindowController: NSWindowController {
 
     init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 498),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 554),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -31,11 +31,11 @@ class PreferencesViewController: NSViewController {
     private let prefs = Preferences.shared
 
     override func loadView() {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 498))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 554))
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor(red: 0.15, green: 0.16, blue: 0.18, alpha: 1.0).cgColor
 
-        var y: CGFloat = 464
+        var y: CGFloat = 520
 
         // Editor section
         let titleLabel = makeLabel("Editor", bold: true, size: 15)
@@ -145,6 +145,20 @@ class PreferencesViewController: NSViewController {
         bracketCheck.state = prefs.bracketPairColorization ? .on : .off
         bracketCheck.frame = NSRect(x: 20, y: y, width: 250, height: 20)
         container.addSubview(bracketCheck)
+        y -= 28
+
+        // Sticky scroll
+        let stickyCheck = NSButton(checkboxWithTitle: "Sticky Scroll Headers", target: self, action: #selector(stickyScrollToggled(_:)))
+        stickyCheck.state = prefs.stickyScroll ? .on : .off
+        stickyCheck.frame = NSRect(x: 20, y: y, width: 250, height: 20)
+        container.addSubview(stickyCheck)
+        y -= 28
+
+        // Inline diagnostics
+        let inlineDiagCheck = NSButton(checkboxWithTitle: "Inline Diagnostic Messages", target: self, action: #selector(inlineDiagnosticsToggled(_:)))
+        inlineDiagCheck.state = prefs.inlineDiagnostics ? .on : .off
+        inlineDiagCheck.frame = NSRect(x: 20, y: y, width: 250, height: 20)
+        container.addSubview(inlineDiagCheck)
         y -= 30
 
         // Column ruler
@@ -232,6 +246,14 @@ class PreferencesViewController: NSViewController {
 
     @objc private func bracketColorizationToggled(_ sender: NSButton) {
         prefs.bracketPairColorization = sender.state == .on
+    }
+
+    @objc private func stickyScrollToggled(_ sender: NSButton) {
+        prefs.stickyScroll = sender.state == .on
+    }
+
+    @objc private func inlineDiagnosticsToggled(_ sender: NSButton) {
+        prefs.inlineDiagnostics = sender.state == .on
     }
 
     @objc private func rulerChanged(_ sender: NSPopUpButton) {
