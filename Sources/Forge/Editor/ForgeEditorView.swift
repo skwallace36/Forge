@@ -64,8 +64,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Tracks occurrence highlight ranges so we can clear them
     private var occurrenceHighlightRanges: [NSRange] = []
 
-    /// Tracks bracket match highlight range
-    private var bracketMatchRange: NSRange?
+    /// Tracks bracket match highlight ranges (both the bracket near cursor and its match)
+    private var bracketMatchRanges: [NSRange] = []
 
     /// Line-start offset cache for O(log n) line/column conversion.
     /// Each entry is the character offset where that line begins.
@@ -1272,11 +1272,13 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         ts.beginEditing()
 
-        // Clear previous bracket highlight
-        if let prev = bracketMatchRange, prev.location + prev.length <= ts.length {
-            ts.removeAttribute(.backgroundColor, range: prev)
+        // Clear previous bracket highlights
+        for prev in bracketMatchRanges {
+            if prev.location + prev.length <= ts.length {
+                ts.removeAttribute(.backgroundColor, range: prev)
+            }
         }
-        bracketMatchRange = nil
+        bracketMatchRanges = []
 
         let cursor = textView.selectedRange().location
         guard cursor > 0, text.length > 0 else {
@@ -1291,17 +1293,21 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             if charBefore == pair.close {
                 // Search backwards for matching open bracket
                 if let matchIndex = findMatchingBracket(in: text, at: cursor - 1, open: pair.open, close: pair.close, forward: false) {
-                    let range = NSRange(location: matchIndex, length: 1)
-                    ts.addAttribute(.backgroundColor, value: bracketHighlightColor, range: range)
-                    bracketMatchRange = range
+                    let cursorRange = NSRange(location: cursor - 1, length: 1)
+                    let matchRange = NSRange(location: matchIndex, length: 1)
+                    ts.addAttribute(.backgroundColor, value: bracketHighlightColor, range: cursorRange)
+                    ts.addAttribute(.backgroundColor, value: bracketHighlightColor, range: matchRange)
+                    bracketMatchRanges = [cursorRange, matchRange]
                 }
                 break
             } else if charBefore == pair.open {
                 // Search forwards for matching close bracket
                 if let matchIndex = findMatchingBracket(in: text, at: cursor - 1, open: pair.open, close: pair.close, forward: true) {
-                    let range = NSRange(location: matchIndex, length: 1)
-                    ts.addAttribute(.backgroundColor, value: bracketHighlightColor, range: range)
-                    bracketMatchRange = range
+                    let cursorRange = NSRange(location: cursor - 1, length: 1)
+                    let matchRange = NSRange(location: matchIndex, length: 1)
+                    ts.addAttribute(.backgroundColor, value: bracketHighlightColor, range: cursorRange)
+                    ts.addAttribute(.backgroundColor, value: bracketHighlightColor, range: matchRange)
+                    bracketMatchRanges = [cursorRange, matchRange]
                 }
                 break
             }
