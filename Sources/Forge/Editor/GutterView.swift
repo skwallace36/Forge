@@ -6,6 +6,7 @@ class GutterView: NSView {
     weak var textView: NSTextView?
     var theme: Theme?
     var diagnosticLines: Set<Int> = [] // 0-indexed line numbers with diagnostics
+    var changedLines: [Int: String] = [:] // 0-indexed: "added" or "modified"
 
     override var isFlipped: Bool { true }
 
@@ -112,6 +113,15 @@ class GutterView: NSView {
                 )
                 NSColor(red: 0.99, green: 0.30, blue: 0.30, alpha: 1.0).setFill()
                 NSBezierPath(ovalIn: dotRect).fill()
+            }
+
+            // Git change marker (colored bar on left edge)
+            if let changeType = changedLines[zeroIndexedLine] {
+                let barColor = changeType == "added"
+                    ? NSColor(red: 0.30, green: 0.75, blue: 0.30, alpha: 1.0)
+                    : NSColor(red: 0.40, green: 0.60, blue: 0.95, alpha: 1.0)
+                barColor.setFill()
+                NSRect(x: 0, y: lineRect.origin.y, width: 3, height: lineRect.height).fill()
             }
 
             let useAttrs = isCurrent ? currentAttrs : attrs

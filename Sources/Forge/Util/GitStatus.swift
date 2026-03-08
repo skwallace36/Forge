@@ -123,6 +123,54 @@ class GitStatusTracker {
         return map
     }
 
+    /// Returns changed line numbers for a specific file using `git diff`
+    /// Result maps line numbers (0-based) to change type: "added" or "modified"
+    func changedLines(for url: URL) -> [Int: String] {
+        let task = Process()
+        let pipe = Pipe()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        task.arguments = ["diff", "--unified=0", "--no-color", "--", url.path]
+        task.currentDirectoryURL = rootURL
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+
+        do {
+            try task.run()
+        } catch {
+            return [:]
+        }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        task.waitUntilExit()
+
+        guard let output = String(data: data, encoding: .utf8) else { return [:] }
+
+        var result: [Int: String] = [:]
+        // Parse unified diff hunks: @@ -oldStart,oldCount +newStart,newCount @@
+        let hunkPattern = try! NSRegularExpression(pattern: #"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@"#)
+
+        for line in output.components(separatedBy: "\n") {
+            let nsLine = line as NSString
+            let matches = hunkPattern.matches(in: line, range: NSRange(location: 0, length: nsLine.length))
+            for match in matches {
+                let newStart = Int(nsLine.substring(with: match.range(at: 3))) ?? 0
+                let newCount = match.range(at: 4).location != NSNotFound
+                    ? (Int(nsLine.substring(with: match.range(at: 4))) ?? 1)
+                    : 1
+                let oldCount = match.range(at: 2).location != NSNotFound
+                    ? (Int(nsLine.substring(with: match.range(at: 2))) ?? 1)
+                    : 1
+
+                let changeType = oldCount == 0 ? "added" : "modified"
+                for i in 0..<max(newCount, 1) {
+                    result[newStart - 1 + i] = changeType // convert to 0-based
+                }
+            }
+        }
+
+        return result
+    }
+
     private func fetchCurrentBranch() -> String? {
         let task = Process()
         let pipe = Pipe()

@@ -197,6 +197,16 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
             jumpBar.update(fileURL: doc.url, projectRoot: project.rootURL)
             statusBar.update(line: 1, column: 1, totalLines: 1, fileExtension: doc.fileExtension)
 
+            // Fetch git diff change markers for gutter
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                guard let self = self else { return }
+                let changes = self.project.gitStatus.changedLines(for: doc.url)
+                DispatchQueue.main.async {
+                    self.editor.gutterView.changedLines = changes
+                    self.editor.gutterView.needsDisplay = true
+                }
+            }
+
             // Update window title with modified state
             if let window = view.window {
                 let modified = doc.isModified ? " — Edited" : ""
