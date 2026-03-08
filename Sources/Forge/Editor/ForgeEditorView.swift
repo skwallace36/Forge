@@ -59,6 +59,10 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Completion popup
     private var completionWindow: CompletionWindow?
 
+    /// Signature help popover
+    private var signaturePopover: NSPopover?
+    private var signatureHelpWorkItem: DispatchWorkItem?
+
     /// Event monitor for ⌘-click and ⌥-click
     private var clickMonitor: Any?
 
@@ -434,6 +438,9 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         // Dismiss or auto-trigger completion
         handleCompletionOnTextChange()
+
+        // Check for signature help triggers
+        checkSignatureHelp()
     }
 
     @objc private func scrollViewDidScroll(_ notification: Notification) {
@@ -1691,6 +1698,129 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             textView.didChangeText()
             textView.setSelectedRange(NSRange(location: range.location, length: (result as NSString).length))
         }
+    }
+
+    // MARK: - Signature Help
+
+    private func checkSignatureHelp() {
+        guard let doc = document, let lsp = lspClient else { return }
+        let text = textView.string as NSString
+        let cursorPos = textView.selectedRange().location
+        guard cursorPos > 0, cursorPos <= text.length else {
+            dismissSignatureHelp()
+            return
+        }
+
+        let prevChar = text.character(at: cursorPos - 1)
+        let isTrigger = prevChar == 0x28 || prevChar == 0x2C // ( or ,
+
+        // Also check if we're still inside parens
+        let insideParens = isInsideParentheses(at: cursorPos, in: text)
+
+        guard isTrigger || insideParens else {
+            dismissSignatureHelp()
+            return
+        }
+
+        signatureHelpWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            let (line, character) = self.characterIndexToLineColumn(cursorPos)
+            Task { @MainActor in
+                do {
+                    guard let help = try await lsp.signatureHelp(url: doc.url, line: line, character: character) else {
+                        self.dismissSignatureHelp()
+                        return
+                    }
+                    self.showSignatureHelp(help)
+                } catch {
+                    self.dismissSignatureHelp()
+                }
+            }
+        }
+        signatureHelpWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
+    }
+
+    private func isInsideParentheses(at pos: Int, in text: NSString) -> Bool {
+        var depth = 0
+        var i = pos - 1
+        while i >= 0 {
+            let ch = text.character(at: i)
+            if ch == 0x29 { depth += 1 } // )
+            else if ch == 0x28 { // (
+                if depth == 0 { return true }
+                depth -= 1
+            }
+            // Don't go past current line boundaries for simple check
+            if ch == 0x0A { break } // newline
+            i -= 1
+        }
+        return false
+    }
+
+    private func showSignatureHelp(_ help: LSPSignatureHelp) {
+        guard !help.signatures.isEmpty else {
+            dismissSignatureHelp()
+            return
+        }
+
+        let sig = help.signatures[min(help.activeSignature, help.signatures.count - 1)]
+
+        // Build display string with active parameter highlighted
+        var displayText = sig.label
+        if let params = sig.parameters, help.activeParameter < params.count {
+            let activeParam = params[help.activeParameter]
+            displayText = sig.label + "\n\nParameter: \(activeParam.label)"
+            if let doc = activeParam.documentation {
+                displayText += " — \(doc)"
+            }
+        }
+        if let doc = sig.documentation {
+            displayText += "\n\(doc)"
+        }
+
+        // Reuse or create popover
+        dismissSignatureHelp()
+
+        let vc = NSViewController()
+        let label = NSTextField(wrappingLabelWithString: displayText)
+        label.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        label.textColor = NSColor(white: 0.85, alpha: 1.0)
+        label.backgroundColor = .clear
+        label.isBordered = false
+        label.isEditable = false
+        label.translatesAutoresizingMaskIntoConstraints = false
+
+        let containerView = NSView(frame: NSRect(x: 0, y: 0, width: 400, height: 60))
+        containerView.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 8),
+            label.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 8),
+            label.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -8),
+            label.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -8),
+        ])
+        vc.view = containerView
+
+        let popover = NSPopover()
+        popover.contentViewController = vc
+        popover.behavior = .transient
+        popover.animates = false
+
+        // Position at cursor
+        let cursorPos = textView.selectedRange().location
+        let glyphIndex = textView.layoutManager?.glyphIndexForCharacter(at: cursorPos) ?? 0
+        var rect = textView.layoutManager?.boundingRect(forGlyphRange: NSRange(location: glyphIndex, length: 1), in: textView.textContainer!) ?? .zero
+        rect.origin.x += textView.textContainerOrigin.x
+        rect.origin.y += textView.textContainerOrigin.y
+
+        popover.show(relativeTo: rect, of: textView, preferredEdge: .maxY)
+        signaturePopover = popover
+    }
+
+    private func dismissSignatureHelp() {
+        signaturePopover?.close()
+        signaturePopover = nil
     }
 
     // MARK: - Format Document

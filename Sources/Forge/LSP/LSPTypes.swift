@@ -192,6 +192,23 @@ struct LSPCodeAction {
     }
 }
 
+struct LSPSignatureHelp {
+    let signatures: [LSPSignatureInformation]
+    let activeSignature: Int
+    let activeParameter: Int
+}
+
+struct LSPSignatureInformation {
+    let label: String
+    let documentation: String?
+    let parameters: [LSPParameterInformation]?
+}
+
+struct LSPParameterInformation {
+    let label: String
+    let documentation: String?
+}
+
 struct LSPSymbolInformation {
     let name: String
     let kind: Int

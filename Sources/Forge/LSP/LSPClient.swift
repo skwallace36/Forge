@@ -65,6 +65,11 @@ class LSPClient {
                         ],
                     ] as [String: Any],
                     "formatting": [:] as [String: Any],
+                    "signatureHelp": [
+                        "signatureInformation": [
+                            "parameterInformation": ["labelOffsetSupport": true],
+                        ],
+                    ] as [String: Any],
                 ] as [String: Any],
             ] as [String: Any],
         ]
@@ -224,6 +229,46 @@ class LSPClient {
         }
 
         return LSPWorkspaceEdit(changes: changes)
+    }
+
+    // MARK: - Signature Help
+
+    func signatureHelp(url: URL, line: Int, character: Int) async throws -> LSPSignatureHelp? {
+        guard initialized, let conn = connection else { return nil }
+
+        let params: [String: Any] = [
+            "textDocument": ["uri": url.absoluteString],
+            "position": ["line": line, "character": character],
+        ]
+
+        let response = try await conn.sendRequest(method: "textDocument/signatureHelp", params: params)
+        return parseSignatureHelp(from: response)
+    }
+
+    private func parseSignatureHelp(from response: JSONRPCResponse) -> LSPSignatureHelp? {
+        guard let result = response.result?.value as? [String: Any],
+              let signatures = result["signatures"] as? [[String: Any]],
+              !signatures.isEmpty else {
+            return nil
+        }
+
+        let activeSignature = result["activeSignature"] as? Int ?? 0
+        let activeParameter = result["activeParameter"] as? Int ?? 0
+
+        let parsed: [LSPSignatureInformation] = signatures.compactMap { sig in
+            guard let label = sig["label"] as? String else { return nil }
+            let doc = sig["documentation"] as? String
+                ?? (sig["documentation"] as? [String: Any])?["value"] as? String
+            let params: [LSPParameterInformation]? = (sig["parameters"] as? [[String: Any]])?.compactMap { p in
+                guard let label = p["label"] as? String else { return nil }
+                let doc = p["documentation"] as? String
+                    ?? (p["documentation"] as? [String: Any])?["value"] as? String
+                return LSPParameterInformation(label: label, documentation: doc)
+            }
+            return LSPSignatureInformation(label: label, documentation: doc, parameters: params)
+        }
+
+        return LSPSignatureHelp(signatures: parsed, activeSignature: activeSignature, activeParameter: activeParameter)
     }
 
     // MARK: - Code Actions
