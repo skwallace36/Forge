@@ -450,7 +450,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     func textDidChange(_ notification: Notification) {
         document?.isModified = true
         gutterView.needsDisplay = true
-        minimapView?.needsDisplay = true
+        minimapView?.invalidateCodeCache()
 
         rehighlightWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in

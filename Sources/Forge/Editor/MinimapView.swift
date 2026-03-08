@@ -8,7 +8,9 @@ class MinimapView: NSView {
     weak var scrollView: NSScrollView?
 
     /// Diagnostic markers: (line: 0-indexed, severity: 1=error, 2=warning)
-    var diagnosticMarkers: [(line: Int, severity: Int)] = []
+    var diagnosticMarkers: [(line: Int, severity: Int)] = [] {
+        didSet { cachedCodeImage = nil }
+    }
 
     private let scale: CGFloat = 0.12
     private let minimapWidth: CGFloat = 80
@@ -16,6 +18,15 @@ class MinimapView: NSView {
     private let bgColor = NSColor(red: 0.13, green: 0.14, blue: 0.16, alpha: 1.0)
     private let viewportColor = NSColor(white: 0.5, alpha: 0.15)
     private let viewportBorderColor = NSColor(white: 0.5, alpha: 0.25)
+
+    /// Cached rendering of code lines — invalidated when text changes
+    private var cachedCodeImage: NSImage?
+    /// Text length when cache was built — used to detect changes
+    private var cachedTextLength: Int = -1
+    /// Bounds size when cache was built
+    private var cachedBoundsSize: NSSize = .zero
+    /// Scale factor used when cache was built
+    private var cachedScaleFactor: CGFloat = 0
 
     override var isFlipped: Bool { true }
 
@@ -26,6 +37,12 @@ class MinimapView: NSView {
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) not implemented")
+    }
+
+    /// Call this when text content changes to invalidate the cached minimap
+    func invalidateCodeCache() {
+        cachedCodeImage = nil
+        needsDisplay = true
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -51,9 +68,52 @@ class MinimapView: NSView {
         // Scale factor to fit the text into the minimap
         let scaleFactor = min(scale, bounds.height / max(totalTextHeight, 1))
 
-        // Draw line representations
-        let visibleGlyphRange = NSRange(location: 0, length: layoutManager.numberOfGlyphs)
-        guard visibleGlyphRange.length > 0 else { return }
+        // Check if we need to rebuild the code cache
+        let needsRebuild = cachedCodeImage == nil
+            || cachedTextLength != text.length
+            || cachedBoundsSize != bounds.size
+            || cachedScaleFactor != scaleFactor
+
+        if needsRebuild {
+            cachedCodeImage = renderCodeImage(
+                text: text,
+                layoutManager: layoutManager,
+                textContainer: textContainer,
+                textView: textView,
+                scaleFactor: scaleFactor,
+            )
+            cachedTextLength = text.length
+            cachedBoundsSize = bounds.size
+            cachedScaleFactor = scaleFactor
+        }
+
+        // Draw the cached code image
+        if let image = cachedCodeImage {
+            image.draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1.0)
+        }
+
+        // Draw viewport rectangle (changes on every scroll, so not cached)
+        let visibleRect = scrollView.contentView.bounds
+        let viewportY = (visibleRect.origin.y) * scaleFactor
+        let viewportHeight = visibleRect.height * scaleFactor
+
+        viewportColor.setFill()
+        let vpRect = NSRect(x: 1, y: viewportY, width: bounds.width - 1, height: viewportHeight)
+        vpRect.fill()
+
+        viewportBorderColor.setStroke()
+        NSBezierPath(rect: vpRect).stroke()
+    }
+
+    private func renderCodeImage(
+        text: NSString,
+        layoutManager: NSLayoutManager,
+        textContainer: NSTextContainer,
+        textView: NSTextView,
+        scaleFactor: CGFloat
+    ) -> NSImage {
+        let image = NSImage(size: bounds.size)
+        image.lockFocusFlipped(true)
 
         // Draw simplified code blocks as thin lines
         var charIndex = 0
@@ -99,32 +159,29 @@ class MinimapView: NSView {
             charIndex = NSMaxRange(lineRange)
         }
 
-        // Draw viewport rectangle
-        let visibleRect = scrollView.contentView.bounds
-        let viewportY = (visibleRect.origin.y) * scaleFactor
-        let viewportHeight = visibleRect.height * scaleFactor
-
-        viewportColor.setFill()
-        let vpRect = NSRect(x: 1, y: viewportY, width: bounds.width - 1, height: viewportHeight)
-        vpRect.fill()
-
-        viewportBorderColor.setStroke()
-        NSBezierPath(rect: vpRect).stroke()
-
-        // Draw diagnostic markers on the right edge
+        // Draw diagnostic markers on the right edge (part of the static content)
         if !diagnosticMarkers.isEmpty {
             for marker in diagnosticMarkers {
                 let markerColor: NSColor = marker.severity == 1
                     ? NSColor(red: 0.99, green: 0.30, blue: 0.30, alpha: 0.85)
                     : NSColor(red: 0.99, green: 0.80, blue: 0.28, alpha: 0.85)
 
-                // Calculate Y position from line number
-                let lineY = lineYPosition(line: marker.line, scaleFactor: scaleFactor, text: text, layoutManager: layoutManager, textView: textView, textContainer: textContainer)
+                let lineY = lineYPosition(
+                    line: marker.line,
+                    scaleFactor: scaleFactor,
+                    text: text,
+                    layoutManager: layoutManager,
+                    textView: textView,
+                    textContainer: textContainer,
+                )
 
                 markerColor.setFill()
                 NSRect(x: bounds.width - 4, y: lineY, width: 3, height: max(2, 1 / scaleFactor * scaleFactor)).fill()
             }
         }
+
+        image.unlockFocus()
+        return image
     }
 
     private func lineYPosition(line: Int, scaleFactor: CGFloat, text: NSString, layoutManager: NSLayoutManager, textView: NSTextView, textContainer: NSTextContainer) -> CGFloat {
