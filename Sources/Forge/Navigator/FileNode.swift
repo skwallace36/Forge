@@ -23,6 +23,11 @@ class FileNode {
         "o", "a", "dylib",
     ]
 
+    /// Depth from project root (used to prevent excessive nesting)
+    var depth: Int = 0
+    /// Maximum directory depth to traverse
+    private static let maxDepth = 30
+
     init(url: URL, isDirectory: Bool) {
         self.url = url
         self.isDirectory = isDirectory
@@ -113,15 +118,18 @@ class FileNode {
     }
 
     func loadChildren() {
-        guard isDirectory, !childrenLoaded else { return }
+        guard isDirectory, !childrenLoaded, depth < Self.maxDepth else { return }
         childrenLoaded = true
 
         let fm = FileManager.default
         guard let urls = try? fm.contentsOfDirectory(
             at: url,
-            includingPropertiesForKeys: [.isDirectoryKey, .isHiddenKey],
+            includingPropertiesForKeys: [.isDirectoryKey, .isHiddenKey, .isSymbolicLinkKey],
             options: [.skipsHiddenFiles]
         ) else { return }
+
+        // Resolve our own real path for symlink cycle detection
+        let selfRealPath = (try? url.resourceValues(forKeys: [.canonicalPathKey]))?.canonicalPath ?? url.path
 
         children = urls
             .filter { url in
@@ -130,13 +138,23 @@ class FileNode {
                 if FileNode.hiddenNames.contains(name) { return false }
                 if FileNode.hiddenExtensions.contains(url.pathExtension.lowercased()) { return false }
 
+                // Skip symlinks that point to an ancestor (cycle prevention)
+                let resourceValues = try? url.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey])
+                if resourceValues?.isSymbolicLink == true,
+                   resourceValues?.isDirectory == true,
+                   let realPath = (try? URL(resolvingAliasFileAt: url, options: [.withoutMounting]))?.standardizedFileURL.path {
+                    if selfRealPath.hasPrefix(realPath) || realPath.hasPrefix(selfRealPath) {
+                        return false
+                    }
+                }
+
                 // Check .gitignore
                 if let gitignore = gitignore, let root = projectRoot {
                     let rootPath = root.standardizedFileURL.path
                     let filePath = url.standardizedFileURL.path
                     if filePath.hasPrefix(rootPath) {
                         let relative = String(filePath.dropFirst(rootPath.count + 1))
-                        let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+                        let isDir = resourceValues?.isDirectory ?? false
                         if gitignore.isIgnored(relativePath: relative, isDirectory: isDir) {
                             return false
                         }
@@ -150,6 +168,7 @@ class FileNode {
                 let node = FileNode(url: childURL, isDirectory: isDir)
                 node.gitignore = self.gitignore
                 node.projectRoot = self.projectRoot
+                node.depth = self.depth + 1
                 return node
             }
             .sorted { a, b in
