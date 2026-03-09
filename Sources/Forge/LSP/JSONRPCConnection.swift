@@ -68,7 +68,7 @@ class JSONRPCConnection {
 
     // MARK: - Send Request (async)
 
-    func sendRequest(method: String, params: Any?) async throws -> JSONRPCResponse {
+    func sendRequest(method: String, params: Any?, timeout: TimeInterval = 30) async throws -> JSONRPCResponse {
         let id = nextRequestID
         nextRequestID += 1
 
@@ -79,13 +79,25 @@ class JSONRPCConnection {
         )
 
         let data = try JSONEncoder().encode(request)
-        sendMessage(data)
 
-        return try await withCheckedThrowingContinuation { continuation in
+        // Store continuation BEFORE sending the message to avoid a race where
+        // the response arrives before the continuation is registered.
+        let response: JSONRPCResponse = try await withCheckedThrowingContinuation { continuation in
             queue.async {
                 self.pendingRequests[id] = continuation
+                self.sendMessage(data)
+            }
+
+            // Schedule a timeout that cancels the pending request
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { [weak self] in
+                self?.queue.async {
+                    if let cont = self?.pendingRequests.removeValue(forKey: id) {
+                        cont.resume(throwing: LSPError.timeout(method))
+                    }
+                }
             }
         }
+        return response
     }
 
     // MARK: - Send Notification (fire-and-forget)
@@ -188,4 +200,5 @@ enum LSPError: Error {
     case connectionClosed
     case serverError(String)
     case invalidResponse
+    case timeout(String)
 }
