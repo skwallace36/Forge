@@ -128,6 +128,10 @@ class MainSplitViewController: NSSplitViewController {
         editorContainerVC.saveCurrentViewportState()
     }
 
+    func saveNavigatorState() {
+        navigatorVC.saveExpandedState()
+    }
+
     func scrollToLine(_ line: Int, column: Int, selectLength: Int = 0) {
         editorContainerVC.scrollToLine(line, column: column, selectLength: selectLength)
     }

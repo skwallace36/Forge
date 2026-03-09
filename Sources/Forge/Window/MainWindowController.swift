@@ -594,6 +594,7 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         autoSaveTimer?.invalidate()
         autoSaveTimer = nil
         saveOpenTabs()
+        splitViewController.saveNavigatorState()
         project.lspClient.stop()
         (NSApp.delegate as? AppDelegate)?.windowControllerDidClose(self)
     }

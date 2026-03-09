@@ -191,6 +191,11 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
 
     private var isAutoExpanding = false
 
+    /// UserDefaults key for persisted expanded directories
+    private var expandedStateKey: String {
+        "ForgeExpandedDirs-\(project.rootURL.path.hashValue)"
+    }
+
     private func loadFileTree() {
         rootNode = FileNode(url: project.rootURL, isDirectory: true)
         rootNode?.projectRoot = project.rootURL
@@ -209,10 +214,24 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         outlineView.reloadData()
         outlineView.expandItem(rootNode)
 
-        // Auto-expand key directories
+        // Restore persisted expanded state, or fall back to auto-expand defaults
         isAutoExpanding = true
-        autoExpandKeyDirectories()
+        if let saved = UserDefaults.standard.array(forKey: expandedStateKey) as? [String], !saved.isEmpty {
+            let savedURLs = Set(saved.map { URL(fileURLWithPath: $0) })
+            restoreExpandedState(rootNode!, expandedURLs: savedURLs)
+        } else {
+            autoExpandKeyDirectories()
+        }
         isAutoExpanding = false
+    }
+
+    /// Save expanded directories to UserDefaults
+    func saveExpandedState() {
+        guard let root = rootNode else { return }
+        var expandedURLs = Set<URL>()
+        collectExpandedURLs(root, into: &expandedURLs)
+        let paths = expandedURLs.map(\.path)
+        UserDefaults.standard.set(paths, forKey: expandedStateKey)
     }
 
     /// Pre-load children of Sources/, src/ etc. so data is ready before expand
@@ -415,6 +434,23 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
               let node = notification.userInfo?["NSObject"] as? FileNode else { return }
         node.loadChildren()
         outlineView.reloadItem(node, reloadChildren: true)
+        scheduleSaveExpandedState()
+    }
+
+    func outlineViewItemDidCollapse(_ notification: Notification) {
+        guard !isAutoExpanding else { return }
+        scheduleSaveExpandedState()
+    }
+
+    private var expandedStateSaveWorkItem: DispatchWorkItem?
+
+    private func scheduleSaveExpandedState() {
+        expandedStateSaveWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.saveExpandedState()
+        }
+        expandedStateSaveWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
     }
 
     // MARK: - NSMenuDelegate
