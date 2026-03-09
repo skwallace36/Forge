@@ -165,6 +165,11 @@ class ForgeDocument {
         return currentMod > lastMod
     }
 
+    /// Returns true if the file no longer exists on disk
+    var isDeletedOnDisk: Bool {
+        !FileManager.default.fileExists(atPath: url.path)
+    }
+
     /// File size in bytes
     var fileSize: Int {
         (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int ?? 0

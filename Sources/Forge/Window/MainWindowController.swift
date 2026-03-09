@@ -289,9 +289,31 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
 
     func checkForExternalChanges() {
         var reloadedCurrent = false
+        var deletedTabs: [Int] = []
 
-        for tab in project.tabManager.tabs {
+        for (index, tab) in project.tabManager.tabs.enumerated() {
             let doc = tab.document
+
+            // Check if file was deleted
+            if doc.isDeletedOnDisk {
+                if doc.isModified {
+                    // File deleted but has unsaved changes — warn user
+                    let alert = NSAlert()
+                    alert.messageText = "\(doc.fileName) has been deleted from disk."
+                    alert.informativeText = "The file has unsaved changes. Do you want to keep the tab open?"
+                    alert.addButton(withTitle: "Keep Open")
+                    alert.addButton(withTitle: "Close Tab")
+                    alert.alertStyle = .warning
+                    if alert.runModal() == .alertSecondButtonReturn {
+                        deletedTabs.append(index)
+                    }
+                } else {
+                    // No unsaved changes — close silently
+                    deletedTabs.append(index)
+                }
+                continue
+            }
+
             guard doc.hasChangedOnDisk() else { continue }
 
             if doc.isModified {
@@ -318,7 +340,12 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
             }
         }
 
-        if reloadedCurrent {
+        // Close tabs for deleted files (in reverse order to preserve indices)
+        for index in deletedTabs.reversed() {
+            project.tabManager.close(at: index)
+        }
+
+        if reloadedCurrent || !deletedTabs.isEmpty {
             splitViewController.editorAreaDidUpdate()
         }
     }
