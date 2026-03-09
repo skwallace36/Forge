@@ -9,14 +9,16 @@ protocol TabBarDelegate: AnyObject {
     func tabBarDidRequestCloseAll(_ tabBar: TabBar)
     func tabBarDidRequestCloseToRight(_ tabBar: TabBar, fromIndex index: Int)
     func tabBarDidRequestNewFile(_ tabBar: TabBar)
+    func tabBar(_ tabBar: TabBar, didRenameTabAt index: Int, to newName: String)
 }
 
 extension TabBarDelegate {
     func tabBarDidRequestNewFile(_ tabBar: TabBar) {}
+    func tabBar(_ tabBar: TabBar, didRenameTabAt index: Int, to newName: String) {}
 }
 
 /// Custom tab bar view — single row of tabs above the editor.
-class TabBar: NSView {
+class TabBar: NSView, NSTextFieldDelegate {
 
     weak var delegate: TabBarDelegate?
     var projectRootURL: URL?
@@ -244,6 +246,13 @@ class TabBar: NSView {
 
         menu.addItem(.separator())
 
+        let renameItem = NSMenuItem(title: "Rename…", action: #selector(contextRename(_:)), keyEquivalent: "")
+        renameItem.target = self
+        renameItem.tag = index
+        menu.addItem(renameItem)
+
+        menu.addItem(.separator())
+
         let copyPathItem = NSMenuItem(title: "Copy Path", action: #selector(contextCopyPath(_:)), keyEquivalent: "")
         copyPathItem.target = self
         copyPathItem.representedObject = button.fileURL
@@ -306,9 +315,89 @@ class TabBar: NSView {
         NSPasteboard.general.setString(relativePath, forType: .string)
     }
 
+    @objc private func contextRename(_ sender: NSMenuItem) {
+        beginRenamingTab(at: sender.tag)
+    }
+
     @objc private func contextRevealInFinder(_ sender: NSMenuItem) {
         guard let url = sender.representedObject as? URL else { return }
         NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    // MARK: - Inline Rename
+
+    private var renameField: NSTextField?
+    private var renamingIndex: Int = -1
+
+    func beginRenamingTab(at index: Int) {
+        guard index >= 0, index < tabButtons.count else { return }
+        endRenaming(commit: false)
+
+        renamingIndex = index
+        let button = tabButtons[index]
+        guard let url = button.fileURL else { return }
+
+        let field = NSTextField()
+        field.stringValue = url.lastPathComponent
+        field.font = NSFont.systemFont(ofSize: 11)
+        field.textColor = .white
+        field.backgroundColor = NSColor(white: 0.22, alpha: 1.0)
+        field.isBordered = true
+        field.isBezeled = true
+        field.bezelStyle = .roundedBezel
+        field.focusRingType = .none
+        field.isEditable = true
+        field.delegate = self
+        field.target = self
+        field.action = #selector(renameFieldAction(_:))
+
+        // Position over the tab button title area
+        let tabFrame = button.frame
+        let fieldRect = NSRect(
+            x: tabFrame.origin.x + 22,
+            y: tabFrame.origin.y + 4,
+            width: tabFrame.width - 46,
+            height: tabFrame.height - 8
+        )
+        field.frame = fieldRect
+        contentView.addSubview(field)
+        field.selectText(nil)
+        // Select just the filename stem (not extension)
+        if let editor = field.currentEditor() {
+            let name = url.lastPathComponent
+            if let dotRange = name.range(of: ".", options: .backwards) {
+                let stemLength = name.distance(from: name.startIndex, to: dotRange.lowerBound)
+                editor.selectedRange = NSRange(location: 0, length: stemLength)
+            }
+        }
+
+        renameField = field
+    }
+
+    @objc private func renameFieldAction(_ sender: NSTextField) {
+        endRenaming(commit: true)
+    }
+
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+            endRenaming(commit: false)
+            return true
+        }
+        return false
+    }
+
+    private func endRenaming(commit: Bool) {
+        guard let field = renameField else { return }
+        let newName = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let index = renamingIndex
+
+        field.removeFromSuperview()
+        renameField = nil
+        renamingIndex = -1
+
+        if commit, !newName.isEmpty {
+            delegate?.tabBar(self, didRenameTabAt: index, to: newName)
+        }
     }
 
     override var intrinsicContentSize: NSSize {
@@ -383,6 +472,14 @@ class TabButton: NSView {
         if localPoint.x > bounds.width - 24 {
             if let target = target, let action = closeAction {
                 _ = target.perform(action, with: self)
+            }
+            return
+        }
+
+        // Double-click on tab → rename
+        if event.clickCount == 2 {
+            if let tabBar = findTabBar() {
+                tabBar.beginRenamingTab(at: index)
             }
             return
         }

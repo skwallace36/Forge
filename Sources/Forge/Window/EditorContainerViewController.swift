@@ -643,6 +643,48 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         windowController?.openFile(fileURL)
     }
 
+    func tabBar(_ tabBar: TabBar, didRenameTabAt index: Int, to newName: String) {
+        guard index >= 0, index < project.tabManager.tabs.count else { return }
+        let tab = project.tabManager.tabs[index]
+        let oldURL = tab.url
+        let newURL = oldURL.deletingLastPathComponent().appendingPathComponent(newName)
+
+        // Don't rename to the same name
+        guard newURL != oldURL else { return }
+
+        // Check if target exists
+        if FileManager.default.fileExists(atPath: newURL.path) {
+            let alert = NSAlert()
+            alert.messageText = "A file named \"\(newName)\" already exists."
+            alert.informativeText = "Choose a different name."
+            alert.alertStyle = .warning
+            alert.runModal()
+            return
+        }
+
+        // Save if modified before renaming
+        if tab.isModified {
+            editor.syncDocumentContent()
+            try? tab.document.save()
+        }
+
+        do {
+            try FileManager.default.moveItem(at: oldURL, to: newURL)
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Could not rename file"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.runModal()
+            return
+        }
+
+        // Reopen at the new location
+        project.tabManager.close(at: index)
+        windowController?.openFile(newURL)
+        refreshEditor()
+    }
+
     // MARK: - Minimap Toggle
 
     @objc func toggleMinimap(_ sender: Any?) {
