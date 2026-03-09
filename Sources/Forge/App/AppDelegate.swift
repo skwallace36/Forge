@@ -293,6 +293,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let selectNextItem = NSMenuItem(title: "Select Next Occurrence", action: #selector(EditorContainerViewController.selectNextOccurrence(_:)), keyEquivalent: "d")
         editMenu.addItem(selectNextItem)
 
+        let selectAllOccItem = NSMenuItem(title: "Select All Occurrences", action: #selector(EditorContainerViewController.selectAllOccurrences(_:)), keyEquivalent: "g")
+        selectAllOccItem.keyEquivalentModifierMask = [.command, .control]
+        editMenu.addItem(selectAllOccItem)
+
         let selectEnclosingItem = NSMenuItem(title: "Select Enclosing Brackets", action: #selector(EditorContainerViewController.selectEnclosingBrackets(_:)), keyEquivalent: "")
         editMenu.addItem(selectEnclosingItem)
 

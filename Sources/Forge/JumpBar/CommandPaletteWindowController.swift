@@ -181,6 +181,8 @@ class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate, N
                            action: #selector(EditorContainerViewController.joinLines(_:)), target: nil),
             PaletteCommand(title: "Select Next Occurrence", shortcut: "⌘D", category: "Edit",
                            action: #selector(EditorContainerViewController.selectNextOccurrence(_:)), target: nil),
+            PaletteCommand(title: "Select All Occurrences", shortcut: "⌃⌘G", category: "Edit",
+                           action: #selector(EditorContainerViewController.selectAllOccurrences(_:)), target: nil),
             PaletteCommand(title: "Select Enclosing Brackets", shortcut: "", category: "Edit",
                            action: #selector(EditorContainerViewController.selectEnclosingBrackets(_:)), target: nil),
             PaletteCommand(title: "Send to Claude", shortcut: "⌃⇧C", category: "Edit",

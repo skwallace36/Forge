@@ -918,6 +918,10 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         editor.selectNextOccurrence(sender)
     }
 
+    @objc func selectAllOccurrences(_ sender: Any?) {
+        editor.selectAllOccurrences(sender)
+    }
+
     @objc func selectEnclosingBrackets(_ sender: Any?) {
         editor.selectEnclosingBrackets(sender)
     }

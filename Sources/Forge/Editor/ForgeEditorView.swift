@@ -2892,6 +2892,46 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         multiSelectSearchOffset = 0
     }
 
+    // MARK: - Select All Occurrences (⌃⌘G)
+
+    @objc func selectAllOccurrences(_ sender: Any?) {
+        let text = textView.string as NSString
+        guard text.length > 0 else { return }
+
+        let sel = textView.selectedRange()
+        let searchWord: String
+
+        if sel.length > 0 {
+            searchWord = text.substring(with: sel)
+        } else {
+            let wordRange = wordRangeAtIndex(min(sel.location, text.length), in: text)
+            guard wordRange.length > 0 else { return }
+            searchWord = text.substring(with: wordRange)
+        }
+
+        // Find all occurrences
+        var ranges: [NSRange] = []
+        var searchStart = 0
+        while searchStart < text.length {
+            let searchRange = NSRange(location: searchStart, length: text.length - searchStart)
+            let found = text.range(of: searchWord, options: .literal, range: searchRange)
+            if found.location == NSNotFound { break }
+            ranges.append(found)
+            searchStart = NSMaxRange(found)
+        }
+
+        guard !ranges.isEmpty else { return }
+
+        isSelectingNextOccurrence = true
+        textView.setSelectedRanges(ranges.map { NSValue(range: $0) }, affinity: .downstream, stillSelecting: false)
+        multiSelectWord = searchWord
+        isSelectingNextOccurrence = false
+
+        let pb = NSPasteboard(name: .find)
+        pb.clearContents()
+        pb.setString(searchWord, forType: .string)
+    }
+
     // MARK: - Delete Line (⌃⇧K)
 
     @objc func deleteLine(_ sender: Any? = nil) {
