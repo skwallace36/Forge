@@ -123,6 +123,10 @@ class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate, N
                            action: NSSelectorFromString("saveAllDocuments:"), target: nil),
             PaletteCommand(title: "Close Tab", shortcut: "⌘W", category: "File",
                            action: #selector(MainWindowController.closeCurrentTab(_:)), target: nil),
+            PaletteCommand(title: "Close Other Tabs", shortcut: "⌘⌥W", category: "File",
+                           action: #selector(EditorContainerViewController.closeOtherTabs(_:)), target: nil),
+            PaletteCommand(title: "Close All Tabs", shortcut: "⌘⌥⇧W", category: "File",
+                           action: #selector(EditorContainerViewController.closeAllTabs(_:)), target: nil),
 
             // Find
             PaletteCommand(title: "Find…", shortcut: "⌘F", category: "Find",
