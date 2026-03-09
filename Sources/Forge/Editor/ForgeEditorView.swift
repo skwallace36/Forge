@@ -289,6 +289,26 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         self.document = doc
 
+        // Cancel pending work items from previous document
+        rehighlightWorkItem?.cancel()
+        rehighlightWorkItem = nil
+        lspChangeWorkItem?.cancel()
+        lspChangeWorkItem = nil
+        occurrenceWorkItem?.cancel()
+        occurrenceWorkItem = nil
+        signatureHelpWorkItem?.cancel()
+        signatureHelpWorkItem = nil
+        completionTriggerWorkItem?.cancel()
+        completionTriggerWorkItem = nil
+        scrollRehighlightWorkItem?.cancel()
+        scrollRehighlightWorkItem = nil
+        completionWindow?.dismiss()
+
+        // Reset multi-select state
+        multiSelectWord = nil
+        multiSelectSearchOffset = 0
+        isSelectingNextOccurrence = false
+
         // Reset inline blame when switching documents
         lastBlameLine = -1
         blameLabel?.isHidden = true
@@ -2137,7 +2157,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         guard let doc = document, let lsp = lspClient else { return }
 
         // Don't show hover while completion or signature help is visible
-        if completionWindow?.isVisible == true { return }
+        if completionWindow?.isShowing == true { return }
         if signaturePopover?.isShown == true { return }
 
         let (line, character) = characterIndexToLineColumn(charIndex)
