@@ -49,6 +49,7 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         outlineView.indentationPerLevel = 16
         outlineView.rowHeight = 22
         outlineView.style = .sourceList
+        outlineView.selectionHighlightStyle = .regular  // Use our custom row view, not source list default
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("NameColumn"))
         column.isEditable = false
@@ -870,18 +871,22 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
 /// Custom row view that draws a consistent dark selection highlight
 /// instead of the system accent color (blue) which flashes inconsistently.
 private class NavigatorRowView: NSTableRowView {
+    private let selColor = NSColor(white: 0.26, alpha: 1.0)
+
+    override var isEmphasized: Bool {
+        get { false }
+        set { /* ignore — prevents system accent color from appearing */ }
+    }
+
     override func drawSelection(in dirtyRect: NSRect) {
         guard isSelected else { return }
-        let color = isEmphasized
-            ? NSColor(white: 0.28, alpha: 1.0)
-            : NSColor(white: 0.22, alpha: 1.0)
-        color.setFill()
+        selColor.setFill()
         let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 0), xRadius: 4, yRadius: 4)
         path.fill()
     }
 
     override var interiorBackgroundStyle: NSView.BackgroundStyle {
-        return isSelected ? .emphasized : .normal
+        return .normal
     }
 }
 
