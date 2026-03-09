@@ -143,6 +143,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         openQuickly.keyEquivalentModifierMask = [.command, .shift]
         fileMenu.addItem(openQuickly)
 
+        let symbolSearch = NSMenuItem(title: "Go to Symbol in Workspace…", action: #selector(MainWindowController.showSymbolSearch(_:)), keyEquivalent: "t")
+        fileMenu.addItem(symbolSearch)
+
         // Open Recent submenu
         let recentMenuItem = NSMenuItem(title: "Open Recent", action: nil, keyEquivalent: "")
         let recentMenu = NSMenu(title: "Open Recent")

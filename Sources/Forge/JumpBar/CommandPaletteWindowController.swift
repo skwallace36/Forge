@@ -115,6 +115,8 @@ class CommandPaletteWindowController: NSWindowController, NSTextFieldDelegate, N
                            action: NSSelectorFromString("openDocument:"), target: nil),
             PaletteCommand(title: "Open Quickly", shortcut: "⇧⌘O", category: "File",
                            action: #selector(MainWindowController.showOpenQuickly(_:)), target: nil),
+            PaletteCommand(title: "Go to Symbol in Workspace", shortcut: "⌘T", category: "File",
+                           action: #selector(MainWindowController.showSymbolSearch(_:)), target: nil),
             PaletteCommand(title: "Save", shortcut: "⌘S", category: "File",
                            action: NSSelectorFromString("saveDocument:"), target: nil),
             PaletteCommand(title: "Save All", shortcut: "⌘⌥S", category: "File",

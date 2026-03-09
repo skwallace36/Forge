@@ -185,6 +185,25 @@ class OpenQuicklyWindowController: NSWindowController, NSTextFieldDelegate, NSTa
         updateSearch() // Shows recent files when query is empty
     }
 
+    /// Show pre-filled with `#` for workspace symbol search (⌘T)
+    func showSymbolSearch(in parentWindow: NSWindow) {
+        guard let panel = window else { return }
+
+        let parentFrame = parentWindow.frame
+        let panelWidth: CGFloat = 600
+        let panelHeight: CGFloat = 400
+        let x = parentFrame.origin.x + (parentFrame.width - panelWidth) / 2
+        let y = parentFrame.origin.y + parentFrame.height - panelHeight - 80
+        panel.setFrame(NSRect(x: x, y: y, width: panelWidth, height: panelHeight), display: true)
+
+        parentWindow.addChildWindow(panel, ordered: .above)
+        panel.makeKeyAndOrderFront(nil)
+        panel.makeFirstResponder(searchField)
+
+        searchField.stringValue = "#"
+        updateSearch()
+    }
+
     func dismiss() {
         if let panel = window {
             panel.parent?.removeChildWindow(panel)

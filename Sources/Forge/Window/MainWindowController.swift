@@ -513,6 +513,17 @@ class MainWindowController: NSWindowController, NSWindowDelegate, OpenQuicklyDel
         openQuicklyController?.showInWindow(win)
     }
 
+    @objc func showSymbolSearch(_ sender: Any?) {
+        guard let win = window else { return }
+        if openQuicklyController == nil {
+            openQuicklyController = OpenQuicklyWindowController(projectRoot: project.rootURL)
+            openQuicklyController?.delegate = self
+            openQuicklyController?.lspClient = project.lspClient
+        }
+        openQuicklyController?.recentFileURLs = project.recentFileURLs
+        openQuicklyController?.showSymbolSearch(in: win)
+    }
+
     func openQuickly(_ controller: OpenQuicklyWindowController, didSelectURL url: URL) {
         openFile(url)
     }
