@@ -14,14 +14,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Prevent multiple instances — activate existing one if found
-        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "")
-        let others = runningApps.filter { $0 != NSRunningApplication.current }
-        if let existing = others.first {
-            existing.activate()
-            NSApp.terminate(nil)
-            return
-        }
+        // Prevent multiple instances — kill older ones when launching via `swift run`
+        killOtherForgeInstances()
 
         setupMainMenu()
 
@@ -96,6 +90,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Check for external file changes when returning to the app
         for wc in windowControllers {
             wc.checkForExternalChanges()
+        }
+    }
+
+    // MARK: - Single Instance
+
+    /// Kill any other Forge processes (handles `swift run` where bundle ID doesn't work)
+    private func killOtherForgeInstances() {
+        let myPID = ProcessInfo.processInfo.processIdentifier
+        let pipe = Pipe()
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        task.arguments = ["-f", ".build/.*debug/Forge"]
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        try? task.run()
+        task.waitUntilExit()
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let output = String(data: data, encoding: .utf8) else { return }
+
+        for line in output.split(separator: "\n") {
+            if let pid = Int32(line.trimmingCharacters(in: .whitespaces)), pid != myPID {
+                kill(pid, SIGTERM)
+            }
         }
     }
 
