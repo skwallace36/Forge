@@ -105,6 +105,11 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Last line for which blame was displayed (to avoid redundant updates)
     private var lastBlameLine: Int = -1
 
+    /// Multi-select state for ⌘D (Select Next Occurrence)
+    private var multiSelectWord: String?
+    private var multiSelectSearchOffset: Int = 0
+    private var isSelectingNextOccurrence = false
+
     override init() {
         // Build the text system manually so we can use a custom layout manager
         let textStorage = NSTextStorage()
@@ -615,6 +620,11 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         // Clear expansion stack when selection changes from user interaction
         if !isExpandingShrinking && !selectionExpansionStack.isEmpty {
             selectionExpansionStack.removeAll()
+        }
+
+        // Reset multi-select state when selection changes by other means (click, arrow, etc.)
+        if !isSelectingNextOccurrence && multiSelectWord != nil {
+            resetMultiSelectState()
         }
 
         updateGutterFirstVisibleLine()
@@ -2814,39 +2824,72 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         let text = textView.string as NSString
         guard text.length > 0 else { return }
 
-        let sel = textView.selectedRange()
-        let selectedText: String
+        isSelectingNextOccurrence = true
+        defer { isSelectingNextOccurrence = false }
 
-        if sel.length > 0 {
-            selectedText = text.substring(with: sel)
-        } else {
-            // First press: select the word under cursor
+        let sel = textView.selectedRange()
+
+        if sel.length == 0 {
+            // First press: select the word under cursor and initialize multi-select
             let wordRange = wordRangeAtIndex(min(sel.location, text.length), in: text)
             guard wordRange.length > 0 else { return }
+            multiSelectWord = text.substring(with: wordRange)
+            multiSelectSearchOffset = NSMaxRange(wordRange)
             textView.setSelectedRange(wordRange)
+
+            let pb = NSPasteboard(name: .find)
+            pb.clearContents()
+            pb.setString(multiSelectWord!, forType: .string)
             return
         }
 
-        // Search forward from end of current selection, wrapping around
-        let afterSel = NSMaxRange(sel)
-        var searchRange = NSRange(location: afterSel, length: text.length - afterSel)
-        var found = text.range(of: selectedText, options: .literal, range: searchRange)
+        // Get current selections
+        let currentRanges = textView.selectedRanges.map(\.rangeValue)
 
-        // Wrap around
+        // Determine the word to search for
+        let searchWord: String
+        if let mw = multiSelectWord {
+            searchWord = mw
+        } else {
+            // First ⌘D with an existing selection — use it as the base word
+            searchWord = text.substring(with: sel)
+            multiSelectWord = searchWord
+            multiSelectSearchOffset = NSMaxRange(sel)
+
+            let pb = NSPasteboard(name: .find)
+            pb.clearContents()
+            pb.setString(searchWord, forType: .string)
+        }
+
+        // Search forward from last search offset, wrapping around
+        var found = NSRange(location: NSNotFound, length: 0)
+        let forwardRange = NSRange(location: multiSelectSearchOffset, length: text.length - multiSelectSearchOffset)
+        if forwardRange.length > 0 {
+            found = text.range(of: searchWord, options: .literal, range: forwardRange)
+        }
+
         if found.location == NSNotFound {
-            searchRange = NSRange(location: 0, length: sel.location)
-            found = text.range(of: selectedText, options: .literal, range: searchRange)
+            let wrapRange = NSRange(location: 0, length: currentRanges.first?.location ?? text.length)
+            found = text.range(of: searchWord, options: .literal, range: wrapRange)
         }
 
         guard found.location != NSNotFound else { return }
 
-        textView.setSelectedRange(found)
-        textView.scrollRangeToVisible(found)
+        // Skip if already selected
+        if currentRanges.contains(where: { $0 == found }) { return }
 
-        // Populate find pasteboard
-        let pb = NSPasteboard(name: .find)
-        pb.clearContents()
-        pb.setString(selectedText, forType: .string)
+        // Add the new range to existing selections (multi-cursor)
+        var newRanges = currentRanges
+        newRanges.append(found)
+        textView.setSelectedRanges(newRanges.map { NSValue(range: $0) }, affinity: .downstream, stillSelecting: false)
+        multiSelectSearchOffset = NSMaxRange(found)
+        textView.scrollRangeToVisible(found)
+    }
+
+    /// Reset multi-select state (called when selection changes by other means)
+    private func resetMultiSelectState() {
+        multiSelectWord = nil
+        multiSelectSearchOffset = 0
     }
 
     // MARK: - Delete Line (⌃⇧K)
