@@ -30,7 +30,7 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
     override init(frame: NSRect) {
         let sv = NSTextView.scrollableTextView()
-        let tv = sv.documentView as! NSTextView
+        let tv = sv.documentView as? NSTextView ?? NSTextView()
         self.diffScrollView = sv
         self.diffView = DiffTextView.wrap(tv)
         super.init(frame: frame)
@@ -39,7 +39,7 @@ class SourceControlView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
     required init?(coder: NSCoder) {
         let sv = NSTextView.scrollableTextView()
-        let tv = sv.documentView as! NSTextView
+        let tv = sv.documentView as? NSTextView ?? NSTextView()
         self.diffScrollView = sv
         self.diffView = DiffTextView.wrap(tv)
         super.init(coder: coder)

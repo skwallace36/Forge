@@ -293,8 +293,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         lastBlameLine = -1
         blameLabel?.isHidden = true
 
-        // Handle binary files
-        if doc.isBinary {
+        // Handle binary or too-large files
+        if doc.isBinary || doc.isTooLarge {
             textView.string = ""
             textView.isEditable = false
             highlighter = nil
@@ -1039,7 +1039,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
             // For quotes, only auto-close if not already inside quotes (simple heuristic)
             if isQuotePair {
-                let quoteChar = UInt16(replacement.unicodeScalars.first!.value)
+                guard let firstScalar = replacement.unicodeScalars.first else { return true }
+                let quoteChar = UInt16(firstScalar.value)
                 let text = textView.string as NSString
                 if affectedCharRange.location < text.length &&
                    text.character(at: affectedCharRange.location) == quoteChar {
@@ -1301,8 +1302,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     @objc func nextOccurrence(_ sender: Any? = nil) {
         guard !occurrenceHighlightRanges.isEmpty else { return }
         let cursor = textView.selectedRange().location
-        let next = occurrenceHighlightRanges.first(where: { $0.location > cursor })
-            ?? occurrenceHighlightRanges.first!
+        guard let next = occurrenceHighlightRanges.first(where: { $0.location > cursor })
+            ?? occurrenceHighlightRanges.first else { return }
         textView.setSelectedRange(next)
         textView.scrollRangeToVisible(next)
     }
@@ -1311,8 +1312,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     @objc func previousOccurrence(_ sender: Any? = nil) {
         guard !occurrenceHighlightRanges.isEmpty else { return }
         let cursor = textView.selectedRange().location
-        let prev = occurrenceHighlightRanges.last(where: { $0.location < cursor })
-            ?? occurrenceHighlightRanges.last!
+        guard let prev = occurrenceHighlightRanges.last(where: { $0.location < cursor })
+            ?? occurrenceHighlightRanges.last else { return }
         textView.setSelectedRange(prev)
         textView.scrollRangeToVisible(prev)
     }
@@ -1425,7 +1426,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         // Navigate to the first match near cursor
         if !ranges.isEmpty {
             let cursor = textView.selectedRange().location
-            let target = ranges.first(where: { $0.location >= cursor }) ?? ranges.first!
+            guard let target = ranges.first(where: { $0.location >= cursor }) ?? ranges.first else { return [] }
+
             textView.setSelectedRange(target)
             textView.scrollRangeToVisible(target)
             highlightActiveMatch(target)
@@ -1441,11 +1443,13 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         let target: NSRange
         if direction == .next {
-            target = findHighlightRanges.first(where: { $0.location > cursor })
-                ?? findHighlightRanges.first!
+            guard let t = findHighlightRanges.first(where: { $0.location > cursor })
+                ?? findHighlightRanges.first else { return }
+            target = t
         } else {
-            target = findHighlightRanges.last(where: { $0.location < cursor })
-                ?? findHighlightRanges.last!
+            guard let t = findHighlightRanges.last(where: { $0.location < cursor })
+                ?? findHighlightRanges.last else { return }
+            target = t
         }
 
         textView.setSelectedRange(target)
@@ -2618,7 +2622,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             if closeBrackets.contains(ch) {
                 depth[ch, default: 0] += 1
             } else if openBrackets.contains(ch) {
-                let closeIdx = openBrackets.firstIndex(of: ch)!
+                guard let closeIdx = openBrackets.firstIndex(of: ch) else { i -= 1; continue }
                 let closeCh = closeBrackets[closeIdx]
                 let d = depth[closeCh, default: 0]
                 if d > 0 {
@@ -2635,7 +2639,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         guard openPos >= 0 else { return }
 
         // Search forward for matching close bracket
-        let openIdx = openBrackets.firstIndex(of: openChar)!
+        guard let openIdx = openBrackets.firstIndex(of: openChar) else { return }
         let closeChar = closeBrackets[openIdx]
         var closePos = -1
         var nestCount = 0
@@ -2775,7 +2779,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
             if closeChars.contains(ch) {
                 depth[ch, default: 0] += 1
             } else if openChars.contains(ch) {
-                let idx = openChars.firstIndex(of: ch)!
+                guard let idx = openChars.firstIndex(of: ch) else { i -= 1; continue }
                 let closeCh = closeChars[idx]
                 let d = depth[closeCh, default: 0]
                 if d > 0 {
@@ -2791,7 +2795,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
         guard openPos >= 0 else { return nil }
 
-        let idx = openChars.firstIndex(of: openChar)!
+        guard let idx = openChars.firstIndex(of: openChar) else { return nil }
         let closeChar = closeChars[idx]
         var closePos = -1
         var nestCount = 0
@@ -2839,7 +2843,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
 
             let pb = NSPasteboard(name: .find)
             pb.clearContents()
-            pb.setString(multiSelectWord!, forType: .string)
+            if let word = multiSelectWord { pb.setString(word, forType: .string) }
             return
         }
 
@@ -3829,7 +3833,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         let sorted = gutterView.bookmarkedLines.sorted()
         guard !sorted.isEmpty else { return }
 
-        let target = sorted.first(where: { $0 > currentLine }) ?? sorted.first!
+        guard let target = sorted.first(where: { $0 > currentLine }) ?? sorted.first else { return }
         scrollToLine(target + 1, column: 1)
     }
 
@@ -3839,7 +3843,7 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
         let sorted = gutterView.bookmarkedLines.sorted()
         guard !sorted.isEmpty else { return }
 
-        let target = sorted.last(where: { $0 < currentLine }) ?? sorted.last!
+        guard let target = sorted.last(where: { $0 < currentLine }) ?? sorted.last else { return }
         scrollToLine(target + 1, column: 1)
     }
 

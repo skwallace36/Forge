@@ -362,7 +362,7 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         tabBar.update(tabs: tabManager.tabs, selectedIndex: tabManager.selectedIndex, tabManager: tabManager)
 
         if let doc = tabManager.currentDocument {
-            if doc.isBinary {
+            if doc.isBinary || doc.isTooLarge {
                 editor.scrollView.isHidden = true
                 editor.gutterView.isHidden = true
                 minimap.isHidden = true
@@ -370,19 +370,25 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
                 imagePreview.isHidden = true
                 hideMarkdownPreview()
 
-                // Check if it's an image file
-                let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "bmp", "tiff", "tif", "ico", "webp", "heic", "svg"]
-                if imageExts.contains(doc.fileExtension.lowercased()),
-                   let image = NSImage(contentsOf: doc.url) {
-                    imagePreview.image = image
-                    imagePreview.isHidden = false
-                    let sizeStr = "\(Int(image.size.width)) x \(Int(image.size.height))"
-                    binaryLabel.stringValue = "\(doc.fileName) (\(sizeStr))"
-                } else {
+                if doc.isTooLarge {
                     let sizeStr = formatFileSize(doc.url)
-                    binaryLabel.stringValue = "\(doc.fileName)\nBinary file \(sizeStr)"
+                    binaryLabel.stringValue = "\(doc.fileName)\nFile too large to edit \(sizeStr)"
+                    binaryLabel.isHidden = false
+                } else {
+                    // Check if it's an image file
+                    let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "bmp", "tiff", "tif", "ico", "webp", "heic", "svg"]
+                    if imageExts.contains(doc.fileExtension.lowercased()),
+                       let image = NSImage(contentsOf: doc.url) {
+                        imagePreview.image = image
+                        imagePreview.isHidden = false
+                        let sizeStr = "\(Int(image.size.width)) x \(Int(image.size.height))"
+                        binaryLabel.stringValue = "\(doc.fileName) (\(sizeStr))"
+                    } else {
+                        let sizeStr = formatFileSize(doc.url)
+                        binaryLabel.stringValue = "\(doc.fileName)\nBinary file \(sizeStr)"
+                    }
+                    binaryLabel.isHidden = false
                 }
-                binaryLabel.isHidden = false
             } else {
                 editor.scrollView.isHidden = false
                 editor.gutterView.isHidden = false

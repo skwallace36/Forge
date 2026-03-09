@@ -175,7 +175,7 @@ class BuildLogView: NSView, NSTextViewDelegate {
 
     override init(frame: NSRect) {
         let sv = NSTextView.scrollableTextView()
-        let tv = sv.documentView as! NSTextView
+        let tv = sv.documentView as? NSTextView ?? NSTextView()
 
         self.scrollView = sv
         self.textView = tv

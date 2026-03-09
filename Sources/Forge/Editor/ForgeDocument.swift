@@ -8,6 +8,10 @@ class ForgeDocument {
     let undoManager = UndoManager()
     /// Whether this file appears to be a binary (non-text) file
     private(set) var isBinary: Bool = false
+    /// Whether this file is too large to safely edit in-memory
+    private(set) var isTooLarge: Bool = false
+    /// Maximum file size we'll load into the text editor (50 MB)
+    private static let maxEditableSize = 50 * 1024 * 1024
 
     /// Remembered cursor position (selection range) for this document
     var savedSelectionRange: NSRange?
@@ -41,6 +45,12 @@ class ForgeDocument {
 
     func loadFromDisk() {
         guard let data = try? Data(contentsOf: url) else { return }
+
+        // Reject files that are too large to edit safely
+        if data.count > Self.maxEditableSize {
+            isTooLarge = true
+            return
+        }
 
         // Detect binary files by checking for null bytes in the first 8KB
         let checkLength = min(data.count, 8192)
