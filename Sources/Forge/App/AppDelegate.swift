@@ -171,6 +171,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let closeOtherTabs = NSMenuItem(title: "Close Other Tabs", action: #selector(EditorContainerViewController.closeOtherTabs(_:)), keyEquivalent: "w")
         closeOtherTabs.keyEquivalentModifierMask = [.command, .option]
         fileMenu.addItem(closeOtherTabs)
+
+        let closeAllTabs = NSMenuItem(title: "Close All Tabs", action: #selector(EditorContainerViewController.closeAllTabs(_:)), keyEquivalent: "w")
+        closeAllTabs.keyEquivalentModifierMask = [.command, .option, .shift]
+        fileMenu.addItem(closeAllTabs)
         fileMenuItem.submenu = fileMenu
         mainMenu.addItem(fileMenuItem)
 

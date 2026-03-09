@@ -336,15 +336,22 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         }
 
         findReplaceBar.onHeightChange = { [weak self] height in
-            self?.findBarHeightConstraint.constant = height
-            self?.view.needsLayout = true
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.12
+                self?.findBarHeightConstraint.animator().constant = height
+            }
         }
 
         findReplaceBar.onDismiss = { [weak self] in
             guard let self = self else { return }
             self.editor.clearFindHighlights()
-            self.findBarHeightConstraint.constant = 0
-            self.findReplaceBar.isHidden = true
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.15
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                self.findBarHeightConstraint.animator().constant = 0
+            }, completionHandler: {
+                self.findReplaceBar.isHidden = true
+            })
             self.view.window?.makeFirstResponder(self.editor.textView)
         }
 
@@ -826,8 +833,11 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     private func showFindBar(withReplace: Bool, initialText: String?) {
         findReplaceBar.isHidden = false
         findReplaceBar.show(withReplace: withReplace, initialText: initialText)
-        findBarHeightConstraint.constant = findReplaceBar.barHeight
-        view.needsLayout = true
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.15
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            findBarHeightConstraint.animator().constant = findReplaceBar.barHeight
+        }
     }
 
     @objc func findNext(_ sender: Any?) {
@@ -1057,7 +1067,20 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
     @objc func closeOtherTabs(_ sender: Any?) {
         let index = project.tabManager.selectedIndex
         guard index >= 0 else { return }
+        editor.syncDocumentContent()
+        for (i, tab) in project.tabManager.tabs.enumerated() where i != index {
+            if tab.isModified && !promptSaveForClose(doc: tab.document) { return }
+        }
         project.tabManager.closeOthers(keepingIndex: index)
+        refreshEditor()
+    }
+
+    @objc func closeAllTabs(_ sender: Any?) {
+        editor.syncDocumentContent()
+        for tab in project.tabManager.tabs {
+            if tab.isModified && !promptSaveForClose(doc: tab.document) { return }
+        }
+        project.tabManager.closeAll()
         refreshEditor()
     }
 
