@@ -71,9 +71,13 @@ class StatusBar: NSView {
         ])
     }
 
-    func update(line: Int, column: Int, totalLines: Int, fileExtension: String?, selectionLength: Int = 0, detectedTabWidth: Int? = nil, detectedUseTabs: Bool? = nil) {
+    func update(line: Int, column: Int, totalLines: Int, fileExtension: String?, selectionLength: Int = 0, selectedLineCount: Int = 0, detectedTabWidth: Int? = nil, detectedUseTabs: Bool? = nil) {
         if selectionLength > 0 {
-            lineColLabel.stringValue = "Ln \(line), Col \(column)  (\(Self.formatCount(selectionLength)) sel)"
+            if selectedLineCount > 1 {
+                lineColLabel.stringValue = "Ln \(line), Col \(column)  (\(Self.formatCount(selectionLength)) sel, \(selectedLineCount) lines)"
+            } else {
+                lineColLabel.stringValue = "Ln \(line), Col \(column)  (\(Self.formatCount(selectionLength)) sel)"
+            }
         } else {
             lineColLabel.stringValue = "Ln \(line), Col \(column)  (\(Self.formatCount(totalLines)) lines)"
         }

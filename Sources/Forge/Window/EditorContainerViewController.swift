@@ -201,12 +201,13 @@ class EditorContainerViewController: NSViewController, TabBarDelegate {
         }
 
         // Wire up cursor position to status bar, inspector, and scope display
-        editor.onCursorChange = { [weak self] line, column, totalLines, selectionLength in
+        editor.onCursorChange = { [weak self] line, column, totalLines, selectionLength, selectedLineCount in
             guard let self = self else { return }
             let doc = self.project.tabManager.currentDocument
             self.statusBar.update(
                 line: line, column: column, totalLines: totalLines,
                 fileExtension: doc?.fileExtension, selectionLength: selectionLength,
+                selectedLineCount: selectedLineCount,
                 detectedTabWidth: doc?.detectedTabWidth, detectedUseTabs: doc?.detectedUseTabs
             )
             // Forward cursor position for Quick Help in inspector

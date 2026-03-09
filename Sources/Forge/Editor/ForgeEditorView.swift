@@ -20,8 +20,8 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     /// Current diagnostics for this document
     private(set) var diagnostics: [LSPDiagnostic] = []
 
-    /// Called when cursor position changes: (line, column, totalLines, selectionLength)
-    var onCursorChange: ((Int, Int, Int, Int) -> Void)?
+    /// Called when cursor position changes: (line, column, totalLines, selectionLength, selectedLineCount)
+    var onCursorChange: ((Int, Int, Int, Int, Int) -> Void)?
 
     /// Minimap view (set externally, updated on scroll/edit)
     weak var minimapView: MinimapView?
@@ -688,7 +688,12 @@ class ForgeEditorManager: NSObject, NSTextViewDelegate, NSMenuDelegate {
     private func notifyCursorPosition() {
         let sel = textView.selectedRange()
         let (zeroLine, zeroCol) = characterIndexToLineColumn(sel.location)
-        onCursorChange?(zeroLine + 1, zeroCol + 1, cachedTotalLines, sel.length)
+        var selectedLines = 0
+        if sel.length > 0 {
+            let (endLine, _) = characterIndexToLineColumn(sel.location + sel.length)
+            selectedLines = endLine - zeroLine + 1
+        }
+        onCursorChange?(zeroLine + 1, zeroCol + 1, cachedTotalLines, sel.length, selectedLines)
     }
 
     /// Threshold for switching to visible-range-only highlighting (characters)
