@@ -31,10 +31,10 @@ AppKit window with NSSplitView. Four panel positions:
 
 ## Keyboard Shortcuts (Xcode-compatible)
 
-Navigation: ⇧⌘O (Open Quickly), ⌘⇧J (reveal in navigator), ⌃⌘←/→ (back/forward)
+Navigation: ⇧⌘O (Open Quickly), ⌘T (symbol search), ⌘⇧J (reveal in navigator), ⌃⌘←/→ (back/forward)
 Navigation: ⌃⌘J (jump to definition), ⌃⇧A (quick actions), ⌃⇧M (matching bracket)
 Navigation: ⌃↑/⌃↓ (previous/next method), ⌘L (go to line)
-Tabs: ⌘⇧[ / ⌘⇧] (prev/next), ⌘W (close), ⌘⌥W (close others), ⌘⇧T (reopen)
+Tabs: ⌘⇧[ / ⌘⇧] (prev/next), ⌘W (close), ⌘⌥W (close others), ⌘⌥⇧W (close all), ⌘⇧T (reopen)
 Panels: ⌘0 (navigator), ⌘⌥0 (inspector), ⌘⇧Y (bottom)
 Bottom: ⌃⌘1 (build log), ⌃⌘2 (problems), ⌃⌘3 (terminal), ⌃⌘4 (claude), ⌃⌘5 (search), ⌃⌘6 (source control)
 Edit: ⌘/ (toggle comment), ⌘⌥[/] (move line up/down), ⌃Space (completion), ⌃I (re-indent)
@@ -124,6 +124,11 @@ See PLAN.md for full phase breakdown. Short version:
 - Minimap cursor position indicator
 - Jump to Matching Bracket (⌃⇧M)
 - Previous/Next Method navigation (⌃↑/⌃↓)
+- Go to Symbol in Workspace (⌘T) — opens Open Quickly in symbol search mode
+- Tab rename via double-click or context menu (inline editing, stem pre-selected)
+- Close All Tabs (⌘⌥⇧W) with unsaved changes prompts
+- Animated find bar show/hide (0.15s slide transitions)
+- Single-instance enforcement (kills stale debug processes on launch)
 
 ## Autonomous Development Mode
 
