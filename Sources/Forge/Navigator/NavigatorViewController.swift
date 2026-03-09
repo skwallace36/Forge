@@ -60,6 +60,10 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
         outlineView.target = self
         outlineView.doubleAction = #selector(outlineViewDoubleClicked(_:))
 
+        // Enable drag-and-drop for file moving
+        outlineView.registerForDraggedTypes([.fileURL, NSPasteboard.PasteboardType("forge.navigator.fileNode")])
+        outlineView.setDraggingSourceOperationMask(.move, forLocal: true)
+
         scrollView.documentView = outlineView
         container.addSubview(scrollView)
 
@@ -339,6 +343,87 @@ class NavigatorViewController: NSViewController, NSOutlineViewDataSource, NSOutl
     func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
         guard let node = item as? FileNode else { return false }
         return node.isDirectory && !filteredChildren(of: node).isEmpty
+    }
+
+    // MARK: - Drag and Drop
+
+    /// Write dragged items to the pasteboard
+    func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
+        guard let node = item as? FileNode else { return nil }
+        // Don't allow dragging the root node
+        guard node.url != rootNode?.url else { return nil }
+        return node.url as NSURL
+    }
+
+    /// Validate the drop target — only allow drops on directories
+    func outlineView(_ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo, proposedItem item: Any?, proposedChildIndex index: Int) -> NSDragOperation {
+        // Determine the target directory
+        let targetNode: FileNode?
+        if let node = item as? FileNode {
+            targetNode = node.isDirectory ? node : nil
+        } else {
+            targetNode = rootNode
+        }
+        guard let target = targetNode else { return [] }
+
+        // Get the dragged URLs
+        guard let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] else { return [] }
+
+        // Don't allow drop onto self or into own subtree
+        for url in urls {
+            if url == target.url { return [] }
+            if target.url.path.hasPrefix(url.path + "/") { return [] }
+            // Already in this directory?
+            if url.deletingLastPathComponent() == target.url { return [] }
+        }
+
+        return .move
+    }
+
+    /// Accept the drop and move the file(s)
+    func outlineView(_ outlineView: NSOutlineView, acceptDrop info: NSDraggingInfo, item: Any?, childIndex index: Int) -> Bool {
+        let targetNode: FileNode?
+        if let node = item as? FileNode {
+            targetNode = node.isDirectory ? node : nil
+        } else {
+            targetNode = rootNode
+        }
+        guard let target = targetNode else { return false }
+
+        guard let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] else { return false }
+
+        let fm = FileManager.default
+        var moved = false
+
+        for sourceURL in urls {
+            let destURL = target.url.appendingPathComponent(sourceURL.lastPathComponent)
+            guard destURL != sourceURL else { continue }
+
+            // Check for name collision
+            if fm.fileExists(atPath: destURL.path) {
+                let alert = NSAlert()
+                alert.messageText = "An item named \"\(sourceURL.lastPathComponent)\" already exists."
+                alert.informativeText = "Do you want to replace it?"
+                alert.addButton(withTitle: "Replace")
+                alert.addButton(withTitle: "Skip")
+                alert.alertStyle = .warning
+                if alert.runModal() != .alertFirstButtonReturn { continue }
+                try? fm.removeItem(at: destURL)
+            }
+
+            do {
+                try fm.moveItem(at: sourceURL, to: destURL)
+                moved = true
+            } catch {
+                NSLog("Failed to move \(sourceURL.lastPathComponent): \(error)")
+            }
+        }
+
+        if moved {
+            reloadFileTree()
+            refreshGitStatus()
+        }
+        return moved
     }
 
     // MARK: - NSOutlineViewDelegate
